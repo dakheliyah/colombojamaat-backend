@@ -28,6 +28,9 @@ class SharafMemberController extends Controller
         $validator = Validator::make($request->all(), [
             'its' => ['required', 'numeric'],
             'position_id' => ['required', 'integer', 'exists:sharaf_positions,id'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'najwa' => ['nullable', 'string', 'max:50'],
         ]);
 
         if ($validator->fails()) {
@@ -41,8 +44,11 @@ class SharafMemberController extends Controller
         $its = (string) (int) $request->input('its');
         $positionId = (int) $request->input('position_id');
         $spKeyno = $request->has('sp_keyno') ? (int) $request->input('sp_keyno') : null;
+        $name = $request->input('name');
+        $phone = $request->input('phone');
+        $najwa = $request->input('najwa');
 
-        $result = $this->allocationService->addMember((int) $sharaf_id, $positionId, $its, $spKeyno);
+        $result = $this->allocationService->addMember((int) $sharaf_id, $positionId, $its, $spKeyno, $name, $phone, $najwa);
 
         $warnings = $this->mapWarnings($result['warnings'] ?? []);
 

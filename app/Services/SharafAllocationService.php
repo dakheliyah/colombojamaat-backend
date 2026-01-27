@@ -14,11 +14,14 @@ class SharafAllocationService
      * @param int $positionId
      * @param string $its
      * @param int|null $spKeyno Optional sp_keyno. If not provided, will be auto-assigned.
+     * @param string|null $name Optional name of the member
+     * @param string|null $phone Optional phone number of the member
+     * @param string|null $najwa Optional najwa number of the member
      * @return array Returns array with 'warnings' key containing any warnings
      */
-    public function addMember(int $sharafId, int $positionId, string $its, ?int $spKeyno = null): array
+    public function addMember(int $sharafId, int $positionId, string $its, ?int $spKeyno = null, ?string $name = null, ?string $phone = null, ?string $najwa = null): array
     {
-        return DB::transaction(function () use ($sharafId, $positionId, $its, $spKeyno) {
+        return DB::transaction(function () use ($sharafId, $positionId, $its, $spKeyno, $name, $phone, $najwa) {
             $warnings = [];
 
             // Check if person is already allocated to another sharaf
@@ -52,6 +55,9 @@ class SharafAllocationService
                 'sharaf_position_id' => $positionId,
                 'its_id' => $its,
                 'sp_keyno' => $spKeyno,
+                'name' => $name,
+                'phone' => $phone,
+                'najwa' => $najwa,
             ]);
 
             return ['warnings' => $warnings];

@@ -15,6 +15,9 @@ class SharafMember extends Model
         'sharaf_position_id',
         'its_id',
         'sp_keyno',
+        'name',
+        'phone',
+        'najwa',
     ];
 
     /**
