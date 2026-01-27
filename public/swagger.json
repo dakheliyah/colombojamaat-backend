@@ -1,0 +1,1301 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Miqaat API",
+    "description": "API documentation for Miqaat management system including Census, Events, Sharafs, and related operations",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "API Base URL"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Census",
+      "description": "Census data operations"
+    },
+    {
+      "name": "Families",
+      "description": "Family summary operations"
+    },
+    {
+      "name": "Users",
+      "description": "User operations"
+    },
+    {
+      "name": "Miqaats",
+      "description": "Miqaat operations"
+    },
+    {
+      "name": "Events",
+      "description": "Event operations"
+    },
+    {
+      "name": "Sharaf Definitions",
+      "description": "Sharaf definition operations"
+    },
+    {
+      "name": "Sharaf Positions",
+      "description": "Sharaf position operations"
+    },
+    {
+      "name": "Sharafs",
+      "description": "Sharaf operations"
+    },
+    {
+      "name": "Sharaf Members",
+      "description": "Sharaf member operations"
+    },
+    {
+      "name": "Sharaf Clearances",
+      "description": "Sharaf clearance operations"
+    },
+    {
+      "name": "Sharaf Payments",
+      "description": "Sharaf payment operations"
+    }
+  ],
+  "paths": {
+    "/census": {
+      "get": {
+        "tags": ["Census"],
+        "summary": "Get all census records",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/census/search": {
+      "get": {
+        "tags": ["Census"],
+        "summary": "Search census records",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/census/{its_id}": {
+      "get": {
+        "tags": ["Census"],
+        "summary": "Get census record by ITS ID",
+        "parameters": [
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS ID of the person"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/census/{its_id}/with-relations": {
+      "get": {
+        "tags": ["Census"],
+        "summary": "Get census record with family relationships",
+        "parameters": [
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS ID of the person"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/census/family/{hof_its}": {
+      "get": {
+        "tags": ["Census"],
+        "summary": "Get family members by Head of Family ITS",
+        "parameters": [
+          {
+            "name": "hof_its",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Head of Family ITS ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/families/{hof_its}/summary": {
+      "get": {
+        "tags": ["Families"],
+        "summary": "Get family summary",
+        "parameters": [
+          {
+            "name": "hof_its",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Head of Family ITS ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/its/{its_no}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user by ITS number",
+        "parameters": [
+          {
+            "name": "its_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS number"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats": {
+      "get": {
+        "tags": ["Miqaats"],
+        "summary": "Get all miqaats",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Miqaats"],
+        "summary": "Create a new miqaat",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the miqaat"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Date of the miqaat"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "tags": ["Events"],
+        "summary": "Get all events",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Events"],
+        "summary": "Create a new event",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "miqaat_id": {
+                    "type": "integer",
+                    "description": "ID of the miqaat"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the event"
+                  }
+                },
+                "required": ["miqaat_id", "name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{event_id}/sharaf-definitions": {
+      "get": {
+        "tags": ["Events", "Sharaf Definitions"],
+        "summary": "Get sharaf definitions for an event",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Event ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{miqaat_id}": {
+      "get": {
+        "tags": ["Events"],
+        "summary": "Get events by miqaat ID",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definitions": {
+      "post": {
+        "tags": ["Sharaf Definitions"],
+        "summary": "Create a new sharaf definition",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "event_id": {
+                    "type": "integer",
+                    "description": "ID of the event"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the sharaf definition"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the sharaf definition"
+                  }
+                },
+                "required": ["event_id", "name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definitions/{sd_id}/sharafs": {
+      "get": {
+        "tags": ["Sharaf Definitions", "Sharafs"],
+        "summary": "Get sharafs for a sharaf definition",
+        "parameters": [
+          {
+            "name": "sd_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf definition ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definitions/{id}/positions": {
+      "get": {
+        "tags": ["Sharaf Definitions", "Sharaf Positions"],
+        "summary": "Get positions for a sharaf definition",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf definition ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-positions": {
+      "post": {
+        "tags": ["Sharaf Positions"],
+        "summary": "Create a new sharaf position",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sharaf_definition_id": {
+                    "type": "integer",
+                    "description": "ID of the sharaf definition"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the position"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description of the position"
+                  }
+                },
+                "required": ["sharaf_definition_id", "name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharafs": {
+      "get": {
+        "tags": ["Sharafs"],
+        "summary": "Get all sharafs with optional filtering",
+        "parameters": [
+          {
+            "name": "sharaf_definition_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Filter by sharaf definition ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "bs_approved", "confirmed", "rejected", "cancelled"]
+            },
+            "description": "Filter by status"
+          },
+          {
+            "name": "hof_its",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by Head of Family ITS"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Sharafs"],
+        "summary": "Create a new sharaf",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSharafRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharafs/{sharaf_id}": {
+      "get": {
+        "tags": ["Sharafs"],
+        "summary": "Get a single sharaf",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Sharafs"],
+        "summary": "Delete a sharaf",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharafs/{sharaf_id}/status": {
+      "put": {
+        "tags": ["Sharafs"],
+        "summary": "Update sharaf status",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["pending", "bs_approved", "confirmed", "rejected", "cancelled"],
+                    "description": "New status"
+                  }
+                },
+                "required": ["status"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Sharafs"],
+        "summary": "Update sharaf status",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["pending", "bs_approved", "confirmed", "rejected", "cancelled"],
+                    "description": "New status"
+                  }
+                },
+                "required": ["status"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharafs/{sharaf_id}/evaluate-confirmation": {
+      "post": {
+        "tags": ["Sharafs"],
+        "summary": "Evaluate and update sharaf confirmation status",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharafs/{sharaf_id}/members": {
+      "get": {
+        "tags": ["Sharaf Members"],
+        "summary": "Get all members assigned to a sharaf",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Sharaf Members"],
+        "summary": "Add a member to a sharaf",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddSharafMemberRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharafs/{sharaf_id}/members/{its}": {
+      "delete": {
+        "tags": ["Sharaf Members"],
+        "summary": "Remove a member from a sharaf",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          },
+          {
+            "name": "its",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS number of the person to remove"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Member removed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharafs/{sharaf_id}/clearances": {
+      "post": {
+        "tags": ["Sharaf Clearances"],
+        "summary": "Toggle clearance status for a sharaf's Head of Family",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "is_cleared": {
+                    "type": "boolean",
+                    "description": "Whether the clearance is complete"
+                  },
+                  "cleared_by_its": {
+                    "type": "string",
+                    "description": "ITS number of the person who cleared it"
+                  }
+                },
+                "required": ["is_cleared"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Clearance updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharafs/{sharaf_id}/lagat": {
+      "post": {
+        "tags": ["Sharaf Payments"],
+        "summary": "Toggle lagat payment status for a sharaf",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paid": {
+                    "type": "boolean",
+                    "description": "Whether lagat payment is paid"
+                  }
+                },
+                "required": ["paid"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharafs/{sharaf_id}/najwa": {
+      "post": {
+        "tags": ["Sharaf Payments"],
+        "summary": "Toggle najwa ada payment status for a sharaf",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paid": {
+                    "type": "boolean",
+                    "description": "Whether najwa ada payment is paid"
+                  }
+                },
+                "required": ["paid"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "description": "Response data"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "VALIDATION_ERROR"
+          },
+          "message": {
+            "type": "string",
+            "example": "The field is required."
+          }
+        }
+      },
+      "CreateSharafRequest": {
+        "type": "object",
+        "required": ["sharaf_definition_id", "rank", "capacity", "hof_its"],
+        "properties": {
+          "sharaf_definition_id": {
+            "type": "integer",
+            "description": "ID of the sharaf definition (must exist in sharaf_definitions table)",
+            "example": 1
+          },
+          "rank": {
+            "type": "integer",
+            "description": "Rank of the sharaf (must be unique within the sharaf_definition_id, minimum: 1)",
+            "minimum": 1,
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the sharaf (max 255 characters)",
+            "maxLength": 255,
+            "example": "Sharaf Group 1"
+          },
+          "capacity": {
+            "type": "integer",
+            "description": "Maximum number of people in the sharaf (minimum: 1)",
+            "minimum": 1,
+            "example": 10
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "bs_approved", "confirmed", "rejected", "cancelled"],
+            "description": "Status of the sharaf",
+            "default": "pending",
+            "example": "pending"
+          },
+          "hof_its": {
+            "type": "string",
+            "description": "ITS number of the Head of Family",
+            "example": "123456"
+          },
+          "lagat_paid": {
+            "type": "boolean",
+            "description": "Whether lagat payment is paid",
+            "default": false,
+            "example": false
+          },
+          "najwa_ada_paid": {
+            "type": "boolean",
+            "description": "Whether najwa ada payment is paid",
+            "default": false,
+            "example": false
+          }
+        }
+      },
+      "AddSharafMemberRequest": {
+        "type": "object",
+        "required": ["its", "position_id"],
+        "properties": {
+          "its": {
+            "type": "string",
+            "description": "ITS number of the person to add",
+            "example": "123456"
+          },
+          "position_id": {
+            "type": "integer",
+            "description": "ID of the sharaf position (must exist in sharaf_positions table)",
+            "example": 1
+          },
+          "sp_keyno": {
+            "type": "integer",
+            "description": "Key number for ordering within the position",
+            "example": 1
+          }
+        }
+      }
+    }
+  }
+}

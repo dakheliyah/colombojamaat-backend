@@ -5,7 +5,10 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\FamilySummaryController;
 use App\Http\Controllers\MiqaatController;
 use App\Http\Controllers\SharafController;
+use App\Http\Controllers\SharafClearanceController;
 use App\Http\Controllers\SharafDefinitionController;
+use App\Http\Controllers\SharafMemberController;
+use App\Http\Controllers\SharafPaymentController;
 use App\Http\Controllers\SharafPositionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -49,3 +52,15 @@ Route::delete('/sharafs/{sharaf_id}', [SharafController::class, 'destroy']);
 Route::put('/sharafs/{sharaf_id}/status', [SharafController::class, 'status']);
 Route::patch('/sharafs/{sharaf_id}/status', [SharafController::class, 'status']);
 Route::post('/sharafs/{sharaf_id}/evaluate-confirmation', [SharafController::class, 'evaluateConfirmation']);
+
+// Sharaf Member routes
+Route::get('/sharafs/{sharaf_id}/members', [SharafMemberController::class, 'index']);
+Route::post('/sharafs/{sharaf_id}/members', [SharafMemberController::class, 'store']);
+Route::delete('/sharafs/{sharaf_id}/members/{its}', [SharafMemberController::class, 'destroy']);
+
+// Sharaf Clearance routes
+Route::post('/sharafs/{sharaf_id}/clearances', [SharafClearanceController::class, 'store']);
+
+// Sharaf Payment routes
+Route::post('/sharafs/{sharaf_id}/lagat', [SharafPaymentController::class, 'lagat']);
+Route::post('/sharafs/{sharaf_id}/najwa', [SharafPaymentController::class, 'najwa']);
