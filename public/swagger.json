@@ -1260,18 +1260,6 @@
             "type": "string",
             "description": "ITS number of the Head of Family",
             "example": "123456"
-          },
-          "lagat_paid": {
-            "type": "boolean",
-            "description": "Whether lagat payment is paid",
-            "default": false,
-            "example": false
-          },
-          "najwa_ada_paid": {
-            "type": "boolean",
-            "description": "Whether najwa ada payment is paid",
-            "default": false,
-            "example": false
           }
         }
       },

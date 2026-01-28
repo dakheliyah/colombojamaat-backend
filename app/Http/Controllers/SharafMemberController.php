@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\DuplicateSharafAssignmentException;
 use App\Models\SharafMember;
 use App\Services\SharafAllocationService;
 use Illuminate\Http\JsonResponse;
@@ -48,15 +49,43 @@ class SharafMemberController extends Controller
         $phone = $request->input('phone');
         $najwa = $request->input('najwa');
 
-        $result = $this->allocationService->addMember((int) $sharaf_id, $positionId, $its, $spKeyno, $name, $phone, $najwa);
+        try {
+            $result = $this->allocationService->addMember((int) $sharaf_id, $positionId, $its, $spKeyno, $name, $phone, $najwa);
 
-        $warnings = $this->mapWarnings($result['warnings'] ?? []);
+            $warnings = $this->mapWarnings($result['warnings'] ?? []);
 
-        if (!empty($warnings)) {
-            return $this->jsonSuccessWithWarnings($warnings);
+            if (!empty($warnings)) {
+                return $this->jsonSuccessWithWarnings($warnings);
+            }
+
+            return $this->jsonSuccess();
+        } catch (DuplicateSharafAssignmentException $e) {
+            return $this->jsonError(
+                'DUPLICATE_ASSIGNMENT',
+                $e->getMessage(),
+                422
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->jsonError(
+                'NOT_FOUND',
+                'Sharaf not found.',
+                404
+            );
+        } catch (\Exception $e) {
+            // Log the exception for debugging
+            \Log::error('Error adding sharaf member: ' . $e->getMessage(), [
+                'exception' => $e,
+                'sharaf_id' => $sharaf_id,
+                'its' => $its,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return $this->jsonError(
+                'INTERNAL_ERROR',
+                'An error occurred while adding the member. Please check the logs for details.',
+                500
+            );
         }
-
-        return $this->jsonSuccess();
     }
 
     public function destroy(string $sharaf_id, string $its): JsonResponse
@@ -68,20 +97,25 @@ class SharafMemberController extends Controller
 
     /**
      * Map service warnings to API format.
-     * allocated_elsewhere -> ALREADY_ALLOCATED with sharaf_ids.
+     * same_miqaat -> SAME_MIQAAT_ASSIGNMENT with sharaf_id and sharaf_info.
      */
     protected function mapWarnings(array $serviceWarnings): array
     {
         $api = [];
-        $elsewhere = $serviceWarnings['allocated_elsewhere'] ?? [];
-        if (!empty($elsewhere)) {
-            $sharafIds = array_values(array_unique(array_column($elsewhere, 'sharaf_id')));
-            $api[] = [
-                'type' => 'ALREADY_ALLOCATED',
-                'message' => 'This person is already allocated to another sharaf.',
-                'sharaf_ids' => $sharafIds,
-            ];
+        
+        // Handle same miqaat assignments
+        $sameMiqaat = $serviceWarnings['same_miqaat'] ?? [];
+        if (!empty($sameMiqaat)) {
+            foreach ($sameMiqaat as $assignment) {
+                $api[] = [
+                    'type' => 'SAME_MIQAAT_ASSIGNMENT',
+                    'message' => "This person is already assigned to sharaf ID {$assignment['sharaf_id']} in the same miqaat.",
+                    'sharaf_id' => $assignment['sharaf_id'],
+                    'sharaf_info' => $assignment['sharaf_info'],
+                ];
+            }
         }
+        
         return $api;
     }
 }

@@ -18,16 +18,12 @@ class Sharaf extends Model
         'capacity',
         'status',
         'hof_its',
-        'lagat_paid',
-        'najwa_ada_paid',
     ];
 
     protected $casts = [
         'rank' => 'integer',
         'capacity' => 'integer',
         'status' => SharafStatus::class,
-        'lagat_paid' => 'boolean',
-        'najwa_ada_paid' => 'boolean',
     ];
 
     /**
@@ -55,6 +51,14 @@ class Sharaf extends Model
     }
 
     /**
+     * Get the sharaf payments for the sharaf.
+     */
+    public function sharafPayments(): HasMany
+    {
+        return $this->hasMany(SharafPayment::class);
+    }
+
+    /**
      * Get the clearance for this sharaf's HOF.
      */
     public function hofClearance()
@@ -64,19 +68,58 @@ class Sharaf extends Model
     }
 
     /**
+     * Check if a specific payment is paid by payment name.
+     *
+     * @param string $paymentName
+     * @return bool
+     */
+    public function hasPaymentPaid(string $paymentName): bool
+    {
+        $payment = $this->sharafPayments()
+            ->whereHas('paymentDefinition', function ($query) use ($paymentName) {
+                $query->where('name', $paymentName)
+                    ->where('sharaf_definition_id', $this->sharaf_definition_id);
+            })
+            ->where('payment_status', true)
+            ->first();
+
+        return $payment !== null;
+    }
+
+    /**
      * Check if the sharaf can be confirmed.
      * A sharaf becomes confirmed only when ALL are true:
      * - Clearance for that sharaf's HOF is complete
-     * - lagat_paid = true
-     * - najwa_ada_paid = true
+     * - All required payments for the sharaf definition are paid
      */
     public function canBeConfirmed(): bool
     {
         $clearance = $this->hofClearance()->first();
         
-        return $clearance 
-            && $clearance->is_cleared 
-            && $this->lagat_paid 
-            && $this->najwa_ada_paid;
+        if (!$clearance || !$clearance->is_cleared) {
+            return false;
+        }
+
+        // Get all payment definitions for this sharaf's definition
+        $paymentDefinitions = PaymentDefinition::where('sharaf_definition_id', $this->sharaf_definition_id)->get();
+        
+        if ($paymentDefinitions->isEmpty()) {
+            // If no payment definitions exist, only clearance is required
+            return true;
+        }
+
+        // Check that all payment definitions have corresponding paid records
+        foreach ($paymentDefinitions as $paymentDef) {
+            $payment = $this->sharafPayments()
+                ->where('payment_definition_id', $paymentDef->id)
+                ->where('payment_status', true)
+                ->first();
+            
+            if (!$payment) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

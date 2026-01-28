@@ -23,8 +23,6 @@ All endpoints are prefixed with your API base URL (e.g., `/api` or `/`).
 | `capacity` | integer | Yes | Maximum number of people in the sharaf (minimum: 1) |
 | `status` | string | No | Status of the sharaf. Options: `pending`, `bs_approved`, `confirmed`, `rejected`, `cancelled`. Default: `pending` |
 | `hof_its` | string | Yes | ITS number of the Head of Family |
-| `lagat_paid` | boolean | No | Whether lagat payment is paid. Default: `false` |
-| `najwa_ada_paid` | boolean | No | Whether najwa ada payment is paid. Default: `false` |
 
 ### Request Example
 
@@ -35,9 +33,7 @@ All endpoints are prefixed with your API base URL (e.g., `/api` or `/`).
   "name": "Sharaf Group 1",
   "capacity": 10,
   "status": "pending",
-  "hof_its": "123456",
-  "lagat_paid": false,
-  "najwa_ada_paid": false
+  "hof_its": "123456"
 }
 ```
 
@@ -54,8 +50,6 @@ All endpoints are prefixed with your API base URL (e.g., `/api` or `/`).
     "capacity": 10,
     "status": "pending",
     "hof_its": "123456",
-    "lagat_paid": false,
-    "najwa_ada_paid": false,
     "created_at": "2024-01-01T00:00:00.000000Z",
     "updated_at": "2024-01-01T00:00:00.000000Z",
     "sharaf_definition": {
@@ -108,8 +102,6 @@ All endpoints are prefixed with your API base URL (e.g., `/api` or `/`).
     "capacity": 10,
     "status": "pending",
     "hof_its": "123456",
-    "lagat_paid": false,
-    "najwa_ada_paid": false,
     "created_at": "2024-01-01T00:00:00.000000Z",
     "updated_at": "2024-01-01T00:00:00.000000Z",
     "sharaf_definition": {
@@ -596,7 +588,6 @@ The `status` field can have the following values:
 
 4. **Confirmation Requirements**: A sharaf can only be confirmed when:
    - Clearance for the sharaf's HOF is complete (`is_cleared = true`)
-   - `lagat_paid = true`
-   - `najwa_ada_paid = true`
+   - All required payments for the sharaf definition are paid (checked via `sharaf_payments` table)
 
 5. **ITS Format**: ITS numbers are stored as strings to preserve leading zeros and handle various formats.

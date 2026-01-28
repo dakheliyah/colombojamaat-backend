@@ -149,8 +149,6 @@ class DatabaseSeeder extends Seeder
             'capacity' => 6,
             'status' => SharafStatus::PENDING,
             'hof_its' => 'ITS001',
-            'lagat_paid' => false,
-            'najwa_ada_paid' => false,
         ]);
 
         $sharaf2 = Sharaf::create([
@@ -160,8 +158,6 @@ class DatabaseSeeder extends Seeder
             'capacity' => 6,
             'status' => SharafStatus::BS_APPROVED,
             'hof_its' => 'ITS002',
-            'lagat_paid' => true,
-            'najwa_ada_paid' => false,
         ]);
 
         $sharaf3 = Sharaf::create([
@@ -171,8 +167,6 @@ class DatabaseSeeder extends Seeder
             'capacity' => 8,
             'status' => SharafStatus::PENDING,
             'hof_its' => 'ITS003',
-            'lagat_paid' => false,
-            'najwa_ada_paid' => false,
         ]);
 
         $sharaf4 = Sharaf::create([
@@ -182,8 +176,6 @@ class DatabaseSeeder extends Seeder
             'capacity' => 3,
             'status' => SharafStatus::CONFIRMED,
             'hof_its' => 'ITS004',
-            'lagat_paid' => true,
-            'najwa_ada_paid' => true,
         ]);
 
         // Seed Sharaf Members

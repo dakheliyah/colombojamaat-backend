@@ -23,6 +23,10 @@ abstract class Controller
 
     protected function jsonError(string $error, string $message, int $status = 422): JsonResponse
     {
-        return response()->json(['error' => $error, 'message' => $message], $status);
+        return response()->json([
+            'success' => false,
+            'error' => $error,
+            'message' => $message
+        ], $status);
     }
 }

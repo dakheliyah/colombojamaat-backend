@@ -8,6 +8,7 @@ use App\Http\Controllers\SharafController;
 use App\Http\Controllers\SharafClearanceController;
 use App\Http\Controllers\SharafDefinitionController;
 use App\Http\Controllers\SharafMemberController;
+use App\Http\Controllers\PaymentDefinitionController;
 use App\Http\Controllers\SharafPaymentController;
 use App\Http\Controllers\SharafPositionController;
 use App\Http\Controllers\UserController;
@@ -40,6 +41,7 @@ Route::get('/events/{miqaat_id}', [EventController::class, 'byMiqaat']);
 Route::get('/sharaf-definitions/{sd_id}/sharafs', [SharafDefinitionController::class, 'sharafs']);
 Route::post('/sharaf-definitions', [SharafDefinitionController::class, 'store']);
 Route::get('/sharaf-definitions/{id}/positions', [SharafDefinitionController::class, 'positions']);
+Route::get('/sharaf-definitions/{id}/payment-definitions', [SharafDefinitionController::class, 'paymentDefinitions']);
 
 // Sharaf Position routes
 Route::post('/sharaf-positions', [SharafPositionController::class, 'store']);
@@ -61,6 +63,12 @@ Route::delete('/sharafs/{sharaf_id}/members/{its}', [SharafMemberController::cla
 // Sharaf Clearance routes
 Route::post('/sharafs/{sharaf_id}/clearances', [SharafClearanceController::class, 'store']);
 
+// Payment Definition routes
+Route::get('/payment-definitions', [PaymentDefinitionController::class, 'index']);
+Route::post('/payment-definitions', [PaymentDefinitionController::class, 'store']);
+
 // Sharaf Payment routes
+Route::get('/sharaf-payments', [SharafPaymentController::class, 'index']);
+Route::post('/sharafs/{sharaf_id}/payments', [SharafPaymentController::class, 'store']);
 Route::post('/sharafs/{sharaf_id}/lagat', [SharafPaymentController::class, 'lagat']);
 Route::post('/sharafs/{sharaf_id}/najwa', [SharafPaymentController::class, 'najwa']);

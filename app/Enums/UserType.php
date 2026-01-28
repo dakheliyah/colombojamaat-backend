@@ -8,6 +8,7 @@ enum UserType: string
     case ADMIN = 'Admin';
     case HELP_DESK = 'Help Desk';
     case ANJUMAN = 'Anjuman';
+    case FINANCE = 'Finance';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum UserType: string
             self::ADMIN => 'Admin',
             self::HELP_DESK => 'Help Desk',
             self::ANJUMAN => 'Anjuman',
+            self::FINANCE => 'Finance',
         };
     }
 }

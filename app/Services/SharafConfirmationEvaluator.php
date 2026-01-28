@@ -11,8 +11,7 @@ class SharafConfirmationEvaluator
      * Evaluate and update the confirmation status of a sharaf.
      * A sharaf becomes confirmed only when ALL are true:
      * - Clearance for that sharaf's HOF is complete
-     * - lagat_paid = true
-     * - najwa_ada_paid = true
+     * - All required payments for the sharaf definition are paid
      *
      * @param int $sharafId
      * @return void

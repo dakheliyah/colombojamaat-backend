@@ -40,4 +40,12 @@ class SharafDefinition extends Model
     {
         return $this->hasMany(SharafPosition::class);
     }
+
+    /**
+     * Get the payment definitions for the sharaf definition.
+     */
+    public function paymentDefinitions(): HasMany
+    {
+        return $this->hasMany(PaymentDefinition::class);
+    }
 }

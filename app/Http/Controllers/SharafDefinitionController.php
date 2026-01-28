@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PaymentDefinition;
 use App\Models\Sharaf;
 use App\Models\SharafDefinition;
 use App\Models\SharafPosition;
@@ -21,7 +22,7 @@ class SharafDefinitionController extends Controller
     public function sharafs(string $sd_id): JsonResponse
     {
         $sharafs = Sharaf::where('sharaf_definition_id', $sd_id)
-            ->with(['sharafDefinition', 'sharafMembers', 'sharafClearances'])
+            ->with(['sharafDefinition', 'sharafMembers', 'sharafClearances', 'sharafPayments.paymentDefinition'])
             ->get();
 
         return $this->jsonSuccessWithData($sharafs);
@@ -65,5 +66,20 @@ class SharafDefinitionController extends Controller
             ->get();
 
         return $this->jsonSuccessWithData($positions);
+    }
+
+    public function paymentDefinitions(string $id): JsonResponse
+    {
+        $sharafDefinition = SharafDefinition::find($id);
+
+        if (!$sharafDefinition) {
+            return $this->jsonError('NOT_FOUND', 'Sharaf definition not found.', 404);
+        }
+
+        $paymentDefinitions = PaymentDefinition::where('sharaf_definition_id', $id)
+            ->orderBy('name')
+            ->get();
+
+        return $this->jsonSuccessWithData($paymentDefinitions);
     }
 }
