@@ -71,6 +71,8 @@ interface GroupMember {
 
 interface GroupData {
   wg_id: number;
+  group_name: string | null;           // Name of the group
+  group_type: 'business_grouping' | 'personal_grouping' | 'organization' | null;  // Type of the group
   master_its: string;                  // ITS ID of the group master
   members: GroupMember[];             // All members in the group
 }
@@ -225,6 +227,8 @@ interface ValidationErrorResponse {
     ],
     "group": {
       "wg_id": 5,
+      "group_name": "Family Group A",
+      "group_type": "Family",
       "master_its": "123456",
       "members": [
         {
@@ -578,6 +582,8 @@ Content-Type: application/json
     ],
     "group": {
       "wg_id": 5,
+      "group_name": "Family Group A",
+      "group_type": "Family",
       "master_its": "123456",
       "members": [
         {
