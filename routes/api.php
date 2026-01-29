@@ -32,7 +32,12 @@ Route::get('/census/{its_id}', [CensusController::class, 'show']);
 Route::get('/families/{hof_its}/summary', [FamilySummaryController::class, 'show']);
 
 // User routes
+Route::get('/users', [UserController::class, 'index']);
 Route::get('/users/its/{its_no}', [UserController::class, 'showByItsNo']);
+Route::get('/users/{id}', [UserController::class, 'show']);
+Route::post('/users', [UserController::class, 'store']);
+Route::put('/users/{id}', [UserController::class, 'update']);
+Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
 // Miqaat routes
 Route::get('/miqaats', [MiqaatController::class, 'index']);
