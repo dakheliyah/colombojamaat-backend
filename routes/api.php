@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthSessionController;
 use App\Http\Controllers\CensusController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\FamilySummaryController;
@@ -15,6 +16,9 @@ use App\Http\Controllers\SharafPositionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WajebaatController;
 use Illuminate\Support\Facades\Route;
+
+// Auth Session (its_no cookie)
+Route::get('/auth/session', [AuthSessionController::class, 'show']);
 
 // Census routes
 Route::get('/census', [CensusController::class, 'index']);

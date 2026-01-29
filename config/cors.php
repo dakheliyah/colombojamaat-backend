@@ -10,11 +10,25 @@ return [
     | or "CORS". This determines what cross-origin operations may execute
     | in web browsers. You are free to adjust these settings as needed.
     |
+    | When using credentials (cookies), do not use '*' for allowed_origins;
+    | set CORS_ALLOWED_ORIGINS to a comma-separated list of frontend origins.
+    |
     | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
     |
     */
-'paths' => ['api/*'],
-'allowed_origins' => ['*'], // tighten later
-'allowed_methods' => ['*'],
-'allowed_headers' => ['*'],
+
+    'paths' => ['api/*'],
+
+    'allowed_methods' => ['*'],
+
+    'allowed_origins' => (function () {
+        $raw = env('CORS_ALLOWED_ORIGINS', 'http://localhost:5173');
+        $arr = array_values(array_filter(array_map('trim', explode(',', (string) $raw))));
+
+        return $arr !== [] ? $arr : ['http://localhost:5173'];
+    })(),
+
+    'allowed_headers' => ['*'],
+
+    'supports_credentials' => true,
 ];
