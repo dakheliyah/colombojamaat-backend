@@ -16,6 +16,10 @@
   ],
   "tags": [
     {
+      "name": "Auth Session",
+      "description": "Session / ITS from cookie (its_no)"
+    },
+    {
       "name": "Census",
       "description": "Census data operations"
     },
@@ -32,12 +36,24 @@
       "description": "Miqaat operations"
     },
     {
+      "name": "Miqaat Check Definitions",
+      "description": "CRUD for miqaat_check_definitions (department checks)"
+    },
+    {
+      "name": "Miqaat Checks",
+      "description": "List and upsert miqaat_checks for a person within a miqaat (Anjuman view)"
+    },
+    {
       "name": "Events",
       "description": "Event operations"
     },
     {
       "name": "Sharaf Definitions",
       "description": "Sharaf definition operations"
+    },
+    {
+      "name": "Payment Definitions",
+      "description": "Payment type definitions per sharaf definition"
     },
     {
       "name": "Sharaf Positions",
@@ -65,6 +81,47 @@
     }
   ],
   "paths": {
+    "/auth/session": {
+      "get": {
+        "tags": ["Auth Session"],
+        "summary": "Get current session ITS number",
+        "description": "Reads the its_no cookie from the request, decrypts if needed, and returns the plain ITS number. Requires credentials (cookies). Returns 401 when cookie is missing or invalid.",
+        "responses": {
+          "200": {
+            "description": "Valid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["its_no"],
+                  "properties": {
+                    "its_no": {
+                      "type": "string",
+                      "description": "Plain ITS number from cookie",
+                      "example": "30361286"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session (cookie missing or invalid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "example": "unauthorized" },
+                    "message": { "type": "string", "example": "No valid session." }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/census": {
       "get": {
         "tags": ["Census"],
@@ -332,6 +389,277 @@
         }
       }
     },
+    "/miqaat-check-definitions": {
+      "get": {
+        "tags": ["Miqaat Check Definitions"],
+        "summary": "List miqaat check definitions",
+        "description": "Paginated list, optionally filtered by miqaat_id. Ordered by miqaat_id then name.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer" },
+            "description": "Filter by miqaat (must exist in miqaats table)"
+          },
+          {
+            "name": "user_type",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["BS", "Admin", "Help Desk", "Anjuman", "Finance"] },
+            "description": "Filter by user_type (e.g. Anjuman). Values: BS, Admin, Help Desk, Anjuman, Finance"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1 },
+            "description": "Page number (default: 1)"
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100 },
+            "description": "Items per page (default: 15)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Miqaat Check Definitions"],
+        "summary": "Create a miqaat check definition",
+        "description": "Name must be unique within the given miqaat.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["miqaat_id", "name"],
+                "properties": {
+                  "miqaat_id": { "type": "integer", "description": "ID of the miqaat" },
+                  "name": { "type": "string", "maxLength": 255, "description": "Name (unique per miqaat)" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error or duplicate name for miqaat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaat-check-definitions/{mcd_id}": {
+      "get": {
+        "tags": ["Miqaat Check Definitions"],
+        "summary": "Get a single miqaat check definition",
+        "parameters": [
+          {
+            "name": "mcd_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Primary key of the check definition"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Miqaat Check Definitions"],
+        "summary": "Update a miqaat check definition",
+        "parameters": [
+          {
+            "name": "mcd_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["miqaat_id", "name"],
+                "properties": {
+                  "miqaat_id": { "type": "integer" },
+                  "name": { "type": "string", "maxLength": 255 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Miqaat Check Definitions"],
+        "summary": "Update a miqaat check definition",
+        "parameters": [
+          {
+            "name": "mcd_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["miqaat_id", "name"],
+                "properties": {
+                  "miqaat_id": { "type": "integer" },
+                  "name": { "type": "string", "maxLength": 255 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Miqaat Check Definitions"],
+        "summary": "Delete a miqaat check definition",
+        "description": "If miqaat_checks reference this definition, their mcd_id is set to null.",
+        "parameters": [
+          {
+            "name": "mcd_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events": {
       "get": {
         "tags": ["Events"],
@@ -539,6 +867,43 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definitions/{id}/payment-definitions": {
+      "get": {
+        "tags": ["Sharaf Definitions", "Payment Definitions"],
+        "summary": "Get payment definitions for a sharaf definition",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Sharaf definition ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sharaf definition not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1025,6 +1390,128 @@
         }
       }
     },
+    "/payment-definitions": {
+      "get": {
+        "tags": ["Payment Definitions"],
+        "summary": "List payment definitions",
+        "description": "Paginated list, optionally filtered by sharaf_definition_id.",
+        "parameters": [
+          {
+            "name": "sharaf_definition_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer" },
+            "description": "Filter by sharaf definition"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1 }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Payment Definitions"],
+        "summary": "Create a payment definition",
+        "description": "Name must be unique per sharaf definition.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["sharaf_definition_id", "name"],
+                "properties": {
+                  "sharaf_definition_id": { "type": "integer", "description": "ID of the sharaf definition" },
+                  "name": { "type": "string", "maxLength": 255 },
+                  "description": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error or duplicate name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-payments": {
+      "get": {
+        "tags": ["Sharaf Payments"],
+        "summary": "List sharaf payments",
+        "description": "Paginated list, optionally filtered by sharaf_id.",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1 }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sharafs/{sharaf_id}/clearances": {
       "post": {
         "tags": ["Sharaf Clearances"],
@@ -1197,6 +1684,69 @@
         }
       }
     },
+    "/sharafs/{sharaf_id}/payments": {
+      "post": {
+        "tags": ["Sharaf Payments"],
+        "summary": "Create or update a sharaf payment",
+        "description": "Creates or updates a payment record for the sharaf. payment_status is set to false. Use lagat/najwa endpoints for toggling paid status.",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Sharaf ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["payment_definition_id", "payment_amount"],
+                "properties": {
+                  "payment_definition_id": { "type": "integer", "description": "ID of the payment definition" },
+                  "payment_amount": { "type": "number", "minimum": 0, "description": "Payment amount" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created/updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sharaf not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/wajebaat/takhmeen": {
       "post": {
         "tags": ["Wajebaat"],
@@ -1219,6 +1769,370 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TakhmeenStoreResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/miqaat-checks": {
+      "get": {
+        "tags": ["Miqaat Checks"],
+        "summary": "List miqaat checks for a person by miqaat",
+        "description": "Returns all miqaat_checks for a given person (its_id) within the scope of a miqaat. Used by the Anjuman view to show which definitions are cleared/uncleared for the entered ITS number.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Miqaat ID (must exist in miqaats)"
+          },
+          {
+            "name": "its_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ITS ID of the person (census identifier)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response (data: array of miqaat_check rows)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "its_id": { "type": "string" },
+                          "mcd_id": { "type": "integer" },
+                          "is_cleared": { "type": "boolean" },
+                          "cleared_by_its": { "type": "string", "nullable": true },
+                          "cleared_at": { "type": "string", "format": "date-time", "nullable": true },
+                          "notes": { "type": "string", "nullable": true },
+                          "created_at": { "type": "string", "format": "date-time" },
+                          "updated_at": { "type": "string", "format": "date-time" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Miqaat not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "NOT_FOUND" },
+                    "message": { "type": "string", "example": "Miqaat not found." }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing its_id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "VALIDATION_ERROR" },
+                    "message": { "type": "string", "example": "The its_id parameter is required." }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Miqaat Checks"],
+        "summary": "Upsert a miqaat check (clear/unclear)",
+        "description": "Creates or updates a single miqaat_checks row for a person and a check definition. Uniqueness is on (its_id, mcd_id). Used by the Anjuman view when the user toggles clear/unclear for a definition.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Miqaat ID (must exist; used to validate that mcd_id belongs to this miqaat)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["its_id", "mcd_id", "is_cleared"],
+                "properties": {
+                  "its_id": { "type": "string", "description": "ITS ID of the person" },
+                  "mcd_id": { "type": "integer", "description": "Check definition ID (must belong to this miqaat)" },
+                  "is_cleared": { "type": "boolean", "description": "Whether the check is cleared (true) or not (false)" },
+                  "cleared_by_its": { "type": "string", "description": "ITS of the user performing the action (e.g. current Anjuman user)", "nullable": true },
+                  "notes": { "type": "string", "description": "Optional notes", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully (data: miqaat_check row)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "its_id": { "type": "string" },
+                        "mcd_id": { "type": "integer" },
+                        "is_cleared": { "type": "boolean" },
+                        "cleared_by_its": { "type": "string", "nullable": true },
+                        "cleared_at": { "type": "string", "format": "date-time", "nullable": true },
+                        "notes": { "type": "string", "nullable": true },
+                        "created_at": { "type": "string", "format": "date-time" },
+                        "updated_at": { "type": "string", "format": "date-time" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created successfully (data: miqaat_check row)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "its_id": { "type": "string" },
+                        "mcd_id": { "type": "integer" },
+                        "is_cleared": { "type": "boolean" },
+                        "cleared_by_its": { "type": "string", "nullable": true },
+                        "cleared_at": { "type": "string", "format": "date-time", "nullable": true },
+                        "notes": { "type": "string", "nullable": true },
+                        "created_at": { "type": "string", "format": "date-time" },
+                        "updated_at": { "type": "string", "format": "date-time" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Miqaat or check definition not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "NOT_FOUND" },
+                    "message": { "type": "string", "example": "Miqaat or check definition not found." }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error (e.g. missing its_id, mcd_id, or is_cleared)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Miqaat Checks"],
+        "summary": "Upsert a miqaat check (clear/unclear)",
+        "description": "Same as PUT: creates or updates a single miqaat_checks row. Uniqueness is on (its_id, mcd_id).",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["its_id", "mcd_id", "is_cleared"],
+                "properties": {
+                  "its_id": { "type": "string" },
+                  "mcd_id": { "type": "integer" },
+                  "is_cleared": { "type": "boolean" },
+                  "cleared_by_its": { "type": "string", "nullable": true },
+                  "notes": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+              }
+            }
+          },
+          "201": {
+            "description": "Created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Miqaat or check definition not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat/{its_id}": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get wajebaat for a member in a miqaat",
+        "description": "Returns the single wajebaat record for the given miqaat and member. Returns 404 if no record exists.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ITS ID of the member"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wajebaat record not found for this miqaat and member",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat/{its_id}/clearance": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get clearance status for a member in a miqaat",
+        "description": "Returns wajebaat record (if any), pending department checks, and whether the member can be marked paid.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response (data: wajebaat, pending_departments, can_mark_paid)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
                 }
               }
             }
