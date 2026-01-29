@@ -56,4 +56,28 @@ class Census extends Model
     {
         return $this->hasMany(Census::class, 'hof_id', 'its_id');
     }
+
+    /**
+     * Wajebaat records for this ITS.
+     */
+    public function wajebaats(): HasMany
+    {
+        return $this->hasMany(Wajebaat::class, 'its_id', 'its_id');
+    }
+
+    /**
+     * Group membership rows where this person is a member.
+     */
+    public function wajebaatGroupRows(): HasMany
+    {
+        return $this->hasMany(WajebaatGroup::class, 'its_id', 'its_id');
+    }
+
+    /**
+     * Group membership rows where this person is the master.
+     */
+    public function wajebaatGroupsAsMasterRows(): HasMany
+    {
+        return $this->hasMany(WajebaatGroup::class, 'master_its', 'its_id');
+    }
 }

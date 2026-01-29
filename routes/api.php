@@ -12,6 +12,7 @@ use App\Http\Controllers\PaymentDefinitionController;
 use App\Http\Controllers\SharafPaymentController;
 use App\Http\Controllers\SharafPositionController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WajebaatController;
 use Illuminate\Support\Facades\Route;
 
 // Census routes
@@ -72,3 +73,7 @@ Route::get('/sharaf-payments', [SharafPaymentController::class, 'index']);
 Route::post('/sharafs/{sharaf_id}/payments', [SharafPaymentController::class, 'store']);
 Route::post('/sharafs/{sharaf_id}/lagat', [SharafPaymentController::class, 'lagat']);
 Route::post('/sharafs/{sharaf_id}/najwa', [SharafPaymentController::class, 'najwa']);
+
+// Wajebaat (Takhmeen / Finance Ada) routes
+Route::post('/wajebaat/takhmeen', [WajebaatController::class, 'takhmeenStore']);
+Route::patch('/miqaats/{miqaat_id}/wajebaat/{its_id}/paid', [WajebaatController::class, 'financeAdaUpdate']);
