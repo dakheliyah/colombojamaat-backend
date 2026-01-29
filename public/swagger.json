@@ -1527,6 +1527,19 @@
                     "type": "integer",
                     "example": 5
                   },
+                  "group_name": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Name of the group",
+                    "example": "Family Group A"
+                  },
+                  "group_type": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": ["business_grouping", "personal_grouping", "organization"],
+                    "description": "Type of the group",
+                    "example": "personal_grouping"
+                  },
                   "master_its": {
                     "type": "string",
                     "example": "123456"

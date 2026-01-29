@@ -264,6 +264,8 @@ class WajebaatController extends Controller
 
         return [
             'wg_id' => (int) $row->wg_id,
+            'group_name' => $row->group_name,
+            'group_type' => $row->group_type,
             'master_its' => (string) $row->master_its,
             'members' => $memberIts->map(function ($mIts) use ($people, $wajebaats) {
                 return [

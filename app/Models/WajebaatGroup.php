@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\WajebaatGroupType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,10 +15,35 @@ class WajebaatGroup extends Model
 
     protected $fillable = [
         'wg_id',
+        'group_name',
+        'group_type',
         'miqaat_id',
         'master_its',
         'its_id',
     ];
+
+    /**
+     * The attributes that should be visible in arrays/JSON.
+     * By default, id is always visible, but we explicitly include it for clarity.
+     */
+    protected $visible = [
+        'id',
+        'wg_id',
+        'group_name',
+        'group_type',
+        'miqaat_id',
+        'master_its',
+        'its_id',
+        'created_at',
+        'updated_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'group_type' => WajebaatGroupType::class,
+        ];
+    }
 
     /**
      * Miqaat for this membership row.
