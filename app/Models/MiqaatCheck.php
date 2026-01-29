@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class MiqaatCheck extends Model
 {
@@ -13,7 +14,6 @@ class MiqaatCheck extends Model
     protected $table = 'miqaat_checks';
 
     protected $fillable = [
-        'miqaat_id',
         'its_id',
         'mcd_id',
         'is_cleared',
@@ -27,9 +27,19 @@ class MiqaatCheck extends Model
         'cleared_at' => 'datetime',
     ];
 
-    public function miqaat(): BelongsTo
+    /**
+     * Miqaat is determined via the check definition (definition belongs to one miqaat).
+     */
+    public function miqaat(): HasOneThrough
     {
-        return $this->belongsTo(Miqaat::class);
+        return $this->hasOneThrough(
+            Miqaat::class,
+            MiqaatCheckDepartment::class,
+            'mcd_id',   // FK on definitions pointing to this check's mcd_id
+            'id',       // PK on miqaats
+            'mcd_id',   // FK on checks
+            'miqaat_id' // FK on definitions pointing to miqaat
+        );
     }
 
     public function person(): BelongsTo

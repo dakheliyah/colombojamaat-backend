@@ -3,6 +3,7 @@
 use App\Http\Controllers\CensusController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\FamilySummaryController;
+use App\Http\Controllers\MiqaatCheckDefinitionController;
 use App\Http\Controllers\MiqaatController;
 use App\Http\Controllers\SharafController;
 use App\Http\Controllers\SharafClearanceController;
@@ -31,6 +32,14 @@ Route::get('/users/its/{its_no}', [UserController::class, 'showByItsNo']);
 // Miqaat routes
 Route::get('/miqaats', [MiqaatController::class, 'index']);
 Route::post('/miqaats', [MiqaatController::class, 'store']);
+
+// Miqaat Check Definition routes (CRUD for miqaat_check_definitions table)
+Route::get('/miqaat-check-definitions', [MiqaatCheckDefinitionController::class, 'index']);
+Route::post('/miqaat-check-definitions', [MiqaatCheckDefinitionController::class, 'store']);
+Route::get('/miqaat-check-definitions/{mcd_id}', [MiqaatCheckDefinitionController::class, 'show']);
+Route::put('/miqaat-check-definitions/{mcd_id}', [MiqaatCheckDefinitionController::class, 'update']);
+Route::patch('/miqaat-check-definitions/{mcd_id}', [MiqaatCheckDefinitionController::class, 'update']);
+Route::delete('/miqaat-check-definitions/{mcd_id}', [MiqaatCheckDefinitionController::class, 'destroy']);
 
 // Events routes
 Route::get('/events', [EventController::class, 'index']);
@@ -76,4 +85,6 @@ Route::post('/sharafs/{sharaf_id}/najwa', [SharafPaymentController::class, 'najw
 
 // Wajebaat (Takhmeen / Finance Ada) routes
 Route::post('/wajebaat/takhmeen', [WajebaatController::class, 'takhmeenStore']);
+Route::get('/miqaats/{miqaat_id}/wajebaat/{its_id}', [WajebaatController::class, 'show']);
+Route::get('/miqaats/{miqaat_id}/wajebaat/{its_id}/clearance', [WajebaatController::class, 'clearance']);
 Route::patch('/miqaats/{miqaat_id}/wajebaat/{its_id}/paid', [WajebaatController::class, 'financeAdaUpdate']);

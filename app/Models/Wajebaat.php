@@ -58,11 +58,14 @@ class Wajebaat extends Model
 
     /**
      * Manual clearance override (same miqaat + same ITS).
+     * Miqaat is matched via the check's definition (miqaat_id lives on miqaat_check_definitions).
      */
     public function miqaatCheck(): HasOne
     {
         return $this->hasOne(MiqaatCheck::class, 'its_id', 'its_id')
-            ->whereColumn('miqaat_checks.miqaat_id', 'wajebaat.miqaat_id');
+            ->join('miqaat_check_definitions', 'miqaat_checks.mcd_id', '=', 'miqaat_check_definitions.mcd_id')
+            ->whereColumn('miqaat_check_definitions.miqaat_id', 'wajebaat.miqaat_id')
+            ->select('miqaat_checks.*');
     }
 
     /**

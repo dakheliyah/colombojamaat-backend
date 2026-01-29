@@ -29,4 +29,12 @@ class Miqaat extends Model
     {
         return $this->hasMany(Event::class);
     }
+
+    /**
+     * Get the check definitions (departments) for this miqaat.
+     */
+    public function checkDefinitions(): HasMany
+    {
+        return $this->hasMany(MiqaatCheckDepartment::class, 'miqaat_id', 'id');
+    }
 }

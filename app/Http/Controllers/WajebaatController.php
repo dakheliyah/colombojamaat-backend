@@ -99,6 +99,39 @@ class WajebaatController extends Controller
     }
 
     /**
+     * GET: single wajebaat for a member in a miqaat.
+     * Returns 404 if no wajebaat exists for the given miqaat_id and its_id.
+     */
+    public function show(string $miqaat_id, string $its_id): JsonResponse
+    {
+        $validator = Validator::make([
+            'miqaat_id' => $miqaat_id,
+            'its_id' => $its_id,
+        ], [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+            'its_id' => ['required', 'string', 'exists:census,its_id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $wajebaat = Wajebaat::query()
+            ->forItsInMiqaat((string) $its_id, (int) $miqaat_id)
+            ->first();
+
+        if ($wajebaat === null) {
+            return $this->jsonError('NOT_FOUND', 'Wajebaat record not found for this miqaat and member.', 404);
+        }
+
+        return $this->jsonSuccessWithData($wajebaat);
+    }
+
+    /**
      * PATCH: mark as paid/unpaid for a specific member in a miqaat.
      *
      * Department Guard:
@@ -161,6 +194,47 @@ class WajebaatController extends Controller
     }
 
     /**
+     * GET: clearance status for a member in a miqaat.
+     *
+     * Returns wajebaat record (if any), pending department checks, and whether the member can be marked paid.
+     */
+    public function clearance(string $miqaat_id, string $its_id): JsonResponse
+    {
+        $validator = Validator::make([
+            'miqaat_id' => $miqaat_id,
+            'its_id' => $its_id,
+        ], [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+            'its_id' => ['required', 'string', 'exists:census,its_id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $miqaatId = (int) $miqaat_id;
+        $itsId = (string) $its_id;
+
+        $wajebaat = Wajebaat::query()
+            ->forItsInMiqaat($itsId, $miqaatId)
+            ->first();
+
+        $pending = $this->pendingDepartmentChecks($miqaatId, $itsId);
+
+        $data = [
+            'wajebaat' => $wajebaat,
+            'pending_departments' => $pending,
+            'can_mark_paid' => empty($pending),
+        ];
+
+        return $this->jsonSuccessWithData($data);
+    }
+
+    /**
      * If member is in a group, return all associated members' data for that wg_id (within the miqaat).
      */
     protected function groupDataForIts(int $miqaatId, string $itsId): ?array
@@ -214,20 +288,23 @@ class WajebaatController extends Controller
      */
     protected function pendingDepartmentChecks(int $miqaatId, string $itsId): array
     {
-        // Get all configured departments
+        // Get all check definitions for this miqaat
         $departments = MiqaatCheckDepartment::query()
+            ->where('miqaat_id', $miqaatId)
             ->orderBy('name')
-            ->get(['mcd_id', 'name']);
+            ->get(['mcd_id', 'name', 'user_type']);
 
         if ($departments->isEmpty()) {
             // If no departments are configured, nothing blocks payment.
             return [];
         }
 
-        // Get all existing checks for this member in this miqaat, keyed by mcd_id
+        $mcdIds = $departments->pluck('mcd_id')->all();
+
+        // Get all existing checks for this member for these definitions (miqaat is implied by definition)
         $checks = MiqaatCheck::query()
-            ->where('miqaat_id', $miqaatId)
             ->where('its_id', $itsId)
+            ->whereIn('mcd_id', $mcdIds)
             ->get()
             ->keyBy('mcd_id');
 
@@ -240,6 +317,7 @@ class WajebaatController extends Controller
                 $pending[] = [
                     'mcd_id' => (int) $dept->mcd_id,
                     'name' => (string) $dept->name,
+                    'user_type' => $dept->user_type?->value,
                 ];
             }
         }
