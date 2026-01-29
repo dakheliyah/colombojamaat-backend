@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthSessionController;
 use App\Http\Controllers\CensusController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\FamilySummaryController;
+use App\Http\Controllers\MiqaatCheckController;
 use App\Http\Controllers\MiqaatCheckDefinitionController;
 use App\Http\Controllers\MiqaatController;
 use App\Http\Controllers\SharafController;
@@ -36,6 +37,9 @@ Route::get('/users/its/{its_no}', [UserController::class, 'showByItsNo']);
 // Miqaat routes
 Route::get('/miqaats', [MiqaatController::class, 'index']);
 Route::post('/miqaats', [MiqaatController::class, 'store']);
+Route::get('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'index']);
+Route::put('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
+Route::post('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
 
 // Miqaat Check Definition routes (CRUD for miqaat_check_definitions table)
 Route::get('/miqaat-check-definitions', [MiqaatCheckDefinitionController::class, 'index']);
