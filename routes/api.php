@@ -17,7 +17,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\WajebaatController;
 use Illuminate\Support\Facades\Route;
 
-// Auth Session (its_no cookie)
+// Auth Session (user cookie)
 Route::get('/auth/session', [AuthSessionController::class, 'show']);
 
 // Census routes

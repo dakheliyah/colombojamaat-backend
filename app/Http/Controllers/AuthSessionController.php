@@ -2,40 +2,26 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\ItsNoCookieDecryptor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AuthSessionController extends Controller
 {
-    public function __construct(
-        private ItsNoCookieDecryptor $decryptor
-    ) {}
-
     /**
-     * Return the current user's ITS number from the its_no cookie, or an error.
+     * Return the current user's ITS number from the user cookie, or an error.
      *
-     * GET /api/auth/session — expects credentials (cookies). Cookie name: its_no.
+     * GET /api/auth/session — expects credentials (cookies). Cookie name: user.
      */
     public function show(Request $request): JsonResponse
     {
         try {
-            $raw = $request->cookie('its_no');
+            $raw = $request->cookie('user');
 
             if ($raw === null || $raw === '') {
                 return $this->unauthorized();
             }
 
-            $encrypted = config('auth_session.encrypted', true);
-
-            if ($encrypted) {
-                $value = $this->decryptor->decrypt($raw);
-                if ($value === null) {
-                    return $this->unauthorized();
-                }
-            } else {
-                $value = trim($raw);
-            }
+            $value = trim($raw);
 
             if ($value === '' || ! $this->isValidItsNo($value)) {
                 return $this->unauthorized();
