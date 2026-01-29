@@ -13,13 +13,19 @@ return new class extends Migration
     {
         Schema::create('payment_definitions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('sharaf_definition_id')->constrained('sharaf_definitions')->onDelete('cascade');
+            $table->unsignedBigInteger('sharaf_definition_id');
             $table->string('name'); // e.g., "lagat", "najwa_ada"
             $table->text('description')->nullable();
             $table->timestamps();
 
-            $table->index('sharaf_definition_id');
             $table->unique(['sharaf_definition_id', 'name']);
+        });
+
+        Schema::table('payment_definitions', function (Blueprint $table) {
+            $table->foreign('sharaf_definition_id')
+                ->references('id')
+                ->on('sharaf_definitions')
+                ->onDelete('cascade');
         });
     }
 
@@ -28,6 +34,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('payment_definitions', function (Blueprint $table) {
+            $table->dropForeign(['sharaf_definition_id']);
+        });
         Schema::dropIfExists('payment_definitions');
     }
 };
