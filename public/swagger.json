@@ -58,6 +58,10 @@
     {
       "name": "Sharaf Payments",
       "description": "Sharaf payment operations"
+    },
+    {
+      "name": "Wajebaat",
+      "description": "Wajebaat (Takhmeen / Finance Ada) operations"
     }
   ],
   "paths": {
@@ -1192,6 +1196,122 @@
           }
         }
       }
+    },
+    "/wajebaat/takhmeen": {
+      "post": {
+        "tags": ["Wajebaat"],
+        "summary": "Bulk-save Takhmeen amounts",
+        "description": "Bulk-save Takhmeen amounts for multiple members. If an its_id is passed (as a separate field), the API checks if they belong to a wajebaat_groups and returns all associated members' data. Currency is stored as-is (no conversion at write-time).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakhmeenStoreRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Takhmeen amounts saved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TakhmeenStoreResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat/{its_id}/paid": {
+      "patch": {
+        "tags": ["Wajebaat"],
+        "summary": "Update Finance Ada payment status",
+        "description": "Mark a member's wajebaat as paid or unpaid for a specific miqaat. Before saving paid=true, the controller queries the miqaat_checks table. If any check for that its_id is false (or missing), returns 403 Forbidden with a JSON payload listing the specific mcd_id names that are pending.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS ID of the member"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["paid"],
+                "properties": {
+                  "paid": {
+                    "type": "boolean",
+                    "description": "Whether the wajebaat is paid",
+                    "example": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Department checks are pending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartmentChecksPendingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1281,6 +1401,198 @@
             "type": "integer",
             "description": "Key number for ordering within the position",
             "example": 1
+          }
+        }
+      },
+      "TakhmeenStoreRequest": {
+        "type": "object",
+        "required": ["miqaat_id", "entries"],
+        "properties": {
+          "miqaat_id": {
+            "type": "integer",
+            "description": "ID of the miqaat",
+            "example": 1
+          },
+          "entries": {
+            "type": "array",
+            "description": "Array of Takhmeen entries to save (1-1000 items)",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "required": ["its_id", "amount"],
+              "properties": {
+                "its_id": {
+                  "type": "string",
+                  "description": "ITS ID of the member (must exist in census table)",
+                  "example": "123456"
+                },
+                "amount": {
+                  "type": "number",
+                  "description": "Takhmeen amount (minimum: 0)",
+                  "minimum": 0,
+                  "example": 5000.00
+                },
+                "currency": {
+                  "type": "string",
+                  "description": "Currency code (3 characters, e.g., LKR, USD)",
+                  "minLength": 3,
+                  "maxLength": 3,
+                  "example": "LKR",
+                  "default": "LKR"
+                },
+                "conversion_rate": {
+                  "type": "number",
+                  "description": "Conversion rate for reporting purposes only (does not affect stored amount)",
+                  "minimum": 0.000001,
+                  "example": 1.0,
+                  "default": 1.0
+                }
+              }
+            }
+          },
+          "its_id": {
+            "type": "string",
+            "description": "Optional: If provided, checks if this ITS belongs to a wajebaat_groups and returns all associated members' data",
+            "example": "123456"
+          }
+        }
+      },
+      "TakhmeenStoreResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "saved": {
+                "type": "array",
+                "description": "Array of saved wajebaat records",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "miqaat_id": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "its_id": {
+                      "type": "string",
+                      "example": "123456"
+                    },
+                    "wg_id": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Group ID if member belongs to a wajebaat group",
+                      "example": 5
+                    },
+                    "amount": {
+                      "type": "number",
+                      "example": 5000.00
+                    },
+                    "currency": {
+                      "type": "string",
+                      "example": "LKR"
+                    },
+                    "conversion_rate": {
+                      "type": "number",
+                      "example": 1.0
+                    },
+                    "status": {
+                      "type": "boolean",
+                      "description": "Payment status (false = unpaid, true = paid)",
+                      "example": false
+                    },
+                    "wc_id": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Category ID (auto-assigned based on amount)",
+                      "example": 2
+                    }
+                  }
+                }
+              },
+              "group": {
+                "type": "object",
+                "nullable": true,
+                "description": "Group data (only present if its_id was provided and member belongs to a group)",
+                "properties": {
+                  "wg_id": {
+                    "type": "integer",
+                    "example": 5
+                  },
+                  "master_its": {
+                    "type": "string",
+                    "example": "123456"
+                  },
+                  "members": {
+                    "type": "array",
+                    "description": "All members in the group",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "its_id": {
+                          "type": "string",
+                          "example": "123456"
+                        },
+                        "person": {
+                          "type": "object",
+                          "description": "Census record for the member",
+                          "nullable": true
+                        },
+                        "wajebaat": {
+                          "type": "object",
+                          "description": "Wajebaat record for the member",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "DepartmentChecksPendingResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "example": "DEPARTMENT_CHECKS_PENDING"
+          },
+          "message": {
+            "type": "string",
+            "example": "Cannot mark as paid: department checks are pending."
+          },
+          "pending_departments": {
+            "type": "array",
+            "description": "List of pending departments with mcd_id and name",
+            "items": {
+              "type": "object",
+              "properties": {
+                "mcd_id": {
+                  "type": "integer",
+                  "description": "Department check ID",
+                  "example": 1
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Department name",
+                  "example": "Finance"
+                }
+              }
+            }
           }
         }
       }
