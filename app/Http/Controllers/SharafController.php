@@ -8,14 +8,21 @@ use App\Services\SharafApprovalService;
 use App\Services\SharafConfirmationEvaluator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class SharafController extends Controller
 {
+    protected $approvalService;
+    protected $confirmationEvaluator;
+
     public function __construct(
-        protected SharafApprovalService $approvalService,
-        protected SharafConfirmationEvaluator $confirmationEvaluator
-    ) {}
+        SharafApprovalService $approvalService,
+        SharafConfirmationEvaluator $confirmationEvaluator
+    ) {
+        $this->approvalService = $approvalService;
+        $this->confirmationEvaluator = $confirmationEvaluator;
+    }
 
     /**
      * Get all sharafs with optional filtering and pagination.
@@ -26,6 +33,8 @@ class SharafController extends Controller
             'sharaf_definition_id' => ['nullable', 'integer', 'exists:sharaf_definitions,id'],
             'status' => ['nullable', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
             'hof_its' => ['nullable', 'string'],
+            'token' => ['nullable', 'string'],
+            'hof_name' => ['nullable', 'string'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -38,7 +47,10 @@ class SharafController extends Controller
             );
         }
 
-        $query = Sharaf::with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition']);
+        $query = Sharaf::query()
+            ->leftJoin('census', 'sharafs.hof_its', '=', 'census.its_id')
+            ->select('sharafs.*', 'census.name as hof_name')
+            ->with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition']);
 
         // Apply filters
         if ($request->has('sharaf_definition_id')) {
@@ -50,7 +62,15 @@ class SharafController extends Controller
         }
 
         if ($request->has('hof_its')) {
-            $query->where('hof_its', $request->input('hof_its'));
+            $query->where('sharafs.hof_its', $request->input('hof_its'));
+        }
+
+        if ($request->has('token')) {
+            $query->where('sharafs.token', 'like', '%' . $request->input('token') . '%');
+        }
+
+        if ($request->has('hof_name')) {
+            $query->where('census.name', 'like', '%' . $request->input('hof_name') . '%');
         }
 
         // Pagination
@@ -80,6 +100,8 @@ class SharafController extends Controller
             'capacity' => ['required', 'integer', 'min:1'],
             'status' => ['nullable', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
             'hof_its' => ['required', 'string'],
+            'token' => ['nullable', 'string', 'max:50', 'unique:sharafs,token'],
+            'comments' => ['nullable', 'string'],
         ]);
 
         if ($validator->fails()) {
@@ -176,8 +198,10 @@ class SharafController extends Controller
             'sharaf_definition_id' => $sharafDefinitionId,
             'rank' => $requestedRank, // Use auto-assigned rank if rank was 0
             'capacity' => $request->input('capacity'),
-            'status' => $request->input('status', 'pending'),
+            'status' => $request->input('status') ?: 'pending',
             'hof_its' => $request->input('hof_its'),
+            'token' => $request->input('token'),
+            'comments' => $request->input('comments'),
         ]);
 
         $sharaf->load(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition']);
@@ -195,9 +219,98 @@ class SharafController extends Controller
         return $this->jsonSuccessWithData($sharaf, 201);
     }
 
+    public function update(Request $request, string $sharaf_id): JsonResponse
+    {
+        $sharaf = Sharaf::findOrFail($sharaf_id);
+
+        $validator = Validator::make($request->all(), [
+            'sharaf_definition_id' => ['nullable', 'integer', 'exists:sharaf_definitions,id'],
+            'rank' => ['nullable', 'integer', 'min:0'],
+            'capacity' => ['nullable', 'integer', 'min:1'],
+            'status' => ['nullable', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
+            'hof_its' => ['nullable', 'string'],
+            'token' => ['nullable', 'string', 'max:50', 'unique:sharafs,token,' . $sharaf->id],
+            'comments' => ['nullable', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $updateData = $request->only([
+            'sharaf_definition_id',
+            'rank',
+            'capacity',
+            'status',
+            'hof_its',
+            'token',
+            'comments',
+        ]);
+
+        // Only update status if it's explicitly provided and not empty
+        if (array_key_exists('status', $updateData) && empty($updateData['status'])) {
+            unset($updateData['status']);
+        }
+
+        try {
+            DB::transaction(function () use ($sharaf, &$updateData) {
+                if (!array_key_exists('rank', $updateData)) {
+                    $sharaf->update($updateData);
+                    return;
+                }
+
+                $requestedRank = (int) $updateData['rank'];
+                $sharafDefinitionId = $updateData['sharaf_definition_id'] ?? $sharaf->sharaf_definition_id;
+                $currentRank = (int) $sharaf->rank;
+
+                if ($requestedRank === $currentRank) {
+                    unset($updateData['rank']);
+                    $sharaf->update($updateData);
+                    return;
+                }
+
+                if ($requestedRank === 0) {
+                    $maxRank = Sharaf::where('sharaf_definition_id', $sharafDefinitionId)->max('rank');
+                    $updateData['rank'] = ($maxRank !== null) ? $maxRank + 1 : 1;
+                    $sharaf->update($updateData);
+                    return;
+                }
+
+                $existingSharaf = Sharaf::where('sharaf_definition_id', $sharafDefinitionId)
+                    ->where('rank', $requestedRank)
+                    ->where('id', '!=', $sharaf->id)
+                    ->first();
+
+                if ($existingSharaf) {
+                    $tempRank = Sharaf::where('sharaf_definition_id', $sharafDefinitionId)->max('rank') + 1;
+                    $sharaf->update(['rank' => $tempRank]);
+                    $existingSharaf->update(['rank' => $currentRank]);
+                    $updateData['rank'] = $requestedRank;
+                }
+
+                $sharaf->update($updateData);
+            });
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                'A sharaf with this rank already exists for the given sharaf definition.',
+                422
+            );
+        }
+
+        $sharaf->refresh();
+        $sharaf->load(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition']);
+
+        return $this->jsonSuccessWithData($sharaf);
+    }
+
     public function show(string $sharaf_id): JsonResponse
     {
-        $sharaf = Sharaf::with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition'])
+        $sharaf = Sharaf::with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition', 'hof'])
             ->findOrFail($sharaf_id);
 
         return $this->jsonSuccessWithData($sharaf);

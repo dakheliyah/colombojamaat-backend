@@ -83,7 +83,9 @@
   "paths": {
     "/auth/session": {
       "get": {
-        "tags": ["Auth Session"],
+        "tags": [
+          "Auth Session"
+        ],
         "summary": "Get current session ITS number",
         "description": "Reads the its_no cookie from the request, decrypts if needed, and returns the plain ITS number. Requires credentials (cookies). Returns 401 when cookie is missing or invalid.",
         "responses": {
@@ -93,7 +95,9 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["its_no"],
+                  "required": [
+                    "its_no"
+                  ],
                   "properties": {
                     "its_no": {
                       "type": "string",
@@ -112,8 +116,14 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": { "type": "string", "example": "unauthorized" },
-                    "message": { "type": "string", "example": "No valid session." }
+                    "error": {
+                      "type": "string",
+                      "example": "unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "No valid session."
+                    }
                   }
                 }
               }
@@ -124,7 +134,9 @@
     },
     "/census": {
       "get": {
-        "tags": ["Census"],
+        "tags": [
+          "Census"
+        ],
         "summary": "Get all census records",
         "responses": {
           "200": {
@@ -142,7 +154,9 @@
     },
     "/census/search": {
       "get": {
-        "tags": ["Census"],
+        "tags": [
+          "Census"
+        ],
         "summary": "Search census records",
         "parameters": [
           {
@@ -171,7 +185,9 @@
     },
     "/census/{its_id}": {
       "get": {
-        "tags": ["Census"],
+        "tags": [
+          "Census"
+        ],
         "summary": "Get census record by ITS ID",
         "parameters": [
           {
@@ -210,7 +226,9 @@
     },
     "/census/{its_id}/with-relations": {
       "get": {
-        "tags": ["Census"],
+        "tags": [
+          "Census"
+        ],
         "summary": "Get census record with family relationships",
         "parameters": [
           {
@@ -239,7 +257,9 @@
     },
     "/census/family/{hof_its}": {
       "get": {
-        "tags": ["Census"],
+        "tags": [
+          "Census"
+        ],
         "summary": "Get family members by Head of Family ITS",
         "parameters": [
           {
@@ -268,7 +288,9 @@
     },
     "/families/{hof_its}/summary": {
       "get": {
-        "tags": ["Families"],
+        "tags": [
+          "Families"
+        ],
         "summary": "Get family summary",
         "parameters": [
           {
@@ -297,7 +319,9 @@
     },
     "/users/its/{its_no}": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Get user by ITS number",
         "parameters": [
           {
@@ -326,7 +350,9 @@
     },
     "/miqaats": {
       "get": {
-        "tags": ["Miqaats"],
+        "tags": [
+          "Miqaats"
+        ],
         "summary": "Get all miqaats",
         "responses": {
           "200": {
@@ -342,7 +368,9 @@
         }
       },
       "post": {
-        "tags": ["Miqaats"],
+        "tags": [
+          "Miqaats"
+        ],
         "summary": "Create a new miqaat",
         "requestBody": {
           "required": true,
@@ -391,7 +419,9 @@
     },
     "/miqaat-check-definitions": {
       "get": {
-        "tags": ["Miqaat Check Definitions"],
+        "tags": [
+          "Miqaat Check Definitions"
+        ],
         "summary": "List miqaat check definitions",
         "description": "Paginated list, optionally filtered by miqaat_id. Ordered by miqaat_id then name.",
         "parameters": [
@@ -399,28 +429,46 @@
             "name": "miqaat_id",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Filter by miqaat (must exist in miqaats table)"
           },
           {
             "name": "user_type",
             "in": "query",
             "required": false,
-            "schema": { "type": "string", "enum": ["BS", "Admin", "Help Desk", "Anjuman", "Finance"] },
+            "schema": {
+              "type": "string",
+              "enum": [
+                "BS",
+                "Admin",
+                "Help Desk",
+                "Anjuman",
+                "Finance"
+              ]
+            },
             "description": "Filter by user_type (e.g. Anjuman). Values: BS, Admin, Help Desk, Anjuman, Finance"
           },
           {
             "name": "page",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1 },
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
             "description": "Page number (default: 1)"
           },
           {
             "name": "per_page",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1, "maximum": 100 },
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
             "description": "Items per page (default: 15)"
           }
         ],
@@ -438,7 +486,9 @@
         }
       },
       "post": {
-        "tags": ["Miqaat Check Definitions"],
+        "tags": [
+          "Miqaat Check Definitions"
+        ],
         "summary": "Create a miqaat check definition",
         "description": "Name must be unique within the given miqaat.",
         "requestBody": {
@@ -447,10 +497,20 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["miqaat_id", "name"],
+                "required": [
+                  "miqaat_id",
+                  "name"
+                ],
                 "properties": {
-                  "miqaat_id": { "type": "integer", "description": "ID of the miqaat" },
-                  "name": { "type": "string", "maxLength": 255, "description": "Name (unique per miqaat)" }
+                  "miqaat_id": {
+                    "type": "integer",
+                    "description": "ID of the miqaat"
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "description": "Name (unique per miqaat)"
+                  }
                 }
               }
             }
@@ -482,14 +542,18 @@
     },
     "/miqaat-check-definitions/{mcd_id}": {
       "get": {
-        "tags": ["Miqaat Check Definitions"],
+        "tags": [
+          "Miqaat Check Definitions"
+        ],
         "summary": "Get a single miqaat check definition",
         "parameters": [
           {
             "name": "mcd_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Primary key of the check definition"
           }
         ],
@@ -517,14 +581,18 @@
         }
       },
       "put": {
-        "tags": ["Miqaat Check Definitions"],
+        "tags": [
+          "Miqaat Check Definitions"
+        ],
         "summary": "Update a miqaat check definition",
         "parameters": [
           {
             "name": "mcd_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -533,10 +601,18 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["miqaat_id", "name"],
+                "required": [
+                  "miqaat_id",
+                  "name"
+                ],
                 "properties": {
-                  "miqaat_id": { "type": "integer" },
-                  "name": { "type": "string", "maxLength": 255 }
+                  "miqaat_id": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255
+                  }
                 }
               }
             }
@@ -576,14 +652,18 @@
         }
       },
       "patch": {
-        "tags": ["Miqaat Check Definitions"],
+        "tags": [
+          "Miqaat Check Definitions"
+        ],
         "summary": "Update a miqaat check definition",
         "parameters": [
           {
             "name": "mcd_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -592,10 +672,18 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["miqaat_id", "name"],
+                "required": [
+                  "miqaat_id",
+                  "name"
+                ],
                 "properties": {
-                  "miqaat_id": { "type": "integer" },
-                  "name": { "type": "string", "maxLength": 255 }
+                  "miqaat_id": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255
+                  }
                 }
               }
             }
@@ -625,7 +713,9 @@
         }
       },
       "delete": {
-        "tags": ["Miqaat Check Definitions"],
+        "tags": [
+          "Miqaat Check Definitions"
+        ],
         "summary": "Delete a miqaat check definition",
         "description": "If miqaat_checks reference this definition, their mcd_id is set to null.",
         "parameters": [
@@ -633,7 +723,9 @@
             "name": "mcd_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -662,7 +754,9 @@
     },
     "/events": {
       "get": {
-        "tags": ["Events"],
+        "tags": [
+          "Events"
+        ],
         "summary": "Get all events",
         "responses": {
           "200": {
@@ -678,7 +772,9 @@
         }
       },
       "post": {
-        "tags": ["Events"],
+        "tags": [
+          "Events"
+        ],
         "summary": "Create a new event",
         "requestBody": {
           "required": true,
@@ -696,7 +792,10 @@
                     "description": "Name of the event"
                   }
                 },
-                "required": ["miqaat_id", "name"]
+                "required": [
+                  "miqaat_id",
+                  "name"
+                ]
               }
             }
           }
@@ -717,7 +816,10 @@
     },
     "/events/{event_id}/sharaf-definitions": {
       "get": {
-        "tags": ["Events", "Sharaf Definitions"],
+        "tags": [
+          "Events",
+          "Sharaf Definitions"
+        ],
         "summary": "Get sharaf definitions for an event",
         "parameters": [
           {
@@ -746,7 +848,9 @@
     },
     "/events/{miqaat_id}": {
       "get": {
-        "tags": ["Events"],
+        "tags": [
+          "Events"
+        ],
         "summary": "Get events by miqaat ID",
         "parameters": [
           {
@@ -775,7 +879,9 @@
     },
     "/sharaf-definitions": {
       "post": {
-        "tags": ["Sharaf Definitions"],
+        "tags": [
+          "Sharaf Definitions"
+        ],
         "summary": "Create a new sharaf definition",
         "requestBody": {
           "required": true,
@@ -797,7 +903,10 @@
                     "description": "Description of the sharaf definition"
                   }
                 },
-                "required": ["event_id", "name"]
+                "required": [
+                  "event_id",
+                  "name"
+                ]
               }
             }
           }
@@ -818,7 +927,10 @@
     },
     "/sharaf-definitions/{sd_id}/sharafs": {
       "get": {
-        "tags": ["Sharaf Definitions", "Sharafs"],
+        "tags": [
+          "Sharaf Definitions",
+          "Sharafs"
+        ],
         "summary": "Get sharafs for a sharaf definition",
         "parameters": [
           {
@@ -847,7 +959,10 @@
     },
     "/sharaf-definitions/{id}/positions": {
       "get": {
-        "tags": ["Sharaf Definitions", "Sharaf Positions"],
+        "tags": [
+          "Sharaf Definitions",
+          "Sharaf Positions"
+        ],
         "summary": "Get positions for a sharaf definition",
         "parameters": [
           {
@@ -876,14 +991,19 @@
     },
     "/sharaf-definitions/{id}/payment-definitions": {
       "get": {
-        "tags": ["Sharaf Definitions", "Payment Definitions"],
+        "tags": [
+          "Sharaf Definitions",
+          "Payment Definitions"
+        ],
         "summary": "Get payment definitions for a sharaf definition",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Sharaf definition ID"
           }
         ],
@@ -913,7 +1033,9 @@
     },
     "/sharaf-positions": {
       "post": {
-        "tags": ["Sharaf Positions"],
+        "tags": [
+          "Sharaf Positions"
+        ],
         "summary": "Create a new sharaf position",
         "requestBody": {
           "required": true,
@@ -935,7 +1057,10 @@
                     "description": "Description of the position"
                   }
                 },
-                "required": ["sharaf_definition_id", "name"]
+                "required": [
+                  "sharaf_definition_id",
+                  "name"
+                ]
               }
             }
           }
@@ -956,7 +1081,9 @@
     },
     "/sharafs": {
       "get": {
-        "tags": ["Sharafs"],
+        "tags": [
+          "Sharafs"
+        ],
         "summary": "Get all sharafs with optional filtering",
         "parameters": [
           {
@@ -974,7 +1101,13 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["pending", "bs_approved", "confirmed", "rejected", "cancelled"]
+              "enum": [
+                "pending",
+                "bs_approved",
+                "confirmed",
+                "rejected",
+                "cancelled"
+              ]
             },
             "description": "Filter by status"
           },
@@ -986,6 +1119,24 @@
               "type": "string"
             },
             "description": "Filter by Head of Family ITS"
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by token"
+          },
+          {
+            "name": "hof_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by HOF full name (joined from census)"
           },
           {
             "name": "page",
@@ -1023,7 +1174,9 @@
         }
       },
       "post": {
-        "tags": ["Sharafs"],
+        "tags": [
+          "Sharafs"
+        ],
         "summary": "Create a new sharaf",
         "requestBody": {
           "required": true,
@@ -1061,7 +1214,9 @@
     },
     "/sharafs/{sharaf_id}": {
       "get": {
-        "tags": ["Sharafs"],
+        "tags": [
+          "Sharafs"
+        ],
         "summary": "Get a single sharaf",
         "parameters": [
           {
@@ -1097,8 +1252,86 @@
           }
         }
       },
+      "put": {
+        "tags": [
+          "Sharafs"
+        ],
+        "summary": "Update sharaf details (Full Update)",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSharafRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Sharafs"
+        ],
+        "summary": "Update sharaf details (Partial Update)",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSharafRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
-        "tags": ["Sharafs"],
+        "tags": [
+          "Sharafs"
+        ],
         "summary": "Delete a sharaf",
         "parameters": [
           {
@@ -1137,7 +1370,9 @@
     },
     "/sharafs/{sharaf_id}/status": {
       "put": {
-        "tags": ["Sharafs"],
+        "tags": [
+          "Sharafs"
+        ],
         "summary": "Update sharaf status",
         "parameters": [
           {
@@ -1159,11 +1394,19 @@
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": ["pending", "bs_approved", "confirmed", "rejected", "cancelled"],
+                    "enum": [
+                      "pending",
+                      "bs_approved",
+                      "confirmed",
+                      "rejected",
+                      "cancelled"
+                    ],
                     "description": "New status"
                   }
                 },
-                "required": ["status"]
+                "required": [
+                  "status"
+                ]
               }
             }
           }
@@ -1192,7 +1435,9 @@
         }
       },
       "patch": {
-        "tags": ["Sharafs"],
+        "tags": [
+          "Sharafs"
+        ],
         "summary": "Update sharaf status",
         "parameters": [
           {
@@ -1214,11 +1459,19 @@
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": ["pending", "bs_approved", "confirmed", "rejected", "cancelled"],
+                    "enum": [
+                      "pending",
+                      "bs_approved",
+                      "confirmed",
+                      "rejected",
+                      "cancelled"
+                    ],
                     "description": "New status"
                   }
                 },
-                "required": ["status"]
+                "required": [
+                  "status"
+                ]
               }
             }
           }
@@ -1239,7 +1492,9 @@
     },
     "/sharafs/{sharaf_id}/evaluate-confirmation": {
       "post": {
-        "tags": ["Sharafs"],
+        "tags": [
+          "Sharafs"
+        ],
         "summary": "Evaluate and update sharaf confirmation status",
         "parameters": [
           {
@@ -1278,7 +1533,9 @@
     },
     "/sharafs/{sharaf_id}/members": {
       "get": {
-        "tags": ["Sharaf Members"],
+        "tags": [
+          "Sharaf Members"
+        ],
         "summary": "Get all members assigned to a sharaf",
         "parameters": [
           {
@@ -1305,7 +1562,9 @@
         }
       },
       "post": {
-        "tags": ["Sharaf Members"],
+        "tags": [
+          "Sharaf Members"
+        ],
         "summary": "Add a member to a sharaf",
         "parameters": [
           {
@@ -1354,7 +1613,9 @@
     },
     "/sharafs/{sharaf_id}/members/{its}": {
       "delete": {
-        "tags": ["Sharaf Members"],
+        "tags": [
+          "Sharaf Members"
+        ],
         "summary": "Remove a member from a sharaf",
         "parameters": [
           {
@@ -1392,7 +1653,9 @@
     },
     "/payment-definitions": {
       "get": {
-        "tags": ["Payment Definitions"],
+        "tags": [
+          "Payment Definitions"
+        ],
         "summary": "List payment definitions",
         "description": "Paginated list, optionally filtered by sharaf_definition_id.",
         "parameters": [
@@ -1400,20 +1663,29 @@
             "name": "sharaf_definition_id",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Filter by sharaf definition"
           },
           {
             "name": "page",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
           },
           {
             "name": "per_page",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
           }
         ],
         "responses": {
@@ -1430,7 +1702,9 @@
         }
       },
       "post": {
-        "tags": ["Payment Definitions"],
+        "tags": [
+          "Payment Definitions"
+        ],
         "summary": "Create a payment definition",
         "description": "Name must be unique per sharaf definition.",
         "requestBody": {
@@ -1439,11 +1713,23 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["sharaf_definition_id", "name"],
+                "required": [
+                  "sharaf_definition_id",
+                  "name"
+                ],
                 "properties": {
-                  "sharaf_definition_id": { "type": "integer", "description": "ID of the sharaf definition" },
-                  "name": { "type": "string", "maxLength": 255 },
-                  "description": { "type": "string", "nullable": true }
+                  "sharaf_definition_id": {
+                    "type": "integer",
+                    "description": "ID of the sharaf definition"
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true
+                  }
                 }
               }
             }
@@ -1475,7 +1761,9 @@
     },
     "/sharaf-payments": {
       "get": {
-        "tags": ["Sharaf Payments"],
+        "tags": [
+          "Sharaf Payments"
+        ],
         "summary": "List sharaf payments",
         "description": "Paginated list, optionally filtered by sharaf_id.",
         "parameters": [
@@ -1483,19 +1771,28 @@
             "name": "sharaf_id",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           },
           {
             "name": "page",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
           },
           {
             "name": "per_page",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
           }
         ],
         "responses": {
@@ -1514,7 +1811,9 @@
     },
     "/sharafs/{sharaf_id}/clearances": {
       "post": {
-        "tags": ["Sharaf Clearances"],
+        "tags": [
+          "Sharaf Clearances"
+        ],
         "summary": "Toggle clearance status for a sharaf's Head of Family",
         "parameters": [
           {
@@ -1543,7 +1842,9 @@
                     "description": "ITS number of the person who cleared it"
                   }
                 },
-                "required": ["is_cleared"]
+                "required": [
+                  "is_cleared"
+                ]
               }
             }
           }
@@ -1574,7 +1875,9 @@
     },
     "/sharafs/{sharaf_id}/lagat": {
       "post": {
-        "tags": ["Sharaf Payments"],
+        "tags": [
+          "Sharaf Payments"
+        ],
         "summary": "Toggle lagat payment status for a sharaf",
         "parameters": [
           {
@@ -1599,7 +1902,9 @@
                     "description": "Whether lagat payment is paid"
                   }
                 },
-                "required": ["paid"]
+                "required": [
+                  "paid"
+                ]
               }
             }
           }
@@ -1630,7 +1935,9 @@
     },
     "/sharafs/{sharaf_id}/najwa": {
       "post": {
-        "tags": ["Sharaf Payments"],
+        "tags": [
+          "Sharaf Payments"
+        ],
         "summary": "Toggle najwa ada payment status for a sharaf",
         "parameters": [
           {
@@ -1655,7 +1962,9 @@
                     "description": "Whether najwa ada payment is paid"
                   }
                 },
-                "required": ["paid"]
+                "required": [
+                  "paid"
+                ]
               }
             }
           }
@@ -1686,7 +1995,9 @@
     },
     "/sharafs/{sharaf_id}/payments": {
       "post": {
-        "tags": ["Sharaf Payments"],
+        "tags": [
+          "Sharaf Payments"
+        ],
         "summary": "Create or update a sharaf payment",
         "description": "Creates or updates a payment record for the sharaf. payment_status is set to false. Use lagat/najwa endpoints for toggling paid status.",
         "parameters": [
@@ -1694,7 +2005,9 @@
             "name": "sharaf_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Sharaf ID"
           }
         ],
@@ -1704,10 +2017,26 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["payment_definition_id", "payment_amount"],
+                "required": [
+                  "payment_definition_id",
+                  "payment_amount"
+                ],
                 "properties": {
-                  "payment_definition_id": { "type": "integer", "description": "ID of the payment definition" },
-                  "payment_amount": { "type": "number", "minimum": 0, "description": "Payment amount" }
+                  "payment_definition_id": {
+                    "type": "integer",
+                    "description": "ID of the payment definition"
+                  },
+                  "payment_amount": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Payment amount"
+                  },
+                  "payment_currency": {
+                    "type": "string",
+                    "maxLength": 3,
+                    "default": "LKR",
+                    "description": "Currency code (3 chars, e.g. LKR, USD)"
+                  }
                 }
               }
             }
@@ -1749,7 +2078,9 @@
     },
     "/wajebaat/takhmeen": {
       "post": {
-        "tags": ["Wajebaat"],
+        "tags": [
+          "Wajebaat"
+        ],
         "summary": "Bulk-save Takhmeen amounts",
         "description": "Bulk-save Takhmeen amounts for multiple members. If an its_id is passed (as a separate field), the API checks if they belong to a wajebaat_groups and returns all associated members' data. Currency is stored as-is (no conversion at write-time).",
         "requestBody": {
@@ -1788,7 +2119,9 @@
     },
     "/miqaats/{miqaat_id}/miqaat-checks": {
       "get": {
-        "tags": ["Miqaat Checks"],
+        "tags": [
+          "Miqaat Checks"
+        ],
         "summary": "List miqaat checks for a person by miqaat",
         "description": "Returns all miqaat_checks for a given person (its_id) within the scope of a miqaat. Used by the Anjuman view to show which definitions are cleared/uncleared for the entered ITS number.",
         "parameters": [
@@ -1796,14 +2129,18 @@
             "name": "miqaat_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Miqaat ID (must exist in miqaats)"
           },
           {
             "name": "its_id",
             "in": "query",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "description": "ITS ID of the person (census identifier)"
           }
         ],
@@ -1814,23 +2151,53 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["success", "data"],
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "properties": {
-                    "success": { "type": "boolean", "example": true },
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
                     "data": {
                       "type": "array",
                       "items": {
                         "type": "object",
                         "properties": {
-                          "id": { "type": "integer" },
-                          "its_id": { "type": "string" },
-                          "mcd_id": { "type": "integer" },
-                          "is_cleared": { "type": "boolean" },
-                          "cleared_by_its": { "type": "string", "nullable": true },
-                          "cleared_at": { "type": "string", "format": "date-time", "nullable": true },
-                          "notes": { "type": "string", "nullable": true },
-                          "created_at": { "type": "string", "format": "date-time" },
-                          "updated_at": { "type": "string", "format": "date-time" }
+                          "id": {
+                            "type": "integer"
+                          },
+                          "its_id": {
+                            "type": "string"
+                          },
+                          "mcd_id": {
+                            "type": "integer"
+                          },
+                          "is_cleared": {
+                            "type": "boolean"
+                          },
+                          "cleared_by_its": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "cleared_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "notes": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
                         }
                       }
                     }
@@ -1846,9 +2213,18 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean", "example": false },
-                    "error": { "type": "string", "example": "NOT_FOUND" },
-                    "message": { "type": "string", "example": "Miqaat not found." }
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "NOT_FOUND"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Miqaat not found."
+                    }
                   }
                 }
               }
@@ -1861,9 +2237,18 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean", "example": false },
-                    "error": { "type": "string", "example": "VALIDATION_ERROR" },
-                    "message": { "type": "string", "example": "The its_id parameter is required." }
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "VALIDATION_ERROR"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "The its_id parameter is required."
+                    }
                   }
                 }
               }
@@ -1872,7 +2257,9 @@
         }
       },
       "put": {
-        "tags": ["Miqaat Checks"],
+        "tags": [
+          "Miqaat Checks"
+        ],
         "summary": "Upsert a miqaat check (clear/unclear)",
         "description": "Creates or updates a single miqaat_checks row for a person and a check definition. Uniqueness is on (its_id, mcd_id). Used by the Anjuman view when the user toggles clear/unclear for a definition.",
         "parameters": [
@@ -1880,7 +2267,9 @@
             "name": "miqaat_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Miqaat ID (must exist; used to validate that mcd_id belongs to this miqaat)"
           }
         ],
@@ -1890,13 +2279,34 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["its_id", "mcd_id", "is_cleared"],
+                "required": [
+                  "its_id",
+                  "mcd_id",
+                  "is_cleared"
+                ],
                 "properties": {
-                  "its_id": { "type": "string", "description": "ITS ID of the person" },
-                  "mcd_id": { "type": "integer", "description": "Check definition ID (must belong to this miqaat)" },
-                  "is_cleared": { "type": "boolean", "description": "Whether the check is cleared (true) or not (false)" },
-                  "cleared_by_its": { "type": "string", "description": "ITS of the user performing the action (e.g. current Anjuman user)", "nullable": true },
-                  "notes": { "type": "string", "description": "Optional notes", "nullable": true }
+                  "its_id": {
+                    "type": "string",
+                    "description": "ITS ID of the person"
+                  },
+                  "mcd_id": {
+                    "type": "integer",
+                    "description": "Check definition ID (must belong to this miqaat)"
+                  },
+                  "is_cleared": {
+                    "type": "boolean",
+                    "description": "Whether the check is cleared (true) or not (false)"
+                  },
+                  "cleared_by_its": {
+                    "type": "string",
+                    "description": "ITS of the user performing the action (e.g. current Anjuman user)",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "Optional notes",
+                    "nullable": true
+                  }
                 }
               }
             }
@@ -1909,21 +2319,51 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["success", "data"],
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "properties": {
-                    "success": { "type": "boolean", "example": true },
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "id": { "type": "integer" },
-                        "its_id": { "type": "string" },
-                        "mcd_id": { "type": "integer" },
-                        "is_cleared": { "type": "boolean" },
-                        "cleared_by_its": { "type": "string", "nullable": true },
-                        "cleared_at": { "type": "string", "format": "date-time", "nullable": true },
-                        "notes": { "type": "string", "nullable": true },
-                        "created_at": { "type": "string", "format": "date-time" },
-                        "updated_at": { "type": "string", "format": "date-time" }
+                        "id": {
+                          "type": "integer"
+                        },
+                        "its_id": {
+                          "type": "string"
+                        },
+                        "mcd_id": {
+                          "type": "integer"
+                        },
+                        "is_cleared": {
+                          "type": "boolean"
+                        },
+                        "cleared_by_its": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cleared_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
                       }
                     }
                   }
@@ -1937,21 +2377,51 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["success", "data"],
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "properties": {
-                    "success": { "type": "boolean", "example": true },
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "id": { "type": "integer" },
-                        "its_id": { "type": "string" },
-                        "mcd_id": { "type": "integer" },
-                        "is_cleared": { "type": "boolean" },
-                        "cleared_by_its": { "type": "string", "nullable": true },
-                        "cleared_at": { "type": "string", "format": "date-time", "nullable": true },
-                        "notes": { "type": "string", "nullable": true },
-                        "created_at": { "type": "string", "format": "date-time" },
-                        "updated_at": { "type": "string", "format": "date-time" }
+                        "id": {
+                          "type": "integer"
+                        },
+                        "its_id": {
+                          "type": "string"
+                        },
+                        "mcd_id": {
+                          "type": "integer"
+                        },
+                        "is_cleared": {
+                          "type": "boolean"
+                        },
+                        "cleared_by_its": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cleared_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
                       }
                     }
                   }
@@ -1966,9 +2436,18 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean", "example": false },
-                    "error": { "type": "string", "example": "NOT_FOUND" },
-                    "message": { "type": "string", "example": "Miqaat or check definition not found." }
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "NOT_FOUND"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Miqaat or check definition not found."
+                    }
                   }
                 }
               }
@@ -1987,7 +2466,9 @@
         }
       },
       "post": {
-        "tags": ["Miqaat Checks"],
+        "tags": [
+          "Miqaat Checks"
+        ],
         "summary": "Upsert a miqaat check (clear/unclear)",
         "description": "Same as PUT: creates or updates a single miqaat_checks row. Uniqueness is on (its_id, mcd_id).",
         "parameters": [
@@ -1995,7 +2476,9 @@
             "name": "miqaat_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -2004,13 +2487,29 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["its_id", "mcd_id", "is_cleared"],
+                "required": [
+                  "its_id",
+                  "mcd_id",
+                  "is_cleared"
+                ],
                 "properties": {
-                  "its_id": { "type": "string" },
-                  "mcd_id": { "type": "integer" },
-                  "is_cleared": { "type": "boolean" },
-                  "cleared_by_its": { "type": "string", "nullable": true },
-                  "notes": { "type": "string", "nullable": true }
+                  "its_id": {
+                    "type": "string"
+                  },
+                  "mcd_id": {
+                    "type": "integer"
+                  },
+                  "is_cleared": {
+                    "type": "boolean"
+                  },
+                  "cleared_by_its": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true
+                  }
                 }
               }
             }
@@ -2021,7 +2520,9 @@
             "description": "Updated successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
               }
             }
           },
@@ -2029,7 +2530,9 @@
             "description": "Created successfully",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SuccessResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
               }
             }
           },
@@ -2037,7 +2540,9 @@
             "description": "Miqaat or check definition not found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -2045,7 +2550,9 @@
             "description": "Validation error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -2054,7 +2561,9 @@
     },
     "/miqaats/{miqaat_id}/wajebaat/{its_id}": {
       "get": {
-        "tags": ["Wajebaat"],
+        "tags": [
+          "Wajebaat"
+        ],
         "summary": "Get wajebaat for a member in a miqaat",
         "description": "Returns the single wajebaat record for the given miqaat and member. Returns 404 if no record exists.",
         "parameters": [
@@ -2062,14 +2571,18 @@
             "name": "miqaat_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Miqaat ID"
           },
           {
             "name": "its_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "description": "ITS ID of the member"
           }
         ],
@@ -2109,7 +2622,9 @@
     },
     "/miqaats/{miqaat_id}/wajebaat/{its_id}/clearance": {
       "get": {
-        "tags": ["Wajebaat"],
+        "tags": [
+          "Wajebaat"
+        ],
         "summary": "Get clearance status for a member in a miqaat",
         "description": "Returns wajebaat record (if any), pending department checks, and whether the member can be marked paid.",
         "parameters": [
@@ -2117,13 +2632,17 @@
             "name": "miqaat_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           },
           {
             "name": "its_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2152,7 +2671,9 @@
     },
     "/miqaats/{miqaat_id}/wajebaat/{its_id}/paid": {
       "patch": {
-        "tags": ["Wajebaat"],
+        "tags": [
+          "Wajebaat"
+        ],
         "summary": "Update Finance Ada payment status",
         "description": "Mark a member's wajebaat as paid or unpaid for a specific miqaat. Before saving paid=true, the controller queries the miqaat_checks table. If any check for that its_id is false (or missing), returns 403 Forbidden with a JSON payload listing the specific mcd_id names that are pending.",
         "parameters": [
@@ -2181,7 +2702,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["paid"],
+                "required": [
+                  "paid"
+                ],
                 "properties": {
                   "paid": {
                     "type": "boolean",
@@ -3016,7 +3539,12 @@
       },
       "CreateSharafRequest": {
         "type": "object",
-        "required": ["sharaf_definition_id", "rank", "capacity", "hof_its"],
+        "required": [
+          "sharaf_definition_id",
+          "rank",
+          "capacity",
+          "hof_its"
+        ],
         "properties": {
           "sharaf_definition_id": {
             "type": "integer",
@@ -3025,15 +3553,8 @@
           },
           "rank": {
             "type": "integer",
-            "description": "Rank of the sharaf (must be unique within the sharaf_definition_id, minimum: 1)",
-            "minimum": 1,
+            "description": "Rank of the sharaf (must be unique within the sharaf_definition_id, use 0 for auto-assign)",
             "example": 1
-          },
-          "name": {
-            "type": "string",
-            "description": "Name of the sharaf (max 255 characters)",
-            "maxLength": 255,
-            "example": "Sharaf Group 1"
           },
           "capacity": {
             "type": "integer",
@@ -3043,7 +3564,13 @@
           },
           "status": {
             "type": "string",
-            "enum": ["pending", "bs_approved", "confirmed", "rejected", "cancelled"],
+            "enum": [
+              "pending",
+              "bs_approved",
+              "confirmed",
+              "rejected",
+              "cancelled"
+            ],
             "description": "Status of the sharaf",
             "default": "pending",
             "example": "pending"
@@ -3052,12 +3579,60 @@
             "type": "string",
             "description": "ITS number of the Head of Family",
             "example": "123456"
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 50,
+            "description": "Unique physical tag/token identifier",
+            "example": "T-100"
+          },
+          "comments": {
+            "type": "string",
+            "description": "Administrative comments",
+            "example": "Requires special seating"
+          }
+        }
+      },
+      "UpdateSharafRequest": {
+        "type": "object",
+        "properties": {
+          "sharaf_definition_id": {
+            "type": "integer"
+          },
+          "rank": {
+            "type": "integer"
+          },
+          "capacity": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "bs_approved",
+              "confirmed",
+              "rejected",
+              "cancelled"
+            ]
+          },
+          "hof_its": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "comments": {
+            "type": "string"
           }
         }
       },
       "AddSharafMemberRequest": {
         "type": "object",
-        "required": ["its", "position_id"],
+        "required": [
+          "its",
+          "position_id"
+        ],
         "properties": {
           "its": {
             "type": "string",
@@ -3078,7 +3653,10 @@
       },
       "TakhmeenStoreRequest": {
         "type": "object",
-        "required": ["miqaat_id", "entries"],
+        "required": [
+          "miqaat_id",
+          "entries"
+        ],
         "properties": {
           "miqaat_id": {
             "type": "integer",
@@ -3092,7 +3670,10 @@
             "maxItems": 1000,
             "items": {
               "type": "object",
-              "required": ["its_id", "amount"],
+              "required": [
+                "its_id",
+                "amount"
+              ],
               "properties": {
                 "its_id": {
                   "type": "string",
@@ -3227,7 +3808,11 @@
                   "group_type": {
                     "type": "string",
                     "nullable": true,
-                    "enum": ["business_grouping", "personal_grouping", "organization"],
+                    "enum": [
+                      "business_grouping",
+                      "personal_grouping",
+                      "organization"
+                    ],
                     "description": "Type of the group",
                     "example": "personal_grouping"
                   },
