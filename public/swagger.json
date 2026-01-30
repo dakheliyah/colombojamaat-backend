@@ -2187,6 +2187,12 @@
                     "type": "boolean",
                     "description": "Whether the wajebaat is paid",
                     "example": true
+                  },
+                  "is_isolated": {
+                    "type": "boolean",
+                    "description": "Whether this member is isolated (cannot be part of any group). If set to true, member will be removed from any existing groups.",
+                    "nullable": true,
+                    "example": false
                   }
                 }
               }
@@ -2210,6 +2216,758 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DepartmentChecksPendingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get all wajebaat records for a miqaat",
+        "description": "Returns all wajebaat records for a specific miqaat. Returns empty array if no records exist (not 404).",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "miqaat_id": { "type": "integer" },
+                          "its_id": { "type": "string" },
+                          "wg_id": { "type": "integer", "nullable": true },
+                          "amount": { "type": "number", "format": "decimal" },
+                          "currency": { "type": "string" },
+                          "conversion_rate": { "type": "number", "format": "decimal" },
+                          "status": { "type": "boolean" },
+                          "wc_id": { "type": "integer", "nullable": true },
+                          "is_isolated": { "type": "boolean", "description": "Whether this member is isolated (cannot be part of any group)" },
+                          "created_at": { "type": "string", "format": "date-time" },
+                          "updated_at": { "type": "string", "format": "date-time" },
+                          "category": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "wc_id": { "type": "integer" },
+                              "miqaat_id": { "type": "integer" },
+                              "name": { "type": "string" },
+                              "low_bar": { "type": "number", "format": "decimal" },
+                              "upper_bar": { "type": "number", "format": "decimal" },
+                              "hex_color": { "type": "string", "nullable": true },
+                              "currency": { "type": "string" },
+                              "order": { "type": "integer" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wajebaat/history/{its_id}": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get wajebaat history for an ITS ID",
+        "description": "Returns all wajebaat records for a specific ITS ID across all miqaats. Ordered by created_at descending (most recent first). Returns empty array if no records exist (not 404).",
+        "parameters": [
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS ID of the member"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "miqaat_id": { "type": "integer" },
+                          "its_id": { "type": "string" },
+                          "wg_id": { "type": "integer", "nullable": true },
+                          "amount": { "type": "number", "format": "decimal" },
+                          "currency": { "type": "string" },
+                          "conversion_rate": { "type": "number", "format": "decimal" },
+                          "status": { "type": "boolean" },
+                          "wc_id": { "type": "integer", "nullable": true },
+                          "is_isolated": { "type": "boolean", "description": "Whether this member is isolated (cannot be part of any group)" },
+                          "created_at": { "type": "string", "format": "date-time" },
+                          "updated_at": { "type": "string", "format": "date-time" },
+                          "category": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "wc_id": { "type": "integer" },
+                              "miqaat_id": { "type": "integer" },
+                              "name": { "type": "string" },
+                              "low_bar": { "type": "number", "format": "decimal" },
+                              "upper_bar": { "type": "number", "format": "decimal" },
+                              "hex_color": { "type": "string", "nullable": true },
+                              "currency": { "type": "string" },
+                              "order": { "type": "integer" }
+                            }
+                          },
+                          "miqaat": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "id": { "type": "integer" },
+                              "name": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat-categories": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get wajebaat categories for a miqaat",
+        "description": "Returns all wajebaat categories configured for a specific miqaat. Ordered by low_bar ascending. Returns empty array if no categories exist (not 404).",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer", "description": "Category ID (alias for wc_id)" },
+                          "wc_id": { "type": "integer" },
+                          "miqaat_id": { "type": "integer" },
+                          "name": { "type": "string" },
+                          "low_bar": { "type": "number", "format": "decimal" },
+                          "upper_bar": { "type": "number", "format": "decimal" },
+                          "hex_color": { "type": "string", "nullable": true },
+                          "color": { "type": "string", "nullable": true, "description": "Alias for hex_color" },
+                          "currency": { "type": "string" },
+                          "order": { "type": "integer" },
+                          "created_at": { "type": "string", "format": "date-time" },
+                          "updated_at": { "type": "string", "format": "date-time" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat-groups": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "List all wajebaat groups for a miqaat",
+        "description": "Returns all wajebaat groups for a specific miqaat. Returns empty array if no groups exist (not 404).",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/GroupData"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Wajebaat"],
+        "summary": "Create a new wajebaat group",
+        "description": "Creates a new wajebaat group with a master and members. Master ITS must be included in members array. All members must not belong to another group.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["master_its", "member_its_ids"],
+                "properties": {
+                  "master_its": {
+                    "type": "string",
+                    "description": "ITS ID of the group master (must exist in census)"
+                  },
+                  "member_its_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of ITS IDs for group members (must exist in census, at least one required)"
+                  },
+                  "group_name": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Optional group name"
+                  },
+                  "group_type": {
+                    "type": "string",
+                    "enum": ["business_grouping", "personal_grouping", "organization"],
+                    "nullable": true,
+                    "description": "Optional group type"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Group created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/GroupData"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error or isolated member",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean",
+                          "example": false
+                        },
+                        "error": {
+                          "type": "string",
+                          "example": "ISOLATED_MEMBER"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "One or more members are marked as isolated and cannot be part of any group."
+                        },
+                        "isolated_its_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict - one or more members already belong to another group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "CONFLICT"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "One or more members already belong to another group."
+                    },
+                    "conflicting_its_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat-groups/{wg_id}": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get wajebaat group members",
+        "description": "Returns all members of a wajebaat group with their census and wajebaat data. Returns 404 if group doesn't exist.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "wg_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Wajebaat Group ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "wg_id": { "type": "integer" },
+                        "master_its": { "type": "string" },
+                        "group_name": { "type": "string", "nullable": true },
+                        "group_type": { "type": "string", "nullable": true, "enum": ["business_grouping", "personal_grouping", "organization"] },
+                        "members": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "its_id": { "type": "string" },
+                              "person": {
+                                "type": "object",
+                                "nullable": true,
+                                "description": "Census record for the member"
+                              },
+                              "wajebaat": {
+                                "type": "object",
+                                "nullable": true,
+                                "description": "Wajebaat record for the member in this miqaat, or null if no record exists"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wajebaat group not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Wajebaat"],
+        "summary": "Update an existing wajebaat group",
+        "description": "Updates an existing wajebaat group. Can update master, members, group name, or group type. All members must not belong to another group.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "wg_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Wajebaat Group ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "master_its": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "ITS ID of the group master (must exist in census)"
+                  },
+                  "member_its_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "nullable": true,
+                    "description": "Array of ITS IDs for group members (must exist in census, at least one if provided)"
+                  },
+                  "group_name": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Optional group name"
+                  },
+                  "group_type": {
+                    "type": "string",
+                    "enum": ["business_grouping", "personal_grouping", "organization"],
+                    "nullable": true,
+                    "description": "Optional group type"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/GroupData"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wajebaat group not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error or isolated member",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean",
+                          "example": false
+                        },
+                        "error": {
+                          "type": "string",
+                          "example": "ISOLATED_MEMBER"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "One or more members are marked as isolated and cannot be part of any group."
+                        },
+                        "isolated_its_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict - one or more members already belong to another group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "CONFLICT"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "One or more members already belong to another group."
+                    },
+                    "conflicting_its_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Wajebaat"],
+        "summary": "Delete a wajebaat group",
+        "description": "Deletes a wajebaat group and sets wajebaat.wg_id to null for all members (cascade).",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "wg_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Wajebaat Group ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Group deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "message"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Wajebaat group deleted successfully."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wajebaat group not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -2361,6 +3119,12 @@
                   "minimum": 0.000001,
                   "example": 1.0,
                   "default": 1.0
+                },
+                "is_isolated": {
+                  "type": "boolean",
+                  "description": "Whether this member is isolated (cannot be part of any group). If set to true, member will be removed from any existing groups.",
+                  "nullable": true,
+                  "example": false
                 }
               }
             }
@@ -2428,6 +3192,19 @@
                       "nullable": true,
                       "description": "Category ID (auto-assigned based on amount)",
                       "example": 2
+                    },
+                    "is_isolated": {
+                      "type": "boolean",
+                      "description": "Whether this member is isolated (cannot be part of any group)",
+                      "example": false
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   }
                 }
@@ -2518,6 +3295,53 @@
                   "description": "Department name",
                   "example": "Finance"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "GroupData": {
+      "type": "object",
+      "properties": {
+        "wg_id": {
+          "type": "integer",
+          "description": "Wajebaat Group ID"
+        },
+        "master_its": {
+          "type": "string",
+          "description": "ITS ID of the group master"
+        },
+        "group_name": {
+          "type": "string",
+          "nullable": true,
+          "description": "Group name"
+        },
+        "group_type": {
+          "type": "string",
+          "nullable": true,
+          "enum": ["business_grouping", "personal_grouping", "organization"],
+          "description": "Group type"
+        },
+        "members": {
+          "type": "array",
+          "description": "Array of group members",
+          "items": {
+            "type": "object",
+            "properties": {
+              "its_id": {
+                "type": "string",
+                "description": "ITS ID of the member"
+              },
+              "person": {
+                "type": "object",
+                "nullable": true,
+                "description": "Census record for the member"
+              },
+              "wajebaat": {
+                "type": "object",
+                "nullable": true,
+                "description": "Wajebaat record for the member in this miqaat, or null if no record exists"
               }
             }
           }
