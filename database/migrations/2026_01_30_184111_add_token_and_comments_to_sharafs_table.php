@@ -11,8 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('waj_categories', function (Blueprint $table) {
-            $table->string('hex_color', 7)->nullable()->change();
+        Schema::table('sharafs', function (Blueprint $table) {
+            $table->string('token', 20)->nullable()->unique()->after('hof_its');
+            $table->text('comments')->nullable()->after('token');
         });
     }
 
@@ -21,8 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('waj_categories', function (Blueprint $table) {
-            $table->string('hex_color', 7)->nullable(false)->default('#CCCCCC')->change();
+        Schema::table('sharafs', function (Blueprint $table) {
+            $table->dropColumn(['token', 'comments']);
         });
     }
 };

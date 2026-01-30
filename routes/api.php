@@ -73,6 +73,7 @@ Route::post('/sharaf-positions', [SharafPositionController::class, 'store']);
 Route::get('/sharafs', [SharafController::class, 'index']);
 Route::post('/sharafs', [SharafController::class, 'store']);
 Route::get('/sharafs/{sharaf_id}', [SharafController::class, 'show']);
+Route::put('/sharafs/{sharaf_id}', [SharafController::class, 'update']);
 Route::delete('/sharafs/{sharaf_id}', [SharafController::class, 'destroy']);
 Route::put('/sharafs/{sharaf_id}/status', [SharafController::class, 'status']);
 Route::patch('/sharafs/{sharaf_id}/status', [SharafController::class, 'status']);

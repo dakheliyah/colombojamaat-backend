@@ -11,9 +11,13 @@ use Illuminate\Support\Facades\Validator;
 
 class SharafPaymentController extends Controller
 {
+    protected $paymentService;
+
     public function __construct(
-        protected SharafPaymentService $paymentService
-    ) {}
+        SharafPaymentService $paymentService
+    ) {
+        $this->paymentService = $paymentService;
+    }
 
     public function lagat(Request $request, string $sharaf_id): JsonResponse
     {
@@ -106,6 +110,7 @@ class SharafPaymentController extends Controller
         $validator = Validator::make($request->all(), [
             'payment_definition_id' => ['required', 'integer', 'exists:payment_definitions,id'],
             'payment_amount' => ['required', 'numeric', 'min:0'],
+            'payment_currency' => ['nullable', 'string', 'max:3'],
         ]);
 
         if ($validator->fails()) {
@@ -131,6 +136,7 @@ class SharafPaymentController extends Controller
             [
                 'payment_amount' => $request->input('payment_amount'),
                 'payment_status' => false, // Always false as per requirement
+                'payment_currency' => $request->input('payment_currency', 'LKR'),
             ]
         );
 

@@ -18,6 +18,14 @@ class Sharaf extends Model
         'capacity',
         'status',
         'hof_its',
+        'token',
+        'comments',
+    ];
+
+    protected $appends = ['hof_name'];
+
+    protected $attributes = [
+        'status' => 'pending',
     ];
 
     protected $casts = [
@@ -59,12 +67,53 @@ class Sharaf extends Model
     }
 
     /**
+     * Get the Head of Family from census.
+     */
+    public function hof(): BelongsTo
+    {
+        return $this->belongsTo(Census::class, 'hof_its', 'its_id');
+    }
+
+    /**
      * Get the clearance for this sharaf's HOF.
      */
     public function hofClearance()
     {
         return $this->hasOne(SharafClearance::class)
             ->where('hof_its', $this->hof_its);
+    }
+
+    /**
+     * Get the HOF sharaf member.
+     */
+    public function hofMember()
+    {
+        return $this->hasOne(SharafMember::class, 'sharaf_id')
+            ->where('its_id', $this->hof_its);
+    }
+
+    /**
+     * Get the name of the HOF.
+     */
+    public function getHofNameAttribute(): ?string
+    {
+        // 1. Check if joined from query (attribute exists in the array)
+        if (array_key_exists('hof_name', $this->attributes)) {
+            return $this->attributes['hof_name'];
+        }
+
+        // 2. Fallback to census relationship
+        if ($this->relationLoaded('hof') && $this->hof) {
+            return $this->hof->name;
+        }
+
+        // 3. Fallback to sharafMembers collection
+        if ($this->relationLoaded('sharafMembers')) {
+            $member = $this->sharafMembers->firstWhere('its_id', $this->hof_its);
+            return $member ? $member->name : null;
+        }
+
+        return null;
     }
 
     /**

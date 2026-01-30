@@ -64,13 +64,28 @@ return new class extends Migration
 
         // 4. Make miqaat_id NOT NULL; change unique from (name) to (name, miqaat_id) — resumable
         // Index was created when table was named miqaat_check_departments; MySQL keeps original index name after rename
-        $oldIndexExists = collect(DB::select("SHOW INDEX FROM miqaat_check_definitions WHERE Key_name = 'miqaat_check_departments_name_unique'"))->isNotEmpty();
-        if ($oldIndexExists) {
-            Schema::table('miqaat_check_definitions', function (Blueprint $table) {
-                $table->dropIndex('miqaat_check_departments_name_unique');
-            });
+        $oldIndexExists = false;
+        if (DB::getDriverName() === 'mysql') {
+            $oldIndexExists = collect(DB::select("SHOW INDEX FROM miqaat_check_definitions WHERE Key_name = 'miqaat_check_departments_name_unique'"))->isNotEmpty();
+        } else {
+            // For SQLite, we can check if it exists in sqlite_master or just try catch, 
+            // but Schema::table handles dropIndex if it exists in some cases.
+            // Simplified for SQLite testing:
+            $oldIndexExists = true; // Assume it might exist
         }
-        $newUniqueExists = collect(DB::select("SHOW INDEX FROM miqaat_check_definitions WHERE Key_name = 'miqaat_check_definitions_name_miqaat_id_unique'"))->isNotEmpty();
+        if ($oldIndexExists) {
+            try {
+                Schema::table('miqaat_check_definitions', function (Blueprint $table) {
+                    $table->dropIndex('miqaat_check_departments_name_unique');
+                });
+            } catch (\Exception $e) {
+                // Ignore if index doesn't exist
+            }
+        }
+        $newUniqueExists = false;
+        if (DB::getDriverName() === 'mysql') {
+            $newUniqueExists = collect(DB::select("SHOW INDEX FROM miqaat_check_definitions WHERE Key_name = 'miqaat_check_definitions_name_miqaat_id_unique'"))->isNotEmpty();
+        }
         if (! $newUniqueExists) {
             Schema::table('miqaat_check_definitions', function (Blueprint $table) {
                 $table->unique(['name', 'miqaat_id']);

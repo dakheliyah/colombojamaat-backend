@@ -15,6 +15,7 @@ class SharafPayment extends Model
         'payment_definition_id',
         'payment_amount',
         'payment_status',
+        'payment_currency',
     ];
 
     protected $casts = [
