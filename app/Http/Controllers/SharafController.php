@@ -33,6 +33,8 @@ class SharafController extends Controller
             'sharaf_definition_id' => ['nullable', 'integer', 'exists:sharaf_definitions,id'],
             'status' => ['nullable', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
             'hof_its' => ['nullable', 'string'],
+            'member_its' => ['nullable', 'string'],
+            'its_id' => ['nullable', 'string'],
             'token' => ['nullable', 'string'],
             'hof_name' => ['nullable', 'string'],
             'page' => ['nullable', 'integer', 'min:1'],
@@ -71,6 +73,20 @@ class SharafController extends Controller
 
         if ($request->has('hof_name')) {
             $query->where('census.name', 'like', '%' . $request->input('hof_name') . '%');
+        }
+
+        // Filter by person: sharafs where the given ITS ID is HOF or a member (member_its / its_id are aliases)
+        $memberIts = $request->input('member_its') ?? $request->input('its_id');
+        if ($memberIts !== null && $memberIts !== '') {
+            $query->where(function ($q) use ($memberIts) {
+                $q->where('sharafs.hof_its', $memberIts)
+                    ->orWhereExists(function ($sub) use ($memberIts) {
+                        $sub->select(DB::raw(1))
+                            ->from('sharaf_members')
+                            ->whereColumn('sharaf_members.sharaf_id', 'sharafs.id')
+                            ->where('sharaf_members.its_id', $memberIts);
+                    });
+            });
         }
 
         // Pagination

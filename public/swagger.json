@@ -1121,6 +1121,24 @@
             "description": "Filter by Head of Family ITS"
           },
           {
+            "name": "member_its",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by person ITS: return sharafs where this person is HOF or a member (alias: its_id)"
+          },
+          {
+            "name": "its_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by person ITS: return sharafs where this person is HOF or a member (alias: member_its)"
+          },
+          {
             "name": "token",
             "in": "query",
             "required": false,
