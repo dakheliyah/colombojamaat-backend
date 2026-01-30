@@ -83,6 +83,7 @@ Route::post('/payment-definitions', [PaymentDefinitionController::class, 'store'
 // Sharaf Payment routes
 Route::get('/sharaf-payments', [SharafPaymentController::class, 'index']);
 Route::post('/sharafs/{sharaf_id}/payments', [SharafPaymentController::class, 'store']);
+Route::patch('/sharafs/{sharaf_id}/payments/{payment_definition_id}', [SharafPaymentController::class, 'toggle']);
 Route::post('/sharafs/{sharaf_id}/lagat', [SharafPaymentController::class, 'lagat']);
 Route::post('/sharafs/{sharaf_id}/najwa', [SharafPaymentController::class, 'najwa']);
 // Wajebaat (Takhmeen / Finance Ada) routes

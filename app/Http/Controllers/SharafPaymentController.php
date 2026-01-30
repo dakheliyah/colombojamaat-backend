@@ -58,6 +58,43 @@ class SharafPaymentController extends Controller
     }
 
     /**
+     * Toggle payment status for a sharaf by payment_definition_id.
+     * Generic endpoint supporting all payment types (Hadiyat, Misaaq, Nikah, Ziyafat, Najwa Raqam, etc.).
+     */
+    public function toggle(Request $request, string $sharaf_id, string $payment_definition_id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'paid' => ['required', 'boolean'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        try {
+            $sharafPayment = $this->paymentService->togglePaymentByDefinitionId(
+                (int) $sharaf_id,
+                (int) $payment_definition_id,
+                (bool) $request->input('paid')
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->jsonError(
+                'NOT_FOUND',
+                'Sharaf not found, or payment definition not found / not applicable for this sharaf.',
+                404
+            );
+        }
+
+        $sharafPayment->load(['sharaf', 'paymentDefinition']);
+
+        return $this->jsonSuccessWithData($sharafPayment, 200);
+    }
+
+    /**
      * Get all sharaf payments with optional filtering.
      */
     public function index(Request $request): JsonResponse
@@ -77,7 +114,9 @@ class SharafPaymentController extends Controller
         }
 
         $query = SharafPayment::with(['sharaf', 'paymentDefinition'])
-            ->whereHas('sharaf.sharafDefinition.event.miqaat', fn ($q) => $q->active());
+            ->whereHas('sharaf.sharafDefinition.event.miqaat', function ($q) {
+                return $q->active();
+            });
 
         // Apply filters
         if ($request->has('sharaf_id')) {

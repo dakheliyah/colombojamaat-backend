@@ -75,4 +75,33 @@ class SharafPaymentService
     {
         $this->togglePayment($sharafId, 'najwa_ada', $paid);
     }
+
+    /**
+     * Toggle payment status for a sharaf by payment_definition_id.
+     * Find or create the sharaf_payments record and update payment_status.
+     *
+     * @param int $sharafId
+     * @param int $paymentDefinitionId
+     * @param bool $paid
+     * @return SharafPayment
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function togglePaymentByDefinitionId(int $sharafId, int $paymentDefinitionId, bool $paid): SharafPayment
+    {
+        $sharaf = Sharaf::findOrFail($sharafId);
+
+        $paymentDefinition = PaymentDefinition::where('id', $paymentDefinitionId)
+            ->where('sharaf_definition_id', $sharaf->sharaf_definition_id)
+            ->firstOrFail();
+
+        return SharafPayment::updateOrCreate(
+            [
+                'sharaf_id' => $sharafId,
+                'payment_definition_id' => $paymentDefinitionId,
+            ],
+            [
+                'payment_status' => $paid ? 1 : 0,
+            ]
+        );
+    }
 }

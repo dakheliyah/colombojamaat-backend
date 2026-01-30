@@ -2178,13 +2178,103 @@
         }
       }
     },
+    "/sharafs/{sharaf_id}/payments/{payment_definition_id}": {
+      "patch": {
+        "tags": [
+          "Sharaf Payments"
+        ],
+        "summary": "Toggle payment status for a sharaf by payment definition",
+        "description": "Generic endpoint to toggle payment_status for any payment definition (e.g. Hadiyat, Misaaq, Nikah, Ziyafat, Najwa Raqam). Find or create the sharaf_payments record and update payment_status.",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          },
+          {
+            "name": "payment_definition_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Payment definition ID (from payment_definitions table)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paid": {
+                    "type": "boolean",
+                    "description": "Whether the payment is paid"
+                  }
+                },
+                "required": [
+                  "paid"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "description": "Updated sharaf payment record with sharaf and paymentDefinition relations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sharaf not found, or payment definition not found / not applicable for this sharaf",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sharafs/{sharaf_id}/payments": {
       "post": {
         "tags": [
           "Sharaf Payments"
         ],
         "summary": "Create or update a sharaf payment",
-        "description": "Creates or updates a payment record for the sharaf. payment_status is set to false. Use lagat/najwa endpoints for toggling paid status.",
+        "description": "Creates or updates a payment record for the sharaf. payment_status is set to false. Use PATCH /sharafs/{sharaf_id}/payments/{payment_definition_id} for toggling paid status (or lagat/najwa for backward compatibility).",
         "parameters": [
           {
             "name": "sharaf_id",
