@@ -23,12 +23,14 @@ class Wajebaat extends Model
         'conversion_rate',
         'status',
         'wc_id',
+        'is_isolated',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'conversion_rate' => 'decimal:6',
         'status' => 'boolean',
+        'is_isolated' => 'boolean',
     ];
 
     public function miqaat(): BelongsTo
