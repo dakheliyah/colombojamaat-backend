@@ -2880,13 +2880,198 @@
         }
       }
     },
+    "/miqaats/{miqaat_id}/mumin-profile/{its_id}": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get Mumin Dashboard profile (group or family)",
+        "description": "Resolves and returns the full profile for the Mumin Dashboard in one call. Level 1 (Group): If user's ITS is in wajebaat_groups for the miqaat, returns group profile with all members. Level 2 (Family): If not in a group, returns family profile (census where hof_id = user's hof_id). Includes members with census, wajebaat (is_isolated, category), and clearance_status for primary its_id.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Miqaat ID (must be active)"
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ITS ID of the logged-in mumin"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "profile_type": { "type": "string", "enum": ["group", "family"] },
+                        "master_its": { "type": "string", "description": "Present when profile_type=group" },
+                        "hof_its": { "type": "string", "description": "Present when profile_type=family" },
+                        "wg_id": { "type": "integer", "description": "Present when profile_type=group" },
+                        "group_name": { "type": "string", "nullable": true, "description": "Present when profile_type=group" },
+                        "members": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "its_id": { "type": "string" },
+                              "person": {
+                                "type": "object",
+                                "nullable": true,
+                                "description": "Census record for the member"
+                              },
+                              "wajebaat": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "id": { "type": "integer" },
+                                  "amount": { "type": "number" },
+                                  "currency": { "type": "string" },
+                                  "status": { "type": "boolean" },
+                                  "is_isolated": { "type": "boolean" },
+                                  "category": {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "properties": {
+                                      "wc_id": { "type": "integer" },
+                                      "name": { "type": "string" },
+                                      "hex_color": { "type": "string" }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "clearance_status": {
+                          "type": "object",
+                          "properties": {
+                            "can_mark_paid": { "type": "boolean" },
+                            "pending_departments": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "mcd_id": { "type": "integer" },
+                                  "name": { "type": "string" }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Census record not found for this ITS",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat/by-its-list": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get wajebaat records for multiple ITSs",
+        "description": "Fetches wajebaat records for multiple ITSs in one call. Query param: its_ids=123,456,789 (comma-separated). Returns array of wajebaat objects with is_isolated and category populated.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Miqaat ID (must be active)"
+          },
+          {
+            "name": "its_ids",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Comma-separated ITS IDs (e.g. 123,456,789)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response (array of wajebaat with is_isolated and category)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "its_id": { "type": "string" },
+                          "amount": { "type": "number" },
+                          "currency": { "type": "string" },
+                          "status": { "type": "boolean" },
+                          "is_isolated": { "type": "boolean" },
+                          "category": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "wc_id": { "type": "integer" },
+                              "name": { "type": "string" },
+                              "hex_color": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/miqaats/{miqaat_id}/wajebaat/{its_id}": {
       "get": {
         "tags": [
           "Wajebaat"
         ],
         "summary": "Get wajebaat for a member in a miqaat",
-        "description": "Returns the single wajebaat record for the given miqaat and member. Returns 404 if no record exists.",
+        "description": "Returns the single wajebaat record for the given miqaat and member. Includes is_isolated and category (wc_id, name, hex_color). Returns 404 if no record exists.",
         "parameters": [
           {
             "name": "miqaat_id",
