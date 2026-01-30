@@ -8,6 +8,7 @@ use App\Services\SharafApprovalService;
 use App\Services\SharafConfirmationEvaluator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class SharafController extends Controller
@@ -255,8 +256,53 @@ class SharafController extends Controller
             unset($updateData['status']);
         }
 
-        $sharaf->update($updateData);
+        try {
+            DB::transaction(function () use ($sharaf, &$updateData) {
+                if (!array_key_exists('rank', $updateData)) {
+                    $sharaf->update($updateData);
+                    return;
+                }
 
+                $requestedRank = (int) $updateData['rank'];
+                $sharafDefinitionId = $updateData['sharaf_definition_id'] ?? $sharaf->sharaf_definition_id;
+                $currentRank = (int) $sharaf->rank;
+
+                if ($requestedRank === $currentRank) {
+                    unset($updateData['rank']);
+                    $sharaf->update($updateData);
+                    return;
+                }
+
+                if ($requestedRank === 0) {
+                    $maxRank = Sharaf::where('sharaf_definition_id', $sharafDefinitionId)->max('rank');
+                    $updateData['rank'] = ($maxRank !== null) ? $maxRank + 1 : 1;
+                    $sharaf->update($updateData);
+                    return;
+                }
+
+                $existingSharaf = Sharaf::where('sharaf_definition_id', $sharafDefinitionId)
+                    ->where('rank', $requestedRank)
+                    ->where('id', '!=', $sharaf->id)
+                    ->first();
+
+                if ($existingSharaf) {
+                    $tempRank = Sharaf::where('sharaf_definition_id', $sharafDefinitionId)->max('rank') + 1;
+                    $sharaf->update(['rank' => $tempRank]);
+                    $existingSharaf->update(['rank' => $currentRank]);
+                    $updateData['rank'] = $requestedRank;
+                }
+
+                $sharaf->update($updateData);
+            });
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                'A sharaf with this rank already exists for the given sharaf definition.',
+                422
+            );
+        }
+
+        $sharaf->refresh();
         $sharaf->load(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition']);
 
         return $this->jsonSuccessWithData($sharaf);
