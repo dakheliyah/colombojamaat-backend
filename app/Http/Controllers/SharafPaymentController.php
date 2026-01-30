@@ -76,7 +76,8 @@ class SharafPaymentController extends Controller
             );
         }
 
-        $query = SharafPayment::with(['sharaf', 'paymentDefinition']);
+        $query = SharafPayment::with(['sharaf', 'paymentDefinition'])
+            ->whereHas('sharaf.sharafDefinition.event.miqaat', fn ($q) => $q->active());
 
         // Apply filters
         if ($request->has('sharaf_id')) {

@@ -33,9 +33,12 @@ Route::get('/users/{id}', [UserController::class, 'show']);
 Route::post('/users', [UserController::class, 'store']);
 Route::put('/users/{id}', [UserController::class, 'update']);
 Route::delete('/users/{id}', [UserController::class, 'destroy']);
-// Miqaat routes
+// Miqaat routes (active before {miqaat_id} so "active" is not captured as id)
 Route::get('/miqaats', [MiqaatController::class, 'index']);
+Route::get('/miqaats/active', [MiqaatController::class, 'active']);
 Route::post('/miqaats', [MiqaatController::class, 'store']);
+Route::patch('/miqaats/{id}', [MiqaatController::class, 'update']);
+Route::put('/miqaats/{id}', [MiqaatController::class, 'update']);
 Route::get('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'index']);
 Route::put('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
 Route::post('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);

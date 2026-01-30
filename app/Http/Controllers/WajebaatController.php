@@ -51,6 +51,9 @@ class WajebaatController extends Controller
         }
 
         $miqaatId = (int) $request->input('miqaat_id');
+        if (($err = $this->ensureActiveMiqaat($miqaatId)) !== null) {
+            return $err;
+        }
         $entries = (array) $request->input('entries', []);
         $lookupIts = $request->filled('its_id') ? (string) $request->input('its_id') : null;
 
@@ -150,6 +153,9 @@ class WajebaatController extends Controller
                 422
             );
         }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
 
         $wajebaat = Wajebaat::query()
             ->forItsInMiqaat((string) $its_id, (int) $miqaat_id)
@@ -191,6 +197,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;
@@ -264,6 +273,9 @@ class WajebaatController extends Controller
                 422
             );
         }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
 
         $miqaatId = (int) $miqaat_id;
         $itsId = (string) $its_id;
@@ -301,6 +313,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;
@@ -365,6 +380,9 @@ class WajebaatController extends Controller
                 422
             );
         }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
 
         $miqaatId = (int) $miqaat_id;
 
@@ -402,6 +420,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;
@@ -447,6 +468,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;
@@ -561,6 +585,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;
@@ -721,6 +748,9 @@ class WajebaatController extends Controller
                 422
             );
         }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
 
         $miqaatId = (int) $miqaat_id;
         $wgId = (int) $wg_id;
@@ -833,6 +863,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;

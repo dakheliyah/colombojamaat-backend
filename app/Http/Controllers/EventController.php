@@ -10,20 +10,23 @@ use Illuminate\Support\Facades\Validator;
 class EventController extends Controller
 {
     /**
-     * Get all events.
+     * Get all events for the active miqaat only.
      */
     public function index(): JsonResponse
     {
-        $events = Event::all();
+        $events = Event::whereHas('miqaat', fn ($q) => $q->active())->get();
 
         return $this->jsonSuccessWithData($events);
     }
 
     /**
-     * Get events by miqaat ID.
+     * Get events by miqaat ID. miqaat_id must be the active miqaat.
      */
     public function byMiqaat(string $miqaat_id): JsonResponse
     {
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
         $events = Event::where('miqaat_id', $miqaat_id)->get();
 
         return $this->jsonSuccessWithData($events);

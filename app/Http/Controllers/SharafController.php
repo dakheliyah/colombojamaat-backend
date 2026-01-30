@@ -50,6 +50,7 @@ class SharafController extends Controller
         }
 
         $query = Sharaf::query()
+            ->whereHas('sharafDefinition.event.miqaat', fn ($q) => $q->active())
             ->leftJoin('census', 'sharafs.hof_its', '=', 'census.its_id')
             ->select('sharafs.*', 'census.name as hof_name')
             ->with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition']);

@@ -17,6 +17,9 @@ class MiqaatCheckController extends Controller
      */
     public function index(Request $request, int $miqaat_id): JsonResponse
     {
+        if (($err = $this->ensureActiveMiqaat($miqaat_id)) !== null) {
+            return $err;
+        }
         if (!Miqaat::where('id', $miqaat_id)->exists()) {
             return $this->jsonError('NOT_FOUND', 'Miqaat not found.', 404);
         }
@@ -53,6 +56,9 @@ class MiqaatCheckController extends Controller
      */
     public function upsert(Request $request, int $miqaat_id): JsonResponse
     {
+        if (($err = $this->ensureActiveMiqaat($miqaat_id)) !== null) {
+            return $err;
+        }
         if (!Miqaat::where('id', $miqaat_id)->exists()) {
             return $this->jsonError('NOT_FOUND', 'Miqaat or check definition not found.', 404);
         }

@@ -354,13 +354,21 @@
           "Miqaats"
         ],
         "summary": "Get all miqaats",
+        "description": "Returns all miqaats. Each item includes active_status (boolean); only one miqaat can have active_status true at a time.",
         "responses": {
           "200": {
-            "description": "Successful response",
+            "description": "Successful response; data is an array of Miqaat (each with active_status)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Miqaat" }
+                    }
+                  }
                 }
               }
             }
@@ -417,13 +425,154 @@
         }
       }
     },
+    "/miqaats/active": {
+      "get": {
+        "tags": ["Miqaats"],
+        "summary": "Get the active miqaat",
+        "description": "Returns the single miqaat that is currently active (active_status true). Use this to get the current miqaat id for building URLs. Returns 404 if no miqaat is active.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Miqaat" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active miqaat set",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{id}": {
+      "patch": {
+        "tags": ["Miqaats"],
+        "summary": "Update a miqaat",
+        "description": "Update name, dates, description, or active_status. When active_status is set to true, all other miqaats are set inactive (only one can be active at a time).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Miqaat ID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "start_date": { "type": "string", "format": "date" },
+                  "end_date": { "type": "string", "format": "date" },
+                  "description": { "type": "string", "nullable": true },
+                  "active_status": { "type": "boolean", "description": "Set to true to make this the active miqaat (deactivates others)" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Miqaat" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Miqaat not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Miqaats"],
+        "summary": "Update a miqaat (same as PATCH)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "start_date": { "type": "string", "format": "date" },
+                  "end_date": { "type": "string", "format": "date" },
+                  "description": { "type": "string", "nullable": true },
+                  "active_status": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Miqaat" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Miqaat not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "422": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
     "/miqaat-check-definitions": {
       "get": {
         "tags": [
           "Miqaat Check Definitions"
         ],
         "summary": "List miqaat check definitions",
-        "description": "Paginated list, optionally filtered by miqaat_id. Ordered by miqaat_id then name.",
+        "description": "Paginated list, optionally filtered by miqaat_id. When miqaat_id is omitted, results are limited to the active miqaat. When miqaat_id is provided, it must be the active miqaat (403 MIQAAT_NOT_ACTIVE otherwise). Ordered by miqaat_id then name.",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -758,6 +907,7 @@
           "Events"
         ],
         "summary": "Get all events",
+        "description": "Returns only events for the active miqaat.",
         "responses": {
           "200": {
             "description": "Successful response",
@@ -852,6 +1002,7 @@
           "Events"
         ],
         "summary": "Get events by miqaat ID",
+        "description": "miqaat_id must be the current active miqaat (403 MIQAAT_NOT_ACTIVE otherwise).",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -860,7 +1011,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "Miqaat ID"
+            "description": "Miqaat ID (must be the active miqaat)"
           }
         ],
         "responses": {
@@ -870,6 +1021,21 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Miqaat is not the current active miqaat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "MIQAAT_NOT_ACTIVE" },
+                    "message": { "type": "string", "example": "Miqaat is not the current active miqaat." }
+                  }
                 }
               }
             }
@@ -1085,6 +1251,7 @@
           "Sharafs"
         ],
         "summary": "Get all sharafs with optional filtering",
+        "description": "Returns only sharafs whose event belongs to the active miqaat.",
         "parameters": [
           {
             "name": "sharaf_definition_id",
@@ -1783,7 +1950,7 @@
           "Sharaf Payments"
         ],
         "summary": "List sharaf payments",
-        "description": "Paginated list, optionally filtered by sharaf_id.",
+        "description": "Paginated list, optionally filtered by sharaf_id. Returns only payments for sharafs that belong to the active miqaat.",
         "parameters": [
           {
             "name": "sharaf_id",
@@ -2150,7 +2317,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "Miqaat ID (must exist in miqaats)"
+            "description": "Miqaat ID (must be the active miqaat; 403 MIQAAT_NOT_ACTIVE otherwise)"
           },
           {
             "name": "its_id",
@@ -2224,6 +2391,21 @@
               }
             }
           },
+          "403": {
+            "description": "Miqaat is not the current active miqaat (error: MIQAAT_NOT_ACTIVE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "MIQAAT_NOT_ACTIVE" },
+                    "message": { "type": "string", "example": "Miqaat is not the current active miqaat." }
+                  }
+                }
+              }
+            }
+          },
           "404": {
             "description": "Miqaat not found",
             "content": {
@@ -2288,7 +2470,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "Miqaat ID (must exist; used to validate that mcd_id belongs to this miqaat)"
+            "description": "Miqaat ID (must be the active miqaat; 403 MIQAAT_NOT_ACTIVE otherwise)"
           }
         ],
         "requestBody": {
@@ -2447,6 +2629,21 @@
               }
             }
           },
+          "403": {
+            "description": "Miqaat is not the current active miqaat (error: MIQAAT_NOT_ACTIVE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "MIQAAT_NOT_ACTIVE" },
+                    "message": { "type": "string", "example": "Miqaat is not the current active miqaat." }
+                  }
+                }
+              }
+            }
+          },
           "404": {
             "description": "Miqaat or check definition not found",
             "content": {
@@ -2488,7 +2685,7 @@
           "Miqaat Checks"
         ],
         "summary": "Upsert a miqaat check (clear/unclear)",
-        "description": "Same as PUT: creates or updates a single miqaat_checks row. Uniqueness is on (its_id, mcd_id).",
+        "description": "Same as PUT: creates or updates a single miqaat_checks row. miqaat_id must be the active miqaat (403 MIQAAT_NOT_ACTIVE otherwise). Uniqueness is on (its_id, mcd_id).",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -2496,7 +2693,8 @@
             "required": true,
             "schema": {
               "type": "integer"
-            }
+            },
+            "description": "Miqaat ID (must be the active miqaat)"
           }
         ],
         "requestBody": {
@@ -2550,6 +2748,21 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Miqaat is not the current active miqaat (error: MIQAAT_NOT_ACTIVE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "MIQAAT_NOT_ACTIVE" },
+                    "message": { "type": "string", "example": "Miqaat is not the current active miqaat." }
+                  }
                 }
               }
             }
@@ -2778,7 +2991,7 @@
       "get": {
         "tags": ["Wajebaat"],
         "summary": "Get all wajebaat records for a miqaat",
-        "description": "Returns all wajebaat records for a specific miqaat. Returns empty array if no records exist (not 404).",
+        "description": "Returns all wajebaat records for a specific miqaat. miqaat_id must be the active miqaat (403 MIQAAT_NOT_ACTIVE otherwise). Returns empty array if no records exist (not 404). All other wajebaat endpoints that take miqaat_id also require the active miqaat.",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -2787,7 +3000,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "Miqaat ID"
+            "description": "Miqaat ID (must be the active miqaat)"
           }
         ],
         "responses": {
@@ -3555,6 +3768,19 @@
           }
         }
       },
+      "Miqaat": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "name": { "type": "string", "example": "Miqaat 2026" },
+          "start_date": { "type": "string", "format": "date" },
+          "end_date": { "type": "string", "format": "date" },
+          "description": { "type": "string", "nullable": true },
+          "active_status": { "type": "boolean", "description": "Whether this miqaat is the current active one (only one can be active at a time)", "example": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
       "CreateSharafRequest": {
         "type": "object",
         "required": [
@@ -3678,7 +3904,7 @@
         "properties": {
           "miqaat_id": {
             "type": "integer",
-            "description": "ID of the miqaat",
+            "description": "ID of the miqaat (must be the active miqaat; 403 MIQAAT_NOT_ACTIVE otherwise)",
             "example": 1
           },
           "entries": {
