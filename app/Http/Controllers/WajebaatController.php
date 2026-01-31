@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class WajebaatController extends Controller
 {
@@ -2211,6 +2212,543 @@ class WajebaatController extends Controller
         }
 
         return $pending;
+    }
+
+    /**
+     * POST: Bulk upload Takhmeen from CSV file.
+     * 
+     * Validates CSV data and creates/updates wajebaat records.
+     * Returns validation errors if any rows fail validation.
+     */
+    public function takhmeenCsvUpload(Request $request, string $miqaat_id): JsonResponse
+    {
+        $validator = Validator::make([
+            'miqaat_id' => $miqaat_id,
+        ], [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'csv_file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'], // 10MB max
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'CSV file is required.',
+                422
+            );
+        }
+
+        $miqaatId = (int) $miqaat_id;
+        $file = $request->file('csv_file');
+        
+        if (!$file->isValid()) {
+            return $this->jsonError('FILE_ERROR', 'Invalid file uploaded.', 422);
+        }
+
+        $handle = fopen($file->getRealPath(), 'r');
+        if (!$handle) {
+            return $this->jsonError('FILE_ERROR', 'Could not read CSV file.', 500);
+        }
+
+        // Read header row
+        $header = fgetcsv($handle);
+        if (!$header) {
+            fclose($handle);
+            return $this->jsonError('CSV_ERROR', 'Could not read CSV header.', 422);
+        }
+
+        // Normalize header (trim and lowercase)
+        $header = array_map(function ($col) {
+            return strtolower(trim($col));
+        }, $header);
+
+        // Map header columns to indices
+        $columnMap = array_flip($header);
+        
+        // Required columns
+        $requiredColumns = ['its_id', 'amount'];
+        foreach ($requiredColumns as $col) {
+            if (!isset($columnMap[$col])) {
+                fclose($handle);
+                return $this->jsonError(
+                    'CSV_ERROR',
+                    "Missing required column: {$col}. Required columns: " . implode(', ', $requiredColumns),
+                    422
+                );
+            }
+        }
+
+        // Optional columns
+        $optionalColumns = ['currency', 'conversion_rate', 'is_isolated', 'wg_id'];
+        
+        $entries = [];
+        $errors = [];
+        $lineNumber = 1; // Header is line 1
+
+        // Read all rows
+        while (($row = fgetcsv($handle)) !== false) {
+            $lineNumber++;
+            
+            if (count($row) < count($header)) {
+                $errors[] = [
+                    'line' => $lineNumber,
+                    'field' => null,
+                    'message' => 'Row has fewer columns than header',
+                ];
+                continue;
+            }
+
+            // Extract values
+            $itsId = trim($row[$columnMap['its_id']] ?? '');
+            $amount = trim($row[$columnMap['amount']] ?? '');
+            $currency = isset($columnMap['currency']) ? trim($row[$columnMap['currency']] ?? '') : '';
+            $conversionRate = isset($columnMap['conversion_rate']) ? trim($row[$columnMap['conversion_rate']] ?? '') : '';
+            $isIsolated = isset($columnMap['is_isolated']) ? trim($row[$columnMap['is_isolated']] ?? '') : '';
+            $wgId = isset($columnMap['wg_id']) ? trim($row[$columnMap['wg_id']] ?? '') : '';
+
+            // Validate required fields
+            if (empty($itsId)) {
+                $errors[] = [
+                    'line' => $lineNumber,
+                    'field' => 'its_id',
+                    'message' => 'ITS ID is required',
+                ];
+                continue;
+            }
+
+            if (empty($amount) || !is_numeric($amount) || (float) $amount < 0) {
+                $errors[] = [
+                    'line' => $lineNumber,
+                    'field' => 'amount',
+                    'message' => 'Amount must be a non-negative number',
+                ];
+                continue;
+            }
+
+            // Validate currency (if provided)
+            if (!empty($currency) && strlen($currency) !== 3) {
+                $errors[] = [
+                    'line' => $lineNumber,
+                    'field' => 'currency',
+                    'message' => 'Currency must be exactly 3 characters (e.g., LKR, INR, USD)',
+                ];
+                continue;
+            }
+
+            // Note: conversion_rate is hardcoded to 1.0 for CSV uploads, validation skipped
+
+            // Validate is_isolated (if provided)
+            $isIsolatedValue = null;
+            if (!empty($isIsolated)) {
+                $isIsolatedLower = strtolower($isIsolated);
+                if (!in_array($isIsolatedLower, ['true', 'false', '1', '0', 'yes', 'no'])) {
+                    $errors[] = [
+                        'line' => $lineNumber,
+                        'field' => 'is_isolated',
+                        'message' => 'is_isolated must be true/false, 1/0, or yes/no',
+                    ];
+                    continue;
+                }
+                $isIsolatedValue = in_array($isIsolatedLower, ['true', '1', 'yes']);
+            }
+
+            // Validate wg_id (if provided)
+            // If wg_id column exists in CSV, check if it's empty or has a value
+            $wgIdValue = null;
+            $wgIdKeyExists = isset($columnMap['wg_id']);
+            
+            if ($wgIdKeyExists) {
+                // Column exists in CSV
+                if (!empty($wgId)) {
+                    // Has a value - validate it
+                    if (!is_numeric($wgId) || (int) $wgId < 1) {
+                        $errors[] = [
+                            'line' => $lineNumber,
+                            'field' => 'wg_id',
+                            'message' => 'wg_id must be a positive integer',
+                        ];
+                        continue;
+                    }
+                    $wgIdValue = (int) $wgId;
+                } else {
+                    // Empty value - explicitly set to null
+                    $wgIdValue = null;
+                }
+            }
+            // If column doesn't exist, $wgIdValue remains null (will use auto-detection in processing)
+
+            // Validate is_isolated and wg_id combination
+            if ($isIsolatedValue === true && $wgIdValue !== null) {
+                $errors[] = [
+                    'line' => $lineNumber,
+                    'field' => 'is_isolated/wg_id',
+                    'message' => 'If is_isolated is true, wg_id must be empty/null',
+                ];
+                continue;
+            }
+
+            // Check if its_id exists in census
+            $censusExists = Census::where('its_id', $itsId)->exists();
+            if (!$censusExists) {
+                $errors[] = [
+                    'line' => $lineNumber,
+                    'field' => 'its_id',
+                    'message' => "ITS ID '{$itsId}' not found in census",
+                ];
+                continue;
+            }
+
+            // If wg_id is provided, validate group membership
+            if ($wgIdValue !== null) {
+                // Check if group exists
+                $groupExists = WajebaatGroup::query()
+                    ->forGroup($miqaatId, $wgIdValue)
+                    ->exists();
+                
+                if (!$groupExists) {
+                    $errors[] = [
+                        'line' => $lineNumber,
+                        'field' => 'wg_id',
+                        'message' => "Group wg_id '{$wgIdValue}' not found for this miqaat",
+                    ];
+                    continue;
+                }
+                
+                // Validate that the its_id is a member of the specified group
+                $groupMember = WajebaatGroup::query()
+                    ->forGroup($miqaatId, $wgIdValue)
+                    ->where('its_id', $itsId)
+                    ->first();
+                
+                if (!$groupMember) {
+                    $errors[] = [
+                        'line' => $lineNumber,
+                        'field' => 'wg_id',
+                        'message' => "ITS ID '{$itsId}' is not a member of group wg_id '{$wgIdValue}'",
+                    ];
+                    continue;
+                }
+            }
+
+            // All validations passed, add to entries
+            // Note: conversion_rate is hardcoded to 1.0 for CSV bulk uploads
+            $entry = [
+                'its_id' => $itsId,
+                'amount' => (float) $amount,
+                'currency' => !empty($currency) ? strtoupper($currency) : null,
+                'conversion_rate' => 1.0, // Hardcoded to 1.0 for CSV uploads
+                'is_isolated' => $isIsolatedValue,
+                'wg_id' => $wgIdValue, // Will be null if empty in CSV
+                'wg_id_key_exists' => $wgIdKeyExists, // Track if column existed in CSV
+            ];
+
+            $entries[] = $entry;
+        }
+
+        fclose($handle);
+
+        // If there are validation errors, return them
+        if (!empty($errors)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'CSV_VALIDATION_ERROR',
+                'message' => 'CSV file contains validation errors',
+                'errors' => $errors,
+                'total_errors' => count($errors),
+                'valid_rows' => count($entries),
+            ], 422);
+        }
+
+        // If no valid entries, return error
+        if (empty($entries)) {
+            return $this->jsonError('CSV_ERROR', 'No valid rows found in CSV file.', 422);
+        }
+
+        // Process entries using existing takhmeenStore logic
+        $saved = [];
+        $processingErrors = [];
+
+        DB::transaction(function () use ($miqaatId, $entries, &$saved, &$processingErrors) {
+            foreach ($entries as $index => $entry) {
+                try {
+                    $itsId = (string) $entry['its_id'];
+                    $isIsolated = $entry['is_isolated'];
+                    // Check if wg_id column existed in CSV (even if empty)
+                    $wgIdKeyExists = isset($entry['wg_id_key_exists']) && $entry['wg_id_key_exists'];
+                    // Get the wg_id value (will be null if empty in CSV or column didn't exist)
+                    $explicitWgId = $entry['wg_id'] ?? null;
+
+                    // Get current wajebaat to check existing is_isolated status
+                    $currentWajebaat = Wajebaat::query()
+                        ->where('miqaat_id', $miqaatId)
+                        ->where('its_id', $itsId)
+                        ->first();
+                    
+                    // Determine final is_isolated status
+                    $finalIsIsolated = $isIsolated !== null ? $isIsolated : ($currentWajebaat?->is_isolated ?? false);
+                    
+                    // If is_isolated is being set to true, remove from any groups
+                    if ($isIsolated === true) {
+                        WajebaatGroup::query()
+                            ->where('miqaat_id', $miqaatId)
+                            ->where('its_id', $itsId)
+                            ->delete();
+                    }
+
+                    // Determine wg_id
+                    $wgId = null;
+                    if ($wgIdKeyExists) {
+                        $wgId = $explicitWgId;
+                    } elseif (!$finalIsIsolated) {
+                        $groupRow = WajebaatGroup::query()->forMember($miqaatId, $itsId)->first();
+                        $wgId = $groupRow?->wg_id;
+                    }
+
+                    // Store amount in the currency provided
+                    // Note: conversion_rate is hardcoded to 1.0 for CSV bulk uploads
+                    $updateData = [
+                        'wg_id' => $wgId,
+                        'amount' => $entry['amount'],
+                        'currency' => $entry['currency'] ?? 'LKR',
+                        'conversion_rate' => 1.0, // Hardcoded to 1.0 for CSV uploads
+                    ];
+
+                    // Only update is_isolated if explicitly provided
+                    if ($isIsolated !== null) {
+                        $updateData['is_isolated'] = $isIsolated;
+                    }
+
+                    // Include wg_id in the unique key
+                    $wajebaat = Wajebaat::updateOrCreate(
+                        [
+                            'miqaat_id' => $miqaatId,
+                            'its_id' => $itsId,
+                            'wg_id' => $wgId,
+                        ],
+                        $updateData
+                    );
+
+                    // Auto-categorize based on stored amount
+                    $this->wajebaatService->categorize($wajebaat, true);
+
+                    $saved[] = $wajebaat;
+                } catch (\Exception $e) {
+                    $processingErrors[] = [
+                        'row' => $index + 1,
+                        'its_id' => $entry['its_id'] ?? 'unknown',
+                        'message' => $e->getMessage(),
+                    ];
+                }
+            }
+        });
+
+        $response = [
+            'saved_count' => count($saved),
+            'saved' => $saved,
+        ];
+
+        if (!empty($processingErrors)) {
+            $response['processing_errors'] = $processingErrors;
+            $response['warnings'] = 'Some rows had processing errors';
+        }
+
+        return $this->jsonSuccessWithData($response, 201);
+    }
+
+    /**
+     * GET: Download sample CSV file for Takhmeen bulk upload.
+     */
+    public function takhmeenCsvSample(): StreamedResponse
+    {
+        $filename = 'takhmeen_upload_sample.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () {
+            $file = fopen('php://output', 'w');
+            
+            // Write header
+            // Note: conversion_rate is hardcoded to 1.0 for CSV uploads, so it's not included in sample
+            fputcsv($file, [
+                'its_id',
+                'amount',
+                'currency',
+                'is_isolated',
+                'wg_id',
+            ]);
+
+            // Write sample rows
+            fputcsv($file, [
+                '12345',
+                '5000.00',
+                'LKR',
+                'false',
+                '',
+            ]);
+
+            fputcsv($file, [
+                '12346',
+                '7500.50',
+                'INR',
+                'true',
+                '',
+            ]);
+
+            fputcsv($file, [
+                '12347',
+                '10000.00',
+                'LKR',
+                'false',
+                '1',
+            ]);
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * GET: Get guidelines and rules for CSV upload.
+     */
+    public function takhmeenCsvGuidelines(): JsonResponse
+    {
+        $guidelines = [
+            'title' => 'Takhmeen CSV Upload Guidelines',
+            'description' => 'Rules and guidelines for bulk uploading Takhmeen data via CSV file',
+            'required_columns' => [
+                'its_id' => [
+                    'description' => 'ITS ID of the member (must exist in census)',
+                    'type' => 'string',
+                    'required' => true,
+                    'example' => '12345',
+                ],
+                'amount' => [
+                    'description' => 'Takhmeen amount (must be non-negative number)',
+                    'type' => 'decimal',
+                    'required' => true,
+                    'example' => '5000.00',
+                ],
+            ],
+            'optional_columns' => [
+                'currency' => [
+                    'description' => 'Currency code (3 characters, e.g., LKR, INR, USD)',
+                    'type' => 'string',
+                    'required' => false,
+                    'default' => 'LKR',
+                    'example' => 'LKR',
+                ],
+                'conversion_rate' => [
+                    'description' => 'NOTE: This column is IGNORED for CSV bulk uploads. conversion_rate is automatically hardcoded to 1.0 for all CSV uploads. You may include this column in your CSV, but its value will be ignored.',
+                    'type' => 'decimal',
+                    'required' => false,
+                    'ignored' => true,
+                    'hardcoded_value' => '1.0',
+                ],
+                'is_isolated' => [
+                    'description' => 'Whether the member is isolated (true/false, 1/0, yes/no)',
+                    'type' => 'boolean',
+                    'required' => false,
+                    'default' => 'false',
+                    'example' => 'false',
+                    'rules' => [
+                        'If is_isolated is true, wg_id must be empty/null',
+                        'Isolated members cannot be part of any group',
+                    ],
+                ],
+                'wg_id' => [
+                    'description' => 'Wajebaat Group ID (must be a positive integer)',
+                    'type' => 'integer',
+                    'required' => false,
+                    'default' => 'null (auto-detected if member is in a group)',
+                    'example' => '1',
+                    'rules' => [
+                        'If provided, the group must exist for this miqaat',
+                        'The its_id must be a member of the specified group',
+                        'Cannot be provided if is_isolated is true',
+                        'If not provided and member is in a group, wg_id will be auto-detected',
+                    ],
+                ],
+            ],
+            'validation_rules' => [
+                'its_id' => [
+                    'Must exist in the census table',
+                    'Cannot be empty',
+                ],
+                'amount' => [
+                    'Must be a valid number',
+                    'Must be >= 0',
+                    'Cannot be empty',
+                ],
+                'currency' => [
+                    'If provided, must be exactly 3 characters',
+                    'Common values: LKR, INR, USD',
+                ],
+                'conversion_rate' => [
+                    'IGNORED: This field is hardcoded to 1.0 for CSV bulk uploads',
+                    'No validation is performed as the value is not used',
+                ],
+                'is_isolated' => [
+                    'If provided, must be one of: true, false, 1, 0, yes, no',
+                    'Case insensitive',
+                ],
+                'wg_id' => [
+                    'If provided, must be a positive integer',
+                    'The group must exist in wajebaat_groups for this miqaat',
+                    'The its_id must be a member of the specified group',
+                ],
+            ],
+            'business_rules' => [
+                'is_isolated and wg_id' => [
+                    'If is_isolated is true, wg_id must be empty/null',
+                    'Isolated members are automatically removed from any groups',
+                ],
+                'wg_id validation' => [
+                    'If wg_id is provided, the group must exist and the its_id must be a member',
+                    'If wg_id is not provided and member is not isolated, the system will auto-detect if the member belongs to a group',
+                ],
+                'currency handling' => [
+                    'Amounts are stored in the currency provided (no conversion at write-time)',
+                    'conversion_rate is hardcoded to 1.0 for CSV bulk uploads (ignored if provided in CSV)',
+                    'Default currency is LKR if not specified',
+                ],
+                'wg_id handling' => [
+                    'If wg_id column exists in CSV but is empty, it will be saved as NULL',
+                    'If wg_id column does not exist in CSV, the system will auto-detect group membership',
+                    'If wg_id is provided with a value, it must be a valid group ID and the member must belong to that group',
+                ],
+            ],
+            'file_requirements' => [
+                'file_format' => 'CSV (Comma Separated Values)',
+                'max_file_size' => '10MB',
+                'encoding' => 'UTF-8 recommended',
+                'header_row' => 'First row must contain column headers',
+                'case_sensitivity' => 'Column headers are case-insensitive',
+            ],
+            'sample_file' => [
+                'endpoint' => '/api/wajebaat/takhmeen/csv/sample',
+                'description' => 'Download a sample CSV file with example data',
+            ],
+        ];
+
+        return $this->jsonSuccessWithData($guidelines);
     }
 }
 

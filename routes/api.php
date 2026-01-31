@@ -95,6 +95,9 @@ Route::post('/sharafs/{sharaf_id}/najwa', [SharafPaymentController::class, 'najw
 // Wajebaat (Takhmeen / Finance Ada) routes
 Route::post('/wajebaat/takhmeen', [WajebaatController::class, 'takhmeenStore']);
 Route::get('/wajebaat/history/{its_id}', [WajebaatController::class, 'history']);
+Route::post('/miqaats/{miqaat_id}/wajebaat/takhmeen/csv-upload', [WajebaatController::class, 'takhmeenCsvUpload']);
+Route::get('/wajebaat/takhmeen/csv/sample', [WajebaatController::class, 'takhmeenCsvSample']);
+Route::get('/wajebaat/takhmeen/csv/guidelines', [WajebaatController::class, 'takhmeenCsvGuidelines']);
 Route::get('/miqaats/{miqaat_id}/mumin-profile/{its_id}', [WajebaatController::class, 'muminProfile']);
 Route::get('/miqaats/{miqaat_id}/wajebaat', [WajebaatController::class, 'index']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/by-its-list', [WajebaatController::class, 'wajebaatByItsList']);

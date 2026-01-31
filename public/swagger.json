@@ -2602,6 +2602,320 @@
         }
       }
     },
+    "/miqaats/{miqaat_id}/wajebaat/takhmeen/csv-upload": {
+      "post": {
+        "tags": [
+          "Wajebaat"
+        ],
+        "summary": "Bulk upload Takhmeen from CSV file",
+        "description": "Upload a CSV file to bulk create/update Takhmeen records. The CSV file must contain required columns (its_id, amount) and optional columns (currency, conversion_rate, is_isolated, wg_id). All rows are validated before processing. Returns detailed validation errors if any rows fail validation.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID of the miqaat (must be the active miqaat)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "csv_file"
+                ],
+                "properties": {
+                  "csv_file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CSV file containing Takhmeen data (max 10MB)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "CSV file processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "saved_count": {
+                          "type": "integer",
+                          "description": "Number of records successfully saved",
+                          "example": 10
+                        },
+                        "saved": {
+                          "type": "array",
+                          "description": "Array of saved wajebaat records",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "example": 1
+                              },
+                              "miqaat_id": {
+                                "type": "integer",
+                                "example": 1
+                              },
+                              "its_id": {
+                                "type": "string",
+                                "example": "123456"
+                              },
+                              "wg_id": {
+                                "type": "integer",
+                                "nullable": true,
+                                "example": 5
+                              },
+                              "amount": {
+                                "type": "number",
+                                "example": 5000.00
+                              },
+                              "currency": {
+                                "type": "string",
+                                "example": "LKR"
+                              },
+                              "conversion_rate": {
+                                "type": "number",
+                                "example": 1.0
+                              },
+                              "status": {
+                                "type": "boolean",
+                                "example": false
+                              },
+                              "wc_id": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "is_isolated": {
+                                "type": "boolean",
+                                "example": false
+                              },
+                              "created_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updated_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        },
+                        "processing_errors": {
+                          "type": "array",
+                          "description": "Errors encountered during processing (if any)",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "row": {
+                                "type": "integer",
+                                "example": 5
+                              },
+                              "its_id": {
+                                "type": "string",
+                                "example": "123456"
+                              },
+                              "message": {
+                                "type": "string",
+                                "example": "Error message"
+                              }
+                            }
+                          }
+                        },
+                        "warnings": {
+                          "type": "string",
+                          "example": "Some rows had processing errors"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error - CSV file contains errors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "CSV_VALIDATION_ERROR"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "CSV file contains validation errors"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Array of validation errors with line numbers",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "line": {
+                            "type": "integer",
+                            "description": "Line number in CSV file (1-based, header is line 1)",
+                            "example": 3
+                          },
+                          "field": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "Field name that failed validation",
+                            "example": "its_id"
+                          },
+                          "message": {
+                            "type": "string",
+                            "description": "Error message",
+                            "example": "ITS ID '12345' not found in census"
+                          }
+                        }
+                      }
+                    },
+                    "total_errors": {
+                      "type": "integer",
+                      "description": "Total number of validation errors",
+                      "example": 5
+                    },
+                    "valid_rows": {
+                      "type": "integer",
+                      "description": "Number of rows that passed validation",
+                      "example": 10
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Miqaat is not active",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wajebaat/takhmeen/csv/sample": {
+      "get": {
+        "tags": [
+          "Wajebaat"
+        ],
+        "summary": "Download sample CSV file for Takhmeen bulk upload",
+        "description": "Returns a sample CSV file with example data showing the correct format for bulk uploading Takhmeen records. The file includes all required and optional columns with example values.",
+        "responses": {
+          "200": {
+            "description": "Sample CSV file",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string",
+                  "example": "attachment; filename=\"takhmeen_upload_sample.csv\""
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wajebaat/takhmeen/csv/guidelines": {
+      "get": {
+        "tags": [
+          "Wajebaat"
+        ],
+        "summary": "Get guidelines and rules for CSV upload",
+        "description": "Returns comprehensive guidelines, validation rules, and business rules for bulk uploading Takhmeen data via CSV file. Includes information about required/optional columns, validation rules, and business logic.",
+        "responses": {
+          "200": {
+            "description": "Guidelines and rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "example": "Takhmeen CSV Upload Guidelines"
+                        },
+                        "description": {
+                          "type": "string",
+                          "example": "Rules and guidelines for bulk uploading Takhmeen data via CSV file"
+                        },
+                        "required_columns": {
+                          "type": "object",
+                          "description": "Required columns with descriptions"
+                        },
+                        "optional_columns": {
+                          "type": "object",
+                          "description": "Optional columns with descriptions and defaults"
+                        },
+                        "validation_rules": {
+                          "type": "object",
+                          "description": "Validation rules for each column"
+                        },
+                        "business_rules": {
+                          "type": "object",
+                          "description": "Business rules and constraints"
+                        },
+                        "file_requirements": {
+                          "type": "object",
+                          "description": "File format and size requirements"
+                        },
+                        "sample_file": {
+                          "type": "object",
+                          "description": "Information about sample file endpoint"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/miqaats/{miqaat_id}/miqaat-checks": {
       "get": {
         "tags": [
