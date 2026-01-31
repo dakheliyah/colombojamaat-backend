@@ -15,6 +15,7 @@ class PaymentDefinition extends Model
         'sharaf_definition_id',
         'name',
         'description',
+        'user_type',
     ];
 
     /**

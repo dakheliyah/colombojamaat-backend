@@ -24,6 +24,7 @@ class SharafPaymentService
             ],
             [
                 'description' => ucfirst($name) . ' payment',
+                'user_type' => 'Finance',
             ]
         );
     }
