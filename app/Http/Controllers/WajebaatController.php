@@ -465,7 +465,10 @@ class WajebaatController extends Controller
             ->with('category')
             ->orderBy('its_id')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($w) {
+                return $this->formatWajebaatWithCategoryAndAmounts($w);
+            });
 
         return $this->jsonSuccessWithData([
             'its_id' => $itsId,
@@ -517,16 +520,90 @@ class WajebaatController extends Controller
         $paid = (bool) $request->input('paid');
         $isIsolated = $request->filled('is_isolated') ? (bool) $request->input('is_isolated') : null;
 
-        // Department Guard: Before saving paid status, check miqaat_checks
+        // Department Guard: Before saving paid status, check miqaat_checks at HoF level
         if ($paid) {
-            $pending = $this->pendingDepartmentChecks($miqaatId, $itsId);
+            // Get the person's census record to find HoF
+            $person = Census::where('its_id', $itsId)->first();
+            if (!$person) {
+                return $this->jsonError('NOT_FOUND', 'Person not found in census.', 404);
+            }
 
-            if (!empty($pending)) {
+            // Get HoF its_id (if person is HoF themselves, hof_id = its_id)
+            $hofItsId = $person->hof_id ?? $itsId;
+
+            // Collect all HoF its_ids that need clearance checks
+            $hofItsIdsToCheck = [$hofItsId];
+
+            // Check if the HoF is part of a wajebaat group (as master or member)
+            $hofGroup = WajebaatGroup::query()
+                ->where('miqaat_id', $miqaatId)
+                ->where(function ($q) use ($hofItsId) {
+                    $q->where('master_its', $hofItsId)
+                      ->orWhere('its_id', $hofItsId);
+                })
+                ->first();
+
+            if ($hofGroup) {
+                $wgId = $hofGroup->wg_id;
+
+                // Get all group members (including master)
+                $groupMembers = WajebaatGroup::query()
+                    ->where('miqaat_id', $miqaatId)
+                    ->where('wg_id', $wgId)
+                    ->get(['its_id']);
+
+                // Also include the master_its if it's not already in the members list
+                $masterIts = $hofGroup->master_its;
+                $groupMemberItsIds = $groupMembers->pluck('its_id')->toArray();
+                if ($masterIts && !in_array($masterIts, $groupMemberItsIds)) {
+                    $groupMemberItsIds[] = $masterIts;
+                }
+
+                // Get HoF its_ids for all group members
+                if (!empty($groupMemberItsIds)) {
+                    $groupMemberCensus = Census::whereIn('its_id', $groupMemberItsIds)
+                        ->get(['its_id', 'hof_id']);
+
+                    // Collect unique HoF its_ids from group members
+                    $groupHofItsIds = $groupMemberCensus
+                        ->pluck('hof_id')
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->toArray();
+
+                    // Merge with existing list (avoid duplicates)
+                    $hofItsIdsToCheck = array_unique(array_merge($hofItsIdsToCheck, $groupHofItsIds));
+                }
+            }
+
+            // Check clearance for all relevant HoF its_ids
+            // If any HoF has pending departments, the member cannot be marked paid
+            $allPending = [];
+            foreach ($hofItsIdsToCheck as $hofIts) {
+                $pending = $this->pendingDepartmentChecks($miqaatId, $hofIts);
+                
+                // Merge pending departments (avoid duplicates by mcd_id)
+                foreach ($pending as $dept) {
+                    $exists = false;
+                    foreach ($allPending as $existing) {
+                        if ($existing['mcd_id'] === $dept['mcd_id']) {
+                            $exists = true;
+                            break;
+                        }
+                    }
+                    if (!$exists) {
+                        $allPending[] = $dept;
+                    }
+                }
+            }
+
+            if (!empty($allPending)) {
                 return response()->json([
                     'success' => false,
                     'error' => 'DEPARTMENT_CHECKS_PENDING',
-                    'message' => 'Cannot mark as paid: department checks are pending.',
-                    'pending_departments' => $pending, // List of { mcd_id, name } for pending departments
+                    'message' => 'Cannot mark as paid: department checks are pending for Head of Family or group members.',
+                    'pending_departments' => $allPending, // List of { mcd_id, name, user_type } for pending departments
                 ], 403);
             }
         }
@@ -590,19 +667,518 @@ class WajebaatController extends Controller
         $miqaatId = (int) $miqaat_id;
         $itsId = (string) $its_id;
 
+        // Get the person's census record to find HoF
+        $person = Census::where('its_id', $itsId)->first();
+        if (!$person) {
+            return $this->jsonError('NOT_FOUND', 'Person not found in census.', 404);
+        }
+
+        // Get HoF its_id (if person is HoF themselves, hof_id = its_id)
+        $hofItsId = $person->hof_id ?? $itsId;
+
+        // Collect all HoF its_ids that need clearance checks
+        $hofItsIdsToCheck = [$hofItsId];
+
+        // Check if the HoF is part of a wajebaat group (as master or member)
+        $hofGroup = WajebaatGroup::query()
+            ->where('miqaat_id', $miqaatId)
+            ->where(function ($q) use ($hofItsId) {
+                $q->where('master_its', $hofItsId)
+                  ->orWhere('its_id', $hofItsId);
+            })
+            ->first();
+
+        if ($hofGroup) {
+            $wgId = $hofGroup->wg_id;
+
+            // Get all group members (including master)
+            $groupMembers = WajebaatGroup::query()
+                ->where('miqaat_id', $miqaatId)
+                ->where('wg_id', $wgId)
+                ->get(['its_id']);
+
+            // Also include the master_its if it's not already in the members list
+            $masterIts = $hofGroup->master_its;
+            $groupMemberItsIds = $groupMembers->pluck('its_id')->toArray();
+            if ($masterIts && !in_array($masterIts, $groupMemberItsIds)) {
+                $groupMemberItsIds[] = $masterIts;
+            }
+
+            // Get HoF its_ids for all group members
+            if (!empty($groupMemberItsIds)) {
+                $groupMemberCensus = Census::whereIn('its_id', $groupMemberItsIds)
+                    ->get(['its_id', 'hof_id']);
+
+                // Collect unique HoF its_ids from group members
+                $groupHofItsIds = $groupMemberCensus
+                    ->pluck('hof_id')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->toArray();
+
+                // Merge with existing list (avoid duplicates)
+                $hofItsIdsToCheck = array_unique(array_merge($hofItsIdsToCheck, $groupHofItsIds));
+            }
+        }
+
+        // Get wajebaat record for the original its_id (not HoF)
         $wajebaat = Wajebaat::query()
             ->forItsInMiqaat($itsId, $miqaatId)
             ->first();
 
-        $pending = $this->pendingDepartmentChecks($miqaatId, $itsId);
+        // Check clearance for all relevant HoF its_ids
+        // If any HoF has pending departments, the member cannot be marked paid
+        $allPending = [];
+        $hofClearanceStatus = [];
+
+        foreach ($hofItsIdsToCheck as $hofIts) {
+            $pending = $this->pendingDepartmentChecks($miqaatId, $hofIts);
+            $hofClearanceStatus[] = [
+                'hof_its_id' => $hofIts,
+                'pending_departments' => $pending,
+                'can_mark_paid' => empty($pending),
+            ];
+
+            // Merge pending departments (avoid duplicates by mcd_id)
+            foreach ($pending as $dept) {
+                $exists = false;
+                foreach ($allPending as $existing) {
+                    if ($existing['mcd_id'] === $dept['mcd_id']) {
+                        $exists = true;
+                        break;
+                    }
+                }
+                if (!$exists) {
+                    $allPending[] = $dept;
+                }
+            }
+        }
 
         $data = [
             'wajebaat' => $wajebaat,
-            'pending_departments' => $pending,
-            'can_mark_paid' => empty($pending),
+            'hof_its_id' => $hofItsId,
+            'hof_clearance_status' => $hofClearanceStatus,
+            'pending_departments' => $allPending,
+            'can_mark_paid' => empty($allPending),
         ];
 
         return $this->jsonSuccessWithData($data);
+    }
+
+    /**
+     * POST: Re-categorize wajebaat record(s).
+     * 
+     * This endpoint re-runs the categorization logic for wajebaat records.
+     * Useful when:
+     * - Currency conversion rates are updated
+     * - Category definitions are changed
+     * - Need to bulk re-categorize existing records
+     * 
+     * Can categorize:
+     * - A single wajebaat record (by miqaat_id and its_id) - use route with its_id
+     * - All wajebaat records for a miqaat - use route without its_id
+     */
+    public function categorize(Request $request, string $miqaat_id, ?string $its_id = null): JsonResponse
+    {
+        $validator = Validator::make(array_merge($request->all(), [
+            'miqaat_id' => $miqaat_id,
+            'its_id' => $its_id,
+        ]), [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+            'its_id' => ['nullable', 'string', 'exists:census,its_id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $miqaatId = (int) $miqaat_id;
+        $itsId = $its_id ? (string) $its_id : null;
+
+        // Check if categories exist for this miqaat
+        $categoryCount = WajCategory::where('miqaat_id', $miqaatId)->count();
+        $warning = null;
+        if ($categoryCount === 0) {
+            $warning = "No wajebaat categories found for miqaat_id={$miqaatId}. All wc_id values will be NULL. Please create categories first.";
+        }
+
+        if ($itsId) {
+            // For specific ITS ID, we need to determine if it's isolated, part of a group, or normal HoF
+            // Then trigger categorization for the appropriate aggregation unit
+            $person = Census::where('its_id', $itsId)->first();
+            if (!$person) {
+                return $this->jsonError('NOT_FOUND', 'Person not found in census.', 404);
+            }
+
+            $hofItsId = $person->hof_id ?? $itsId;
+
+            // Check if isolated
+            $wajebaat = Wajebaat::query()
+                ->where('miqaat_id', $miqaatId)
+                ->where('its_id', $itsId)
+                ->first();
+
+            if ($wajebaat && $wajebaat->is_isolated) {
+                // Categorize individually
+                try {
+                    $oldWcId = $wajebaat->wc_id;
+                    $this->wajebaatService->categorize($wajebaat, true);
+                    $wajebaat->refresh();
+                    $categorized = [[
+                        'id' => $wajebaat->id,
+                        'its_id' => $wajebaat->its_id,
+                        'amount' => $wajebaat->amount,
+                        'currency' => $wajebaat->currency,
+                        'old_wc_id' => $oldWcId,
+                        'new_wc_id' => $wajebaat->wc_id,
+                        'type' => 'isolated',
+                    ]];
+                } catch (\Exception $e) {
+                    return $this->jsonError('CATEGORIZATION_ERROR', $e->getMessage(), 500);
+                }
+            } else {
+                // Check if HoF is a group master
+                $group = WajebaatGroup::query()
+                    ->where('miqaat_id', $miqaatId)
+                    ->where('master_its', $hofItsId)
+                    ->first();
+
+                if ($group) {
+                    // Categorize as group master
+                    $this->wajebaatService->categorizeGroupMaster($miqaatId, $hofItsId, $group->wg_id);
+                } else {
+                    // Categorize as normal HoF
+                    $this->wajebaatService->categorizeHoF($miqaatId, $hofItsId);
+                }
+
+                // Get updated wajebaat records
+                $wajebaats = Wajebaat::query()
+                    ->where('miqaat_id', $miqaatId)
+                    ->where('its_id', $itsId)
+                    ->get();
+
+                $categorized = [];
+                foreach ($wajebaats as $w) {
+                    $categorized[] = [
+                        'id' => $w->id,
+                        'its_id' => $w->its_id,
+                        'amount' => $w->amount,
+                        'currency' => $w->currency,
+                        'new_wc_id' => $w->wc_id,
+                        'type' => $group ? 'group_master' : 'hof',
+                    ];
+                }
+            }
+
+            $responseData = [
+                'categorized_count' => count($categorized),
+                'categorized' => $categorized,
+            ];
+        } else {
+            // Categorize all wajebaat records for this miqaat using aggregation logic
+            $stats = $this->wajebaatService->categorizeWithAggregation($miqaatId);
+
+            // Get all updated wajebaat records
+            $wajebaats = Wajebaat::query()
+                ->where('miqaat_id', $miqaatId)
+                ->get(['id', 'its_id', 'amount', 'currency', 'wc_id', 'is_isolated']);
+
+            $responseData = [
+                'categorized_count' => $wajebaats->count(),
+                'isolated_count' => $stats['isolated_count'],
+                'group_masters_count' => $stats['group_masters_count'],
+                'hof_count' => $stats['hof_count'],
+                'errors_count' => count($stats['errors']),
+                'errors' => $stats['errors'],
+            ];
+        }
+
+        if ($warning) {
+            $responseData['warning'] = $warning;
+        }
+
+        return $this->jsonSuccessWithData($responseData);
+    }
+
+    /**
+     * GET: Get aggregated amounts (LKR and INR) for a member.
+     * 
+     * Returns the final aggregated amount for:
+     * - Group: If member is a group master, aggregates all group members' families
+     * - Family: If member is a normal HoF, aggregates all family members
+     * - Individual: If member is isolated, returns their own amount
+     * 
+     * This endpoint does NOT categorize, only calculates and returns amounts.
+     */
+    public function getAggregatedAmounts(string $miqaat_id, string $its_id): JsonResponse
+    {
+        $validator = Validator::make([
+            'miqaat_id' => $miqaat_id,
+            'its_id' => $its_id,
+        ], [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+            'its_id' => ['required', 'string', 'exists:census,its_id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $miqaatId = (int) $miqaat_id;
+        $itsId = (string) $its_id;
+
+        // Get the person's census record
+        $person = Census::where('its_id', $itsId)->first();
+        if (!$person) {
+            return $this->jsonError('NOT_FOUND', 'Person not found in census.', 404);
+        }
+
+        // Get wajebaat record to check if isolated
+        $wajebaat = Wajebaat::query()
+            ->where('miqaat_id', $miqaatId)
+            ->where('its_id', $itsId)
+            ->first();
+
+        $hofItsId = $person->hof_id ?? $itsId;
+        $isIsolated = $wajebaat && $wajebaat->is_isolated;
+
+        $totalAmountInr = 0;
+        $totalAmountsByCurrency = [];
+        $type = '';
+        $details = [];
+
+        if ($isIsolated) {
+            // Individual: return own amount
+            if ($wajebaat) {
+                $baseCurrency = $wajebaat->currency ?? 'LKR';
+                $baseAmount = (float) $wajebaat->amount;
+                $totalAmountInr = $this->wajebaatService->convertToInr(
+                    $baseCurrency,
+                    $baseAmount,
+                    $wajebaat->created_at ? new \DateTime($wajebaat->created_at) : null
+                );
+                
+                $totalAmountsByCurrency[$baseCurrency] = $baseAmount;
+                $type = 'individual';
+                $details = [
+                    'its_id' => $itsId,
+                    'amount' => $baseAmount,
+                    'currency' => $baseCurrency,
+                ];
+            }
+        } else {
+            // Check if HoF is a group master
+            $group = WajebaatGroup::query()
+                ->where('miqaat_id', $miqaatId)
+                ->where('master_its', $hofItsId)
+                ->first();
+
+            if ($group) {
+                // Group master: aggregate all group members' families
+                $result = $this->getGroupMasterAmounts($miqaatId, $hofItsId, $group->wg_id);
+                $totalAmountInr = $result['total_inr'];
+                $totalAmountsByCurrency = $result['total_by_currency'];
+                $type = 'group';
+                $details = $result['details'];
+            } else {
+                // Normal HoF: aggregate family members
+                $result = $this->getHoFAmounts($miqaatId, $hofItsId);
+                $totalAmountInr = $result['total_inr'];
+                $totalAmountsByCurrency = $result['total_by_currency'];
+                $type = 'family';
+                $details = $result['details'];
+            }
+        }
+
+        // Format amounts by currency for response
+        $amountsByCurrency = [];
+        foreach ($totalAmountsByCurrency as $currency => $amount) {
+            $amountsByCurrency[] = [
+                'currency' => $currency,
+                'amount' => round($amount, 2),
+            ];
+        }
+
+        return $this->jsonSuccessWithData([
+            'its_id' => $itsId,
+            'hof_its_id' => $hofItsId,
+            'type' => $type,
+            'is_isolated' => $isIsolated,
+            'total_amount_inr' => round($totalAmountInr, 2),
+            'total_amounts_by_currency' => $amountsByCurrency,
+            'details' => $details,
+        ]);
+    }
+
+    /**
+     * Get aggregated amounts for a group master.
+     */
+    protected function getGroupMasterAmounts(int $miqaatId, string $masterItsId, int $wgId): array
+    {
+        // Get all group members
+        $groupMembers = WajebaatGroup::query()
+            ->where('miqaat_id', $miqaatId)
+            ->where('wg_id', $wgId)
+            ->get(['its_id']);
+
+        $groupMemberItsIds = $groupMembers->pluck('its_id')->toArray();
+        
+        // Also include master_its if not already in members list
+        if (!in_array($masterItsId, $groupMemberItsIds)) {
+            $groupMemberItsIds[] = $masterItsId;
+        }
+
+        // Get all family members for all group members
+        $allFamilyItsIds = [];
+        foreach ($groupMemberItsIds as $memberItsId) {
+            $familyMembers = Census::where('hof_id', $memberItsId)
+                ->orWhere('its_id', $memberItsId)
+                ->pluck('its_id')
+                ->toArray();
+            $allFamilyItsIds = array_merge($allFamilyItsIds, $familyMembers);
+        }
+
+        $allFamilyItsIds = array_unique($allFamilyItsIds);
+
+        // Get all wajebaat records for these family members (excluding isolated)
+        $wajebaats = Wajebaat::query()
+            ->where('miqaat_id', $miqaatId)
+            ->whereIn('its_id', $allFamilyItsIds)
+            ->where('is_isolated', false)
+            ->get();
+
+        $totalAmountInr = 0;
+        $totalAmountsByCurrency = [];
+        $breakdown = [];
+
+        foreach ($wajebaats as $wajebaat) {
+            $date = $wajebaat->created_at ? new \DateTime($wajebaat->created_at) : null;
+            $baseCurrency = $wajebaat->currency ?? 'LKR';
+            $baseAmount = (float) $wajebaat->amount;
+            $amountInInr = $this->wajebaatService->convertToInr(
+                $baseCurrency,
+                $baseAmount,
+                $date
+            );
+            
+            // Track totals by currency
+            if (!isset($totalAmountsByCurrency[$baseCurrency])) {
+                $totalAmountsByCurrency[$baseCurrency] = 0;
+            }
+            $totalAmountsByCurrency[$baseCurrency] += $baseAmount;
+            $totalAmountInr += $amountInInr;
+
+            $breakdown[] = [
+                'its_id' => $wajebaat->its_id,
+                'amount' => $baseAmount,
+                'currency' => $baseCurrency,
+                'amount_inr' => round($amountInInr, 2),
+            ];
+        }
+
+        return [
+            'total_inr' => $totalAmountInr,
+            'total_by_currency' => $totalAmountsByCurrency,
+            'details' => [
+                'master_its' => $masterItsId,
+                'wg_id' => $wgId,
+                'group_members' => $groupMemberItsIds,
+                'family_members_count' => count($allFamilyItsIds),
+                'wajebaat_records_count' => $wajebaats->count(),
+                'breakdown' => $breakdown,
+            ],
+        ];
+    }
+
+    /**
+     * Get aggregated amounts for a normal HoF.
+     */
+    protected function getHoFAmounts(int $miqaatId, string $hofItsId): array
+    {
+        // Get all family members
+        $familyMembers = Census::where('hof_id', $hofItsId)
+            ->orWhere('its_id', $hofItsId)
+            ->pluck('its_id')
+            ->toArray();
+
+        // Get all wajebaat records for these family members (excluding isolated)
+        $wajebaats = Wajebaat::query()
+            ->where('miqaat_id', $miqaatId)
+            ->whereIn('its_id', $familyMembers)
+            ->where('is_isolated', false)
+            ->get();
+
+        $totalAmountInr = 0;
+        $totalAmountsByCurrency = [];
+        $breakdown = [];
+
+        foreach ($wajebaats as $wajebaat) {
+            $date = $wajebaat->created_at ? new \DateTime($wajebaat->created_at) : null;
+            $baseCurrency = $wajebaat->currency ?? 'LKR';
+            $baseAmount = (float) $wajebaat->amount;
+            $amountInInr = $this->wajebaatService->convertToInr(
+                $baseCurrency,
+                $baseAmount,
+                $date
+            );
+            
+            // Track totals by currency
+            if (!isset($totalAmountsByCurrency[$baseCurrency])) {
+                $totalAmountsByCurrency[$baseCurrency] = 0;
+            }
+            $totalAmountsByCurrency[$baseCurrency] += $baseAmount;
+            $totalAmountInr += $amountInInr;
+
+            $breakdown[] = [
+                'its_id' => $wajebaat->its_id,
+                'amount' => $baseAmount,
+                'currency' => $baseCurrency,
+                'amount_inr' => round($amountInInr, 2),
+            ];
+        }
+
+        return [
+            'total_inr' => $totalAmountInr,
+            'total_by_currency' => $totalAmountsByCurrency,
+            'details' => [
+                'hof_its' => $hofItsId,
+                'family_members_count' => count($familyMembers),
+                'wajebaat_records_count' => $wajebaats->count(),
+                'breakdown' => $breakdown,
+            ],
+        ];
+    }
+
+    /**
+     * Convert amount to LKR.
+     */
+    protected function convertToLkr(string $fromCurrency, float $amount): float
+    {
+        if ($fromCurrency === 'LKR') {
+            return $amount;
+        }
+
+        // Convert to INR first, then to LKR
+        $amountInInr = $this->wajebaatService->convertToInr($fromCurrency, $amount);
+        
+        // Get LKR to INR rate and calculate inverse
+        $rate = \App\Models\CurrencyConversion::getRate('LKR', 'INR');
+        if ($rate) {
+            // If 1 LKR = rate INR, then 1 INR = 1/rate LKR
+            return $amountInInr / $rate;
+        }
+
+        // Fallback: if no rate, return original amount
+        return $amount;
     }
 
     /**
@@ -1128,6 +1704,7 @@ class WajebaatController extends Controller
         $wajebaats = Wajebaat::query()
             ->where('miqaat_id', $miqaatId)
             ->whereIn('its_id', $allItsIds)
+            ->with('category')
             ->get()
             ->groupBy('its_id'); // Group by its_id to get all records per person
 
@@ -1141,7 +1718,9 @@ class WajebaatController extends Controller
                 return [
                     'its_id' => (string) $mIts,
                     'person' => $people->get($mIts),
-                    'wajebaat' => $personWajebaats ? $personWajebaats->values()->all() : null, // Return all records as array
+                    'wajebaat' => $personWajebaats ? $personWajebaats->map(function ($w) {
+                        return $this->formatWajebaatWithCategoryAndAmounts($w);
+                    })->values()->all() : null, // Return all records as array with category and amounts
                 ];
             })->values()->toArray(),
         ];
@@ -1536,6 +2115,50 @@ class WajebaatController extends Controller
                 'hex_color' => (string) ($category->hex_color ?? ''),
             ]
             : null;
+
+        return $data;
+    }
+
+    /**
+     * Format wajebaat for API response with category and amounts in base currency and INR.
+     */
+    protected function formatWajebaatWithCategoryAndAmounts(Wajebaat $wajebaat): array
+    {
+        $data = $wajebaat->toArray();
+        $data['is_isolated'] = (bool) ($wajebaat->is_isolated ?? false);
+
+        // Get category information
+        $category = $wajebaat->relationLoaded('category') ? $wajebaat->category : $wajebaat->category;
+        
+        // Calculate amounts
+        $baseCurrency = $wajebaat->currency ?? 'LKR';
+        $baseAmount = (float) $wajebaat->amount;
+        
+        // Convert to INR
+        $date = $wajebaat->created_at ? new \DateTime($wajebaat->created_at) : null;
+        $amountInInr = $this->wajebaatService->convertToInr($baseCurrency, $baseAmount, $date);
+        
+        // Convert to LKR (if not already LKR)
+        $amountInLkr = $this->convertToLkr($baseCurrency, $baseAmount);
+
+        // Format category with amounts
+        $data['category'] = $category !== null
+            ? [
+                'wc_id' => (int) $category->wc_id,
+                'name' => (string) $category->name,
+                'hex_color' => (string) ($category->hex_color ?? ''),
+                'amount_base_currency' => round($baseAmount, 2),
+                'base_currency' => $baseCurrency,
+                'amount_inr' => round($amountInInr, 2),
+                'amount_lkr' => round($amountInLkr, 2),
+            ]
+            : null;
+
+        // Also add amounts to the main data object for easy access
+        $data['amount_base_currency'] = round($baseAmount, 2);
+        $data['base_currency'] = $baseCurrency;
+        $data['amount_inr'] = round($amountInInr, 2);
+        $data['amount_lkr'] = round($amountInLkr, 2);
 
         return $data;
     }

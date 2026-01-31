@@ -11,12 +11,12 @@ class WajCategoriesSeeder extends Seeder
     /**
      * Run the database seeds.
      * 
-     * Populates waj_categories for miqaat_id=3 with INR currency.
+     * Populates waj_categories for miqaat_id=1 with INR currency.
      * Order: highest amount = 1, lowest amount = n
      */
     public function run(): void
     {
-        $miqaatId = 3;
+        $miqaatId = 1;
         $currency = 'INR';
 
         // Categories ordered from highest amount (order=1) to lowest (order=12)

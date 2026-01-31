@@ -97,6 +97,9 @@ Route::get('/miqaats/{miqaat_id}/wajebaat/related-its/{its_id}', [WajebaatContro
 Route::get('/miqaats/{miqaat_id}/wajebaat/related/{its_id}', [WajebaatController::class, 'related']);
 Route::get('/miqaats/{miqaat_id}/wajebaat-categories', [WajebaatController::class, 'categories']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/{its_id}/clearance', [WajebaatController::class, 'clearance']);
+Route::get('/miqaats/{miqaat_id}/wajebaat/{its_id}/aggregated-amounts', [WajebaatController::class, 'getAggregatedAmounts']);
+Route::post('/miqaats/{miqaat_id}/wajebaat/{its_id}/categorize', [WajebaatController::class, 'categorize']);
+Route::post('/miqaats/{miqaat_id}/wajebaat/categorize', [WajebaatController::class, 'categorize']);
 Route::patch('/miqaats/{miqaat_id}/wajebaat/{its_id}/paid', [WajebaatController::class, 'financeAdaUpdate']);
 Route::get('/miqaats/{miqaat_id}/wajebaat-groups', [WajebaatController::class, 'groupsIndex']);
 Route::post('/miqaats/{miqaat_id}/wajebaat-groups', [WajebaatController::class, 'groupsStore']);

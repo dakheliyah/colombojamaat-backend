@@ -3530,13 +3530,230 @@
         }
       }
     },
+    "/miqaats/{miqaat_id}/wajebaat/{its_id}/aggregated-amounts": {
+      "get": {
+        "tags": [
+          "Wajebaat"
+        ],
+        "summary": "Get aggregated amounts (LKR and INR) for a member",
+        "description": "Returns the final aggregated amount in LKR and INR for a member without categorizing. Handles three scenarios: 1) Individual (if is_isolated=true): returns their own amount, 2) Group (if member is a group master): aggregates all group members' families' wajebaat amounts, 3) Family (if member is a normal HoF): aggregates all family members' wajebaat amounts. All amounts are converted to both LKR and INR for display.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS ID of the member"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with aggregated amounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "its_id": "20324138",
+                    "hof_its_id": "20324138",
+                    "type": "group",
+                    "is_isolated": false,
+                    "total_amount_lkr": 5000.00,
+                    "total_amount_inr": 1470.59,
+                    "details": {
+                      "master_its": "20324138",
+                      "wg_id": 1,
+                      "group_members": ["20324138", "20324375", "30359434"],
+                      "family_members_count": 10,
+                      "wajebaat_records_count": 1,
+                      "breakdown": [
+                        {
+                          "its_id": "20324138",
+                          "amount": 5000.00,
+                          "currency": "LKR",
+                          "amount_lkr": 5000.00,
+                          "amount_inr": 1470.59
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Person not found in census",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat/{its_id}/categorize": {
+      "post": {
+        "tags": [
+          "Wajebaat"
+        ],
+        "summary": "Re-categorize wajebaat record(s) for a specific member",
+        "description": "Re-runs the categorization logic for wajebaat records of a specific member. Useful when currency conversion rates are updated or category definitions are changed. Converts amount to INR and matches against category slabs.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS ID of the member"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with categorization results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "categorized_count": 1,
+                    "errors_count": 0,
+                    "categorized": [
+                      {
+                        "id": 13,
+                        "its_id": "30361119",
+                        "amount": "21000.00",
+                        "currency": "LKR",
+                        "old_wc_id": null,
+                        "new_wc_id": 5
+                      }
+                    ],
+                    "errors": []
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat/categorize": {
+      "post": {
+        "tags": [
+          "Wajebaat"
+        ],
+        "summary": "Re-categorize all wajebaat records for a miqaat",
+        "description": "Re-runs the categorization logic for all wajebaat records in a miqaat. Useful for bulk re-categorization when currency conversion rates are updated or category definitions are changed. Converts all amounts to INR and matches against category slabs.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with categorization results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "categorized_count": 13,
+                    "errors_count": 0,
+                    "categorized": [
+                      {
+                        "id": 1,
+                        "its_id": "20324216",
+                        "amount": "1000.00",
+                        "currency": "LKR",
+                        "old_wc_id": null,
+                        "new_wc_id": 5
+                      }
+                    ],
+                    "errors": []
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/miqaats/{miqaat_id}/wajebaat/{its_id}/clearance": {
       "get": {
         "tags": [
           "Wajebaat"
         ],
-        "summary": "Get clearance status for a member in a miqaat",
-        "description": "Returns wajebaat record (if any), pending department checks, and whether the member can be marked paid.",
+        "summary": "Get clearance status for a member in a miqaat (HoF level)",
+        "description": "Returns wajebaat record (if any), pending department checks, and whether the member can be marked paid. This endpoint implements the 'Department Guard' logic at the Head of Family (HoF) level. When an its_id is received, the system: 1) Gets the HoF its_id from the person's census record, 2) Checks miqaat_checks for the HoF, 3) If the HoF is part of a wajebaat group, checks clearance for all group members' HoF its_ids as well. The response includes hof_its_id, hof_clearance_status (array showing clearance for each relevant HoF), and combined pending_departments. If any HoF has pending departments, can_mark_paid will be false.",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -3557,11 +3774,53 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful response (data: wajebaat, pending_departments, can_mark_paid)",
+            "description": "Successful response (data: wajebaat, hof_its_id, hof_clearance_status, pending_departments, can_mark_paid)",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "wajebaat": {
+                      "id": 5,
+                      "miqaat_id": 1,
+                      "its_id": "20324138",
+                      "wg_id": 1,
+                      "amount": "5000.00",
+                      "currency": "LKR",
+                      "status": false,
+                      "wc_id": null
+                    },
+                    "hof_its_id": "20324138",
+                    "hof_clearance_status": [
+                      {
+                        "hof_its_id": "20324138",
+                        "pending_departments": [
+                          {
+                            "mcd_id": 1,
+                            "name": "Anjuman Clearance",
+                            "user_type": "Anjuman"
+                          }
+                        ],
+                        "can_mark_paid": false
+                      },
+                      {
+                        "hof_its_id": "20324375",
+                        "pending_departments": [],
+                        "can_mark_paid": true
+                      }
+                    ],
+                    "pending_departments": [
+                      {
+                        "mcd_id": 1,
+                        "name": "Anjuman Clearance",
+                        "user_type": "Anjuman"
+                      }
+                    ],
+                    "can_mark_paid": false
+                  }
                 }
               }
             }
