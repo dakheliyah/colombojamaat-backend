@@ -63,4 +63,65 @@ class SharafPositionController extends Controller
             throw $e;
         }
     }
+
+    /**
+     * Update an existing sharaf position.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $sharafPosition = SharafPosition::find($id);
+
+        if (! $sharafPosition) {
+            return $this->jsonError('NOT_FOUND', 'Sharaf position not found.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'sharaf_definition_id' => ['sometimes', 'integer', 'exists:sharaf_definitions,id'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'display_name' => ['sometimes', 'string', 'max:255'],
+            'capacity' => ['nullable', 'integer', 'min:1'],
+            'order' => ['sometimes', 'integer'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $sharafDefinitionId = $request->input('sharaf_definition_id', $sharafPosition->sharaf_definition_id);
+        $name = $request->input('name', $sharafPosition->name);
+
+        if ($request->has('name') || $request->has('sharaf_definition_id')) {
+            $exists = SharafPosition::where('sharaf_definition_id', $sharafDefinitionId)
+                ->where('name', $name)
+                ->where('id', '!=', $id)
+                ->exists();
+
+            if ($exists) {
+                return $this->jsonError(
+                    'VALIDATION_ERROR',
+                    'A sharaf position with this name already exists for the given sharaf definition.',
+                    422
+                );
+            }
+        }
+
+        try {
+            $sharafPosition->update($request->only(['sharaf_definition_id', 'name', 'display_name', 'capacity', 'order']));
+
+            return $this->jsonSuccessWithData($sharafPosition->fresh('sharafDefinition'));
+        } catch (QueryException $e) {
+            if ($e->getCode() === '23000') {
+                return $this->jsonError(
+                    'VALIDATION_ERROR',
+                    'A sharaf position with this name already exists for the given sharaf definition.',
+                    422
+                );
+            }
+            throw $e;
+        }
+    }
 }
