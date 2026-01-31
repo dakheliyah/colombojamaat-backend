@@ -63,6 +63,7 @@ class PaymentDefinitionController extends Controller
             'sharaf_definition_id' => ['required', 'integer', 'exists:sharaf_definitions,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'user_type' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -90,8 +91,58 @@ class PaymentDefinitionController extends Controller
             'sharaf_definition_id' => $request->input('sharaf_definition_id'),
             'name' => $request->input('name'),
             'description' => $request->input('description'),
+            'user_type' => $request->input('user_type', 'Finance'),
         ]);
 
         return $this->jsonSuccessWithData($paymentDefinition, 201);
+    }
+
+    /**
+     * Update an existing payment definition.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $paymentDefinition = PaymentDefinition::find($id);
+
+        if (! $paymentDefinition) {
+            return $this->jsonError('NOT_FOUND', 'Payment definition not found.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'sharaf_definition_id' => ['sometimes', 'integer', 'exists:sharaf_definitions,id'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'user_type' => ['sometimes', 'string', 'max:255'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $sharafDefinitionId = $request->input('sharaf_definition_id', $paymentDefinition->sharaf_definition_id);
+        $name = $request->input('name', $paymentDefinition->name);
+
+        if ($request->has('name') || $request->has('sharaf_definition_id')) {
+            $exists = PaymentDefinition::where('sharaf_definition_id', $sharafDefinitionId)
+                ->where('name', $name)
+                ->where('id', '!=', $id)
+                ->exists();
+
+            if ($exists) {
+                return $this->jsonError(
+                    'DUPLICATE_ERROR',
+                    'A payment definition with this name already exists for this sharaf definition.',
+                    422
+                );
+            }
+        }
+
+        $paymentDefinition->update($request->only(['sharaf_definition_id', 'name', 'description', 'user_type']));
+
+        return $this->jsonSuccessWithData($paymentDefinition->fresh('sharafDefinition'));
     }
 }

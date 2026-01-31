@@ -57,10 +57,14 @@ Route::get('/events/{miqaat_id}', [EventController::class, 'byMiqaat']);
 // Sharaf Definition routes
 Route::get('/sharaf-definitions/{sd_id}/sharafs', [SharafDefinitionController::class, 'sharafs']);
 Route::post('/sharaf-definitions', [SharafDefinitionController::class, 'store']);
+Route::put('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'update']);
+Route::patch('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'update']);
 Route::get('/sharaf-definitions/{id}/positions', [SharafDefinitionController::class, 'positions']);
 Route::get('/sharaf-definitions/{id}/payment-definitions', [SharafDefinitionController::class, 'paymentDefinitions']);
 // Sharaf Position routes
 Route::post('/sharaf-positions', [SharafPositionController::class, 'store']);
+Route::put('/sharaf-positions/{id}', [SharafPositionController::class, 'update']);
+Route::patch('/sharaf-positions/{id}', [SharafPositionController::class, 'update']);
 // Sharaf routes
 Route::get('/sharafs', [SharafController::class, 'index']);
 Route::post('/sharafs', [SharafController::class, 'store']);
@@ -80,6 +84,8 @@ Route::post('/sharafs/{sharaf_id}/clearances', [SharafClearanceController::class
 // Payment Definition routes
 Route::get('/payment-definitions', [PaymentDefinitionController::class, 'index']);
 Route::post('/payment-definitions', [PaymentDefinitionController::class, 'store']);
+Route::put('/payment-definitions/{id}', [PaymentDefinitionController::class, 'update']);
+Route::patch('/payment-definitions/{id}', [PaymentDefinitionController::class, 'update']);
 // Sharaf Payment routes
 Route::get('/sharaf-payments', [SharafPaymentController::class, 'index']);
 Route::post('/sharafs/{sharaf_id}/payments', [SharafPaymentController::class, 'store']);

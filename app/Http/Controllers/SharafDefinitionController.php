@@ -53,6 +53,36 @@ class SharafDefinitionController extends Controller
         return $this->jsonSuccessWithData($sharafDefinition, 201);
     }
 
+    /**
+     * Update an existing sharaf definition.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $sharafDefinition = SharafDefinition::find($id);
+
+        if (! $sharafDefinition) {
+            return $this->jsonError('NOT_FOUND', 'Sharaf definition not found.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'event_id' => ['sometimes', 'integer', 'exists:events,id'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $sharafDefinition->update($request->only(['event_id', 'name', 'description']));
+
+        return $this->jsonSuccessWithData($sharafDefinition->fresh('event'));
+    }
+
     public function positions(string $id): JsonResponse
     {
         $sharafDefinition = SharafDefinition::find($id);
