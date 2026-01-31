@@ -93,11 +93,15 @@ Route::get('/miqaats/{miqaat_id}/mumin-profile/{its_id}', [WajebaatController::c
 Route::get('/miqaats/{miqaat_id}/wajebaat', [WajebaatController::class, 'index']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/by-its-list', [WajebaatController::class, 'wajebaatByItsList']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/{its_id}', [WajebaatController::class, 'show']);
+Route::get('/miqaats/{miqaat_id}/wajebaat/related-its/{its_id}', [WajebaatController::class, 'relatedIts']);
+Route::get('/miqaats/{miqaat_id}/wajebaat/related/{its_id}', [WajebaatController::class, 'related']);
 Route::get('/miqaats/{miqaat_id}/wajebaat-categories', [WajebaatController::class, 'categories']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/{its_id}/clearance', [WajebaatController::class, 'clearance']);
 Route::patch('/miqaats/{miqaat_id}/wajebaat/{its_id}/paid', [WajebaatController::class, 'financeAdaUpdate']);
 Route::get('/miqaats/{miqaat_id}/wajebaat-groups', [WajebaatController::class, 'groupsIndex']);
 Route::post('/miqaats/{miqaat_id}/wajebaat-groups', [WajebaatController::class, 'groupsStore']);
+Route::get('/miqaats/{miqaat_id}/wajebaat-groups/by-master/{its_id}', [WajebaatController::class, 'getByMaster']);
+Route::get('/miqaats/{miqaat_id}/wajebaat-groups/by-member/{its_id}', [WajebaatController::class, 'getByMember']);
 Route::get('/miqaats/{miqaat_id}/wajebaat-groups/{wg_id}', [WajebaatController::class, 'groupMembers']);
 Route::put('/miqaats/{miqaat_id}/wajebaat-groups/{wg_id}', [WajebaatController::class, 'groupsUpdate']);
 Route::delete('/miqaats/{miqaat_id}/wajebaat-groups/{wg_id}', [WajebaatController::class, 'groupsDestroy']);

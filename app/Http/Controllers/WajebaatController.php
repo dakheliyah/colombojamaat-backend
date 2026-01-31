@@ -39,6 +39,7 @@ class WajebaatController extends Controller
             'entries.*.currency' => ['nullable', 'string', 'size:3'],
             'entries.*.conversion_rate' => ['nullable', 'numeric', 'min:0.000001'],
             'entries.*.is_isolated' => ['nullable', 'boolean'],
+            'entries.*.wg_id' => ['nullable', 'integer'],
             'its_id' => ['nullable', 'string', 'exists:census,its_id'], // optional: check this ITS for group membership
         ]);
 
@@ -57,12 +58,72 @@ class WajebaatController extends Controller
         $entries = (array) $request->input('entries', []);
         $lookupIts = $request->filled('its_id') ? (string) $request->input('its_id') : null;
 
+        // Pre-validate wg_id and is_isolated combinations before transaction
+        foreach ($entries as $index => $entry) {
+            $itsId = (string) $entry['its_id'];
+            $isIsolated = isset($entry['is_isolated']) ? (bool) $entry['is_isolated'] : null;
+            // Check if wg_id key exists to distinguish between explicitly null vs undefined
+            $wgIdKeyExists = array_key_exists('wg_id', $entry);
+            $explicitWgId = $wgIdKeyExists ? ($entry['wg_id'] === null ? null : (int) $entry['wg_id']) : null;
+
+            // Get current wajebaat to check existing is_isolated status
+            $currentWajebaat = Wajebaat::query()
+                ->where('miqaat_id', $miqaatId)
+                ->where('its_id', $itsId)
+                ->first();
+            
+            // Determine final is_isolated status
+            $finalIsIsolated = $isIsolated !== null ? $isIsolated : ($currentWajebaat?->is_isolated ?? false);
+            
+            // Validation: If is_isolated = true, wg_id must be null
+            if ($finalIsIsolated && $wgIdKeyExists && $explicitWgId !== null) {
+                return $this->jsonError(
+                    'VALIDATION_ERROR',
+                    'Isolated members cannot be part of any group',
+                    422
+                );
+            }
+            
+            // If explicit wg_id is provided (key exists, and value is not null), validate group membership
+            if ($wgIdKeyExists && $explicitWgId !== null) {
+                // Check if group exists
+                $groupExists = WajebaatGroup::query()
+                    ->forGroup($miqaatId, $explicitWgId)
+                    ->exists();
+                
+                if (!$groupExists) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'NOT_FOUND',
+                        'message' => 'Group not found',
+                    ], 404);
+                }
+                
+                // Validate that the its_id is a member of the specified group
+                $groupMember = WajebaatGroup::query()
+                    ->forGroup($miqaatId, $explicitWgId)
+                    ->where('its_id', $itsId)
+                    ->first();
+                
+                if (!$groupMember) {
+                    return $this->jsonError(
+                        'VALIDATION_ERROR',
+                        'ITS ID is not a member of the specified group',
+                        422
+                    );
+                }
+            }
+        }
+
         $saved = [];
 
         DB::transaction(function () use ($miqaatId, $entries, &$saved) {
             foreach ($entries as $entry) {
                 $itsId = (string) $entry['its_id'];
                 $isIsolated = isset($entry['is_isolated']) ? (bool) $entry['is_isolated'] : null;
+                // Check if wg_id key exists to distinguish between explicitly null vs undefined
+                $wgIdKeyExists = array_key_exists('wg_id', $entry);
+                $explicitWgId = $wgIdKeyExists ? ($entry['wg_id'] === null ? null : (int) $entry['wg_id']) : null;
 
                 // Get current wajebaat to check existing is_isolated status
                 $currentWajebaat = Wajebaat::query()
@@ -82,12 +143,19 @@ class WajebaatController extends Controller
                         ->delete();
                 }
 
-                // Check if this member belongs to a group and link wg_id (only if not isolated)
+                // Determine wg_id based on explicit control or auto-detection
                 $wgId = null;
-                if (!$finalIsIsolated) {
+                
+                if ($wgIdKeyExists) {
+                    // wg_id key exists - use explicit value (could be null for personal entry, or integer for group)
+                    // Validation already done above, so we can safely use the value
+                    $wgId = $explicitWgId; // This will be null if explicitly set to null, or the integer value
+                } elseif (!$finalIsIsolated) {
+                    // wg_id key not provided (undefined) - use auto-detection (backward compatibility)
                     $groupRow = WajebaatGroup::query()->forMember($miqaatId, $itsId)->first();
                     $wgId = $groupRow?->wg_id;
                 }
+                // If isolated and wg_id not explicitly provided, wgId remains null
 
                 // Store amount in the currency provided (no conversion at write-time)
                 $updateData = [
@@ -102,10 +170,12 @@ class WajebaatController extends Controller
                     $updateData['is_isolated'] = $isIsolated;
                 }
 
+                // Include wg_id in the unique key to allow separate records for personal (wg_id=NULL) and group entries
                 $wajebaat = Wajebaat::updateOrCreate(
                     [
                         'miqaat_id' => $miqaatId,
                         'its_id' => $itsId,
+                        'wg_id' => $wgId, // Include wg_id in unique key
                     ],
                     $updateData
                 );
@@ -170,6 +240,242 @@ class WajebaatController extends Controller
         $data = $this->formatWajebaatWithCategory($wajebaat);
 
         return $this->jsonSuccessWithData($data);
+    }
+
+    /**
+     * GET: Get all related ITS IDs for a given ITS ID.
+     * 
+     * This endpoint:
+     * 1. Finds the person's family (using hof_id from census)
+     * 2. Gets the hof_its (Head of Family)
+     * 3. Checks if hof_its has wajebaat grouping for the miqaat
+     * 4. Returns all ITS IDs from both family and wajebaat group
+     */
+    public function relatedIts(string $miqaat_id, string $its_id): JsonResponse
+    {
+        $validator = Validator::make([
+            'miqaat_id' => $miqaat_id,
+            'its_id' => $its_id,
+        ], [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+            'its_id' => ['required', 'string', 'exists:census,its_id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $miqaatId = (int) $miqaat_id;
+        $itsId = (string) $its_id;
+
+        // Step 1: Get the person's census record
+        $person = Census::where('its_id', $itsId)->first();
+        
+        if (!$person) {
+            return $this->jsonError('NOT_FOUND', 'Person not found in census.', 404);
+        }
+
+        // Step 2: Get the hof_its (Head of Family)
+        $hofIts = $person->hof_id;
+
+        // Step 3: Get all family members (including HOF)
+        $familyMembers = Census::where('hof_id', $hofIts)->get();
+        $familyItsIds = $familyMembers->pluck('its_id')->unique()->values()->toArray();
+
+        // Step 4: Check if hof_its has wajebaat grouping for this miqaat
+        $groupItsIds = [];
+        $groupInfo = null;
+
+        // Check if hof_its is a master of a group
+        $masterGroup = WajebaatGroup::query()
+            ->where('miqaat_id', $miqaatId)
+            ->where('master_its', $hofIts)
+            ->first();
+
+        if ($masterGroup) {
+            // Get all members of this group
+            $groupMembers = WajebaatGroup::query()
+                ->forGroup($miqaatId, $masterGroup->wg_id)
+                ->get();
+            $groupItsIds = $groupMembers->pluck('its_id')->unique()->values()->toArray();
+            
+            $groupInfo = [
+                'wg_id' => $masterGroup->wg_id,
+                'group_name' => $masterGroup->group_name,
+                'group_type' => $masterGroup->group_type?->value ?? $masterGroup->group_type,
+            ];
+        } else {
+            // Check if hof_its is a member of a group (not master)
+            $memberGroup = WajebaatGroup::query()
+                ->forMember($miqaatId, $hofIts)
+                ->first();
+
+            if ($memberGroup) {
+                // Get all members of this group
+                $groupMembers = WajebaatGroup::query()
+                    ->forGroup($miqaatId, $memberGroup->wg_id)
+                    ->get();
+                $groupItsIds = $groupMembers->pluck('its_id')->unique()->values()->toArray();
+                
+                $groupInfo = [
+                    'wg_id' => $memberGroup->wg_id,
+                    'group_name' => $memberGroup->group_name,
+                    'group_type' => $memberGroup->group_type?->value ?? $memberGroup->group_type,
+                ];
+            }
+        }
+
+        // Step 5: Combine family and group ITS IDs (remove duplicates)
+        $allRelatedItsIds = collect($familyItsIds)
+            ->merge($groupItsIds)
+            ->unique()
+            ->values()
+            ->toArray();
+
+        return $this->jsonSuccessWithData([
+            'its_id' => $itsId,
+            'hof_its' => $hofIts,
+            'family_its_ids' => $familyItsIds,
+            'group_its_ids' => $groupItsIds,
+            'all_related_its_ids' => $allRelatedItsIds,
+            'group_info' => $groupInfo,
+        ]);
+    }
+
+    /**
+     * GET: Get all wajebaat records for related ITS IDs (family + group families).
+     * 
+     * This endpoint:
+     * 1. Finds the person's family (using hof_id from census)
+     * 2. Checks if the person (or their hof_its) is part of a wajebaat group for the miqaat
+     * 3. For each group member, gets their family members too
+     * 4. Creates a full list of all ITS IDs (person's family + all group members' families)
+     * 5. Fetches all wajebaat records for those ITS IDs in the given miqaat
+     * 6. Returns all wajebaat records with relationships (category, person, etc.)
+     */
+    public function related(string $miqaat_id, string $its_id): JsonResponse
+    {
+        $validator = Validator::make([
+            'miqaat_id' => $miqaat_id,
+            'its_id' => $its_id,
+        ], [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+            'its_id' => ['required', 'string', 'exists:census,its_id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $miqaatId = (int) $miqaat_id;
+        $itsId = (string) $its_id;
+
+        // Step 1: Get the person's census record
+        $person = Census::where('its_id', $itsId)->first();
+        
+        if (!$person) {
+            return $this->jsonError('NOT_FOUND', 'Person not found in census.', 404);
+        }
+
+        // Step 2: Get the hof_its (Head of Family)
+        $hofIts = $person->hof_id;
+
+        // Step 3: Get all family members (including HOF)
+        $familyMembers = Census::where('hof_id', $hofIts)->get();
+        $familyItsIds = $familyMembers->pluck('its_id')->unique()->values()->toArray();
+
+        // Step 4: Check if person or hof_its is part of a wajebaat group for this miqaat
+        $groupMemberFamiliesItsIds = [];
+        $groupInfo = null;
+
+        // First, check if the person itself is in a group
+        $personGroup = WajebaatGroup::query()
+            ->forMember($miqaatId, $itsId)
+            ->first();
+
+        // If person is not in a group, check if hof_its is in a group
+        if (!$personGroup) {
+            $personGroup = WajebaatGroup::query()
+                ->forMember($miqaatId, $hofIts)
+                ->first();
+        }
+
+        // Also check if hof_its is a master of a group
+        if (!$personGroup) {
+            $personGroup = WajebaatGroup::query()
+                ->where('miqaat_id', $miqaatId)
+                ->where('master_its', $hofIts)
+                ->first();
+        }
+
+        if ($personGroup) {
+            // Get all members of this group
+            $groupMembers = WajebaatGroup::query()
+                ->forGroup($miqaatId, $personGroup->wg_id)
+                ->get();
+            $groupMemberItsIds = $groupMembers->pluck('its_id')->unique()->values()->all();
+            
+            // Also include the master_its in the list (master might not be in the members list)
+            $masterIts = $personGroup->master_its;
+            if (!in_array($masterIts, $groupMemberItsIds)) {
+                $groupMemberItsIds[] = $masterIts;
+            }
+            
+            $groupInfo = [
+                'wg_id' => $personGroup->wg_id,
+                'group_name' => $personGroup->group_name,
+                'group_type' => $personGroup->group_type?->value ?? $personGroup->group_type,
+            ];
+
+            // Step 5: For each group member (including master), get their family members
+            foreach ($groupMemberItsIds as $groupMemberIts) {
+                $groupMember = Census::where('its_id', $groupMemberIts)->first();
+                if ($groupMember) {
+                    $memberHofIts = $groupMember->hof_id;
+                    // Get all family members of this group member
+                    $memberFamily = Census::where('hof_id', $memberHofIts)->get();
+                    $memberFamilyItsIds = $memberFamily->pluck('its_id')->unique()->values()->all();
+                    $groupMemberFamiliesItsIds = array_merge($groupMemberFamiliesItsIds, $memberFamilyItsIds);
+                }
+            }
+            
+            // Remove duplicates from group member families and re-index
+            $groupMemberFamiliesItsIds = array_values(array_unique($groupMemberFamiliesItsIds));
+        }
+
+        // Step 6: Combine person's family and all group members' families (remove duplicates)
+        $allRelatedItsIds = collect($familyItsIds)
+            ->merge($groupMemberFamiliesItsIds)
+            ->unique()
+            ->values()
+            ->toArray();
+
+        // Step 7: Fetch all wajebaat records for these ITS IDs in the given miqaat
+        $wajebaats = Wajebaat::query()
+            ->where('miqaat_id', $miqaatId)
+            ->whereIn('its_id', $allRelatedItsIds)
+            ->with('category')
+            ->orderBy('its_id')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return $this->jsonSuccessWithData([
+            'its_id' => $itsId,
+            'hof_its' => $hofIts,
+            'family_its_ids' => $familyItsIds,
+            'group_member_families_its_ids' => array_values($groupMemberFamiliesItsIds),
+            'all_related_its_ids' => $allRelatedItsIds,
+            'group_info' => $groupInfo,
+            'wajebaats' => $wajebaats,
+        ]);
     }
 
     /**
@@ -806,30 +1112,36 @@ class WajebaatController extends Controller
             ->get();
 
         $memberIts = $members->pluck('its_id')->values();
+        
+        // Also include the master_its in the list (master might not be in the members list)
+        $masterIts = $groupRow->master_its;
+        $allItsIds = $memberIts->merge([$masterIts])->unique()->values();
 
-        // Get census records for all members
+        // Get census records for all members (including master)
         $people = Census::query()
-            ->whereIn('its_id', $memberIts)
+            ->whereIn('its_id', $allItsIds)
             ->get()
             ->keyBy('its_id');
 
-        // Get wajebaat records for all members in this miqaat
+        // Get wajebaat records for all members (including master) in this miqaat
+        // Note: A person can have multiple wajebaat records (personal with wg_id=NULL and group with wg_id)
         $wajebaats = Wajebaat::query()
             ->where('miqaat_id', $miqaatId)
-            ->whereIn('its_id', $memberIts)
+            ->whereIn('its_id', $allItsIds)
             ->get()
-            ->keyBy('its_id');
+            ->groupBy('its_id'); // Group by its_id to get all records per person
 
         return [
             'wg_id' => $wgId,
             'master_its' => (string) $groupRow->master_its,
             'group_name' => $groupRow->group_name,
             'group_type' => $groupRow->group_type?->value ?? $groupRow->group_type,
-            'members' => $memberIts->map(function ($mIts) use ($people, $wajebaats) {
+            'members' => $allItsIds->map(function ($mIts) use ($people, $wajebaats) {
+                $personWajebaats = $wajebaats->get($mIts);
                 return [
                     'its_id' => (string) $mIts,
                     'person' => $people->get($mIts),
-                    'wajebaat' => $wajebaats->get($mIts),
+                    'wajebaat' => $personWajebaats ? $personWajebaats->values()->all() : null, // Return all records as array
                 ];
             })->values()->toArray(),
         ];
@@ -845,6 +1157,126 @@ class WajebaatController extends Controller
             ->max('wg_id');
 
         return ($maxWgId ?? 0) + 1;
+    }
+
+    /**
+     * GET: wajebaat group by master ITS ID.
+     * Returns the group where the specified ITS ID is the master.
+     */
+    public function getByMaster(string $miqaat_id, string $its_id): JsonResponse
+    {
+        $validator = Validator::make([
+            'miqaat_id' => $miqaat_id,
+            'its_id' => $its_id,
+        ], [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+            'its_id' => ['required', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Invalid miqaat_id or its_id.',
+                422
+            );
+        }
+
+        $miqaatId = (int) $miqaat_id;
+
+        // Find group where this ITS ID is the master
+        $groupRow = WajebaatGroup::query()
+            ->where('miqaat_id', $miqaatId)
+            ->where('master_its', $its_id)
+            ->first();
+
+        if (!$groupRow) {
+            return $this->jsonError(
+                'NOT_FOUND',
+                'No wajebaat group found where this ITS ID is the master.',
+                404
+            );
+        }
+
+        $wgId = $groupRow->wg_id;
+        $groupData = $this->buildGroupData($miqaatId, $wgId);
+
+        if (!$groupData) {
+            return $this->jsonError(
+                'NOT_FOUND',
+                'Wajebaat group data not found.',
+                404
+            );
+        }
+
+        return $this->jsonSuccessWithData($groupData);
+    }
+
+    /**
+     * GET: wajebaat group by member ITS ID.
+     * Returns the group where the specified ITS ID is a member (not necessarily the master).
+     */
+    public function getByMember(string $miqaat_id, string $its_id): JsonResponse
+    {
+        $validator = Validator::make([
+            'miqaat_id' => $miqaat_id,
+            'its_id' => $its_id,
+        ], [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+            'its_id' => ['required', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Invalid miqaat_id or its_id.',
+                422
+            );
+        }
+
+        $miqaatId = (int) $miqaat_id;
+
+        // First, check if there's a wajebaat record with a wg_id for this member
+        $wajebaat = Wajebaat::query()
+            ->where('miqaat_id', $miqaatId)
+            ->where('its_id', $its_id)
+            ->whereNotNull('wg_id')
+            ->first();
+
+        if ($wajebaat) {
+            // Found wajebaat with wg_id, get the group
+            $wgId = $wajebaat->wg_id;
+            $groupData = $this->buildGroupData($miqaatId, $wgId);
+
+            if ($groupData) {
+                return $this->jsonSuccessWithData($groupData);
+            }
+        }
+
+        // Fallback: check wajebaat_groups table directly (in case wajebaat record doesn't exist yet)
+        $groupRow = WajebaatGroup::query()
+            ->forMember($miqaatId, $its_id)
+            ->first();
+
+        if (!$groupRow) {
+            return $this->jsonError(
+                'NOT_FOUND',
+                'No wajebaat group found where this ITS ID is a member.',
+                404
+            );
+        }
+
+        $wgId = $groupRow->wg_id;
+        $groupData = $this->buildGroupData($miqaatId, $wgId);
+
+        if (!$groupData) {
+            return $this->jsonError(
+                'NOT_FOUND',
+                'Wajebaat group data not found.',
+                404
+            );
+        }
+
+        return $this->jsonSuccessWithData($groupData);
     }
 
     /**

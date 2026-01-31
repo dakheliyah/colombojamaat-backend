@@ -2357,7 +2357,7 @@
           "Wajebaat"
         ],
         "summary": "Bulk-save Takhmeen amounts",
-        "description": "Bulk-save Takhmeen amounts for multiple members. If an its_id is passed (as a separate field), the API checks if they belong to a wajebaat_groups and returns all associated members' data. Currency is stored as-is (no conversion at write-time).",
+        "description": "Bulk-save Takhmeen amounts for multiple members. Supports explicit wg_id control: provide wg_id to tag entry with a group, set wg_id to null for personal entries, or omit wg_id for auto-detection (backward compatibility). If an its_id is passed (as a separate field), the API checks if they belong to a wajebaat_groups and returns all associated members' data. Currency is stored as-is (no conversion at write-time).",
         "requestBody": {
           "required": true,
           "content": {
@@ -2384,7 +2384,56 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean",
+                          "example": false
+                        },
+                        "error": {
+                          "type": "string",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": [
+                            "ITS ID is not a member of the specified group",
+                            "Isolated members cannot be part of any group",
+                            "Group not found"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Group not found (when wg_id is provided but group doesn't exist for this miqaat)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "NOT_FOUND"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Group not found"
+                    }
+                  }
                 }
               }
             }
@@ -3126,6 +3175,361 @@
         }
       }
     },
+    "/miqaats/{miqaat_id}/wajebaat/related-its/{its_id}": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get all related ITS IDs for a given ITS ID",
+        "description": "Finds the person's family (using hof_id from census), gets the hof_its (Head of Family), checks if hof_its has wajebaat grouping for the miqaat, and returns all ITS IDs from both family and wajebaat group.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS ID of the person to find related ITS IDs for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "its_id": {
+                          "type": "string",
+                          "description": "The original ITS ID that was searched"
+                        },
+                        "hof_its": {
+                          "type": "string",
+                          "description": "Head of Family ITS ID"
+                        },
+                        "family_its_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "All ITS IDs from the person's family (including HOF)"
+                        },
+                        "group_member_families_its_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "All ITS IDs from all group members' families (if person is in a group)"
+                        },
+                        "all_related_its_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Combined list of all related ITS IDs (person's family + all group members' families, duplicates removed)"
+                        },
+                        "group_info": {
+                          "type": "object",
+                          "nullable": true,
+                          "description": "Group information if hof_its is in a wajebaat group",
+                          "properties": {
+                            "wg_id": {
+                              "type": "integer",
+                              "description": "Wajebaat Group ID"
+                            },
+                            "group_name": {
+                              "type": "string",
+                              "nullable": true,
+                              "description": "Group name"
+                            },
+                            "group_type": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": ["business_grouping", "personal_grouping", "organization"],
+                              "description": "Group type"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "its_id": "20324328",
+                    "hof_its": "20324328",
+                    "family_its_ids": ["20324328", "30361461"],
+                    "group_member_families_its_ids": ["20324223", "30361124", "30361125", "30361462", "30361463", "30362140"],
+                    "all_related_its_ids": ["20324328", "30361461", "20324223", "30361124", "30361125", "30361462", "30361463", "30362140"],
+                    "group_info": {
+                      "wg_id": 7,
+                      "group_name": "AKHTARI TRADES (PVT) LTD",
+                      "group_type": "business_grouping"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Person not found in census",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "NOT_FOUND",
+                  "message": "Person not found in census."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "VALIDATION_ERROR",
+                  "message": "The its id field is required."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat/related/{its_id}": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get all wajebaat records for related ITS IDs (family + group families)",
+        "description": "Finds the person's family (using hof_id from census), checks if the person (or their hof_its) is part of a wajebaat group for the miqaat, for each group member gets their family members too, creates a full list of all ITS IDs (person's family + all group members' families), fetches all wajebaat records for those ITS IDs in the given miqaat, and returns all wajebaat records with relationships (category, person, etc.).",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS ID of the person to find related wajebaat records for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "its_id": {
+                          "type": "string",
+                          "description": "The original ITS ID that was searched"
+                        },
+                        "hof_its": {
+                          "type": "string",
+                          "description": "Head of Family ITS ID"
+                        },
+                        "family_its_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "All ITS IDs from the person's family (including HOF)"
+                        },
+                        "group_member_families_its_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "All ITS IDs from all group members' families (if person is in a group)"
+                        },
+                        "all_related_its_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Combined list of all related ITS IDs (person's family + all group members' families, duplicates removed)"
+                        },
+                        "group_info": {
+                          "type": "object",
+                          "nullable": true,
+                          "description": "Group information if hof_its is in a wajebaat group",
+                          "properties": {
+                            "wg_id": {
+                              "type": "integer",
+                              "description": "Wajebaat Group ID"
+                            },
+                            "group_name": {
+                              "type": "string",
+                              "nullable": true,
+                              "description": "Group name"
+                            },
+                            "group_type": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": ["business_grouping", "personal_grouping", "organization"],
+                              "description": "Group type"
+                            }
+                          }
+                        },
+                        "wajebaats": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "integer" },
+                              "miqaat_id": { "type": "integer" },
+                              "its_id": { "type": "string" },
+                              "wg_id": { "type": "integer", "nullable": true },
+                              "amount": { "type": "number", "format": "decimal" },
+                              "currency": { "type": "string" },
+                              "conversion_rate": { "type": "number", "format": "decimal" },
+                              "status": { "type": "boolean" },
+                              "wc_id": { "type": "integer", "nullable": true },
+                              "is_isolated": { "type": "boolean", "description": "Whether this member is isolated (cannot be part of any group)" },
+                              "created_at": { "type": "string", "format": "date-time" },
+                              "updated_at": { "type": "string", "format": "date-time" },
+                              "category": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "wc_id": { "type": "integer" },
+                                  "miqaat_id": { "type": "integer" },
+                                  "name": { "type": "string" },
+                                  "low_bar": { "type": "number", "format": "decimal" },
+                                  "upper_bar": { "type": "number", "format": "decimal" },
+                                  "hex_color": { "type": "string", "nullable": true },
+                                  "currency": { "type": "string" },
+                                  "order": { "type": "integer" }
+                                }
+                              }
+                            }
+                          },
+                          "description": "All wajebaat records for the related ITS IDs in the given miqaat"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "its_id": "20324328",
+                    "hof_its": "20324328",
+                    "family_its_ids": ["20324328", "30361461"],
+                    "group_member_families_its_ids": ["20324223", "30361124", "30361125", "30361462", "30361463", "30362140"],
+                    "all_related_its_ids": ["20324328", "30361461", "20324223", "30361124", "30361125", "30361462", "30361463", "30362140"],
+                    "group_info": {
+                      "wg_id": 7,
+                      "group_name": "AKHTARI TRADES (PVT) LTD",
+                      "group_type": "business_grouping"
+                    },
+                    "wajebaats": [
+                      {
+                        "id": 1,
+                        "miqaat_id": 1,
+                        "its_id": "20324328",
+                        "wg_id": 7,
+                        "amount": "5300000.00",
+                        "currency": "LKR",
+                        "conversion_rate": "1.000000",
+                        "status": false,
+                        "wc_id": 5,
+                        "is_isolated": false,
+                        "created_at": "2026-01-30T22:09:30.000000Z",
+                        "updated_at": "2026-01-30T22:09:30.000000Z",
+                        "category": {
+                          "wc_id": 5,
+                          "miqaat_id": 1,
+                          "name": "Najmi",
+                          "low_bar": "400000.00",
+                          "upper_bar": "699999.99",
+                          "hex_color": null,
+                          "currency": "INR",
+                          "order": 3
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Person not found in census",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "NOT_FOUND",
+                  "message": "Person not found in census."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "VALIDATION_ERROR",
+                  "message": "The its id field is required."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/miqaats/{miqaat_id}/wajebaat/{its_id}/clearance": {
       "get": {
         "tags": [
@@ -3692,6 +4096,214 @@
         }
       }
     },
+    "/miqaats/{miqaat_id}/wajebaat-groups/by-master/{its_id}": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get wajebaat group by master ITS ID",
+        "description": "Returns the wajebaat group where the specified ITS ID is the master. This is more efficient than fetching all groups and filtering client-side.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS ID to check if they are a group master"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "wg_id": { "type": "integer" },
+                        "master_its": { "type": "string" },
+                        "group_name": { "type": "string", "nullable": true },
+                        "group_type": { "type": "string", "nullable": true, "enum": ["business_grouping", "personal_grouping", "organization"] },
+                        "members": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "its_id": { "type": "string" },
+                              "person": {
+                                "type": "object",
+                                "nullable": true,
+                                "description": "Census record for the member"
+                              },
+                              "wajebaat": {
+                                "type": "object",
+                                "nullable": true,
+                                "description": "Wajebaat record for the member in this miqaat, or null if no record exists"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No wajebaat group found where this ITS ID is the master",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "NOT_FOUND",
+                  "message": "No wajebaat group found where this ITS ID is the master."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "VALIDATION_ERROR",
+                  "message": "Invalid miqaat_id or its_id."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat-groups/by-member/{its_id}": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get wajebaat group by member ITS ID",
+        "description": "Returns the wajebaat group where the specified ITS ID is a member (not necessarily the master). This allows checking if a person belongs to a group without fetching all groups.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Miqaat ID"
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ITS ID to check if they are a group member"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "wg_id": { "type": "integer" },
+                        "master_its": { "type": "string" },
+                        "group_name": { "type": "string", "nullable": true },
+                        "group_type": { "type": "string", "nullable": true, "enum": ["business_grouping", "personal_grouping", "organization"] },
+                        "members": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "its_id": { "type": "string" },
+                              "person": {
+                                "type": "object",
+                                "nullable": true,
+                                "description": "Census record for the member"
+                              },
+                              "wajebaat": {
+                                "type": "object",
+                                "nullable": true,
+                                "description": "Wajebaat record for the member in this miqaat, or null if no record exists"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No wajebaat group found where this ITS ID is a member",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "NOT_FOUND",
+                  "message": "No wajebaat group found where this ITS ID is a member."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "error": "VALIDATION_ERROR",
+                  "message": "Invalid miqaat_id or its_id."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/miqaats/{miqaat_id}/wajebaat-groups/{wg_id}": {
       "get": {
         "tags": ["Wajebaat"],
@@ -3749,9 +4361,40 @@
                                 "description": "Census record for the member"
                               },
                               "wajebaat": {
-                                "type": "object",
+                                "type": "array",
                                 "nullable": true,
-                                "description": "Wajebaat record for the member in this miqaat, or null if no record exists"
+                                "description": "Array of wajebaat records for the member in this miqaat. A person can have multiple wajebaat records (e.g., personal entry with wg_id=null and group entry with wg_id=group_id). Returns null if no records exist.",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": { "type": "integer" },
+                                    "miqaat_id": { "type": "integer" },
+                                    "its_id": { "type": "string" },
+                                    "wg_id": { "type": "integer", "nullable": true },
+                                    "amount": { "type": "number", "format": "decimal" },
+                                    "currency": { "type": "string" },
+                                    "conversion_rate": { "type": "number", "format": "decimal" },
+                                    "status": { "type": "boolean" },
+                                    "wc_id": { "type": "integer", "nullable": true },
+                                    "is_isolated": { "type": "boolean" },
+                                    "created_at": { "type": "string", "format": "date-time" },
+                                    "updated_at": { "type": "string", "format": "date-time" },
+                                    "category": {
+                                      "type": "object",
+                                      "nullable": true,
+                                      "properties": {
+                                        "wc_id": { "type": "integer" },
+                                        "miqaat_id": { "type": "integer" },
+                                        "name": { "type": "string" },
+                                        "low_bar": { "type": "number", "format": "decimal" },
+                                        "upper_bar": { "type": "number", "format": "decimal" },
+                                        "hex_color": { "type": "string", "nullable": true },
+                                        "currency": { "type": "string" },
+                                        "order": { "type": "integer" }
+                                      }
+                                    }
+                                  }
+                                }
                               }
                             }
                           }
@@ -4225,6 +4868,12 @@
                   "description": "Whether this member is isolated (cannot be part of any group). If set to true, member will be removed from any existing groups.",
                   "nullable": true,
                   "example": false
+                },
+                "wg_id": {
+                  "type": "integer",
+                  "description": "Optional: Explicitly set the group ID. If provided (not null), the entry will be tagged with this group for aggregation. If null, entry will be saved as personal (wg_id = NULL). If not provided (undefined), backend will use existing auto-detection logic for backward compatibility.",
+                  "nullable": true,
+                  "example": 5
                 }
               }
             }
