@@ -55,8 +55,16 @@ interface Wajebaat {
   conversion_rate: number;            // For reporting only, does not affect stored amount
   status: boolean;                    // Payment status: false = unpaid, true = paid
   wc_id: number | null;               // Category ID (auto-assigned based on amount)
+  is_isolated?: boolean;              // Whether this member is isolated (cannot be part of any group)
+  category?: WajebaatCategory | null; // Category details (wc_id, name, hex_color) when loaded
   created_at: string;                  // ISO 8601 datetime
   updated_at: string;                 // ISO 8601 datetime
+}
+
+interface WajebaatCategory {
+  wc_id: number;
+  name: string;
+  hex_color: string;
 }
 ```
 
@@ -106,6 +114,60 @@ interface Census {
 ---
 
 ## Endpoints
+
+### 0. Mumin Dashboard Profile (New)
+
+**Endpoint:** `GET /api/miqaats/{miqaat_id}/mumin-profile/{its_id}`
+
+**Description:**  
+Resolves and returns the full profile for the Mumin Dashboard in one call. Supports multi-level grouping:
+- **Level 1 (Group):** If user's ITS is in `wajebaat_groups` for the miqaat, returns group profile with all members.
+- **Level 2 (Family):** If not in a group, returns family profile (census where hof_id = user's hof_id).
+
+**URL Parameters:**
+- `miqaat_id` (path, required): Integer, must exist in `miqaats` table (must be active miqaat)
+- `its_id` (path, required): String, ITS ID of the logged-in mumin
+
+**Response (200 OK):**
+```typescript
+interface MuminProfileResponse {
+  success: true;
+  data: {
+    profile_type: 'group' | 'family';
+    master_its?: string;      // Present when profile_type=group
+    hof_its?: string;        // Present when profile_type=family
+    wg_id?: number;          // Present when profile_type=group
+    group_name?: string | null;  // Present when profile_type=group
+    members: MuminProfileMember[];
+    clearance_status: {
+      can_mark_paid: boolean;
+      pending_departments: { mcd_id: number; name: string }[];
+    };
+  };
+}
+
+interface MuminProfileMember {
+  its_id: string;
+  person: Census | null;
+  wajebaat: (Wajebaat & { is_isolated: boolean; category?: WajebaatCategory }) | null;
+}
+```
+
+---
+
+### 0b. Wajebaat by ITS List (Optional)
+
+**Endpoint:** `GET /api/miqaats/{miqaat_id}/wajebaat/by-its-list`
+
+**Description:**  
+Fetches wajebaat records for multiple ITSs in one call.
+
+**Query Parameters:**
+- `its_ids` (required): Comma-separated ITS IDs (e.g. `123,456,789`)
+
+**Response (200 OK):** Array of wajebaat objects with `is_isolated` and `category` populated.
+
+---
 
 ### 1. Takhmeen Store
 

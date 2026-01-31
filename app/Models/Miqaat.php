@@ -15,12 +15,40 @@ class Miqaat extends Model
         'start_date',
         'end_date',
         'description',
+        'active_status',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'active_status' => 'boolean',
     ];
+
+    /**
+     * Scope to only active miqaat (active_status = true).
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('active_status', true);
+    }
+
+    /**
+     * Get the currently active miqaat, or null if none.
+     */
+    public static function getActive(): ?self
+    {
+        return static::active()->first();
+    }
+
+    /**
+     * Get the active miqaat id, or null if none.
+     */
+    public static function getActiveId(): ?int
+    {
+        $active = static::getActive();
+
+        return $active?->id;
+    }
 
     /**
      * Get the events for the miqaat.

@@ -354,13 +354,21 @@
           "Miqaats"
         ],
         "summary": "Get all miqaats",
+        "description": "Returns all miqaats. Each item includes active_status (boolean); only one miqaat can have active_status true at a time.",
         "responses": {
           "200": {
-            "description": "Successful response",
+            "description": "Successful response; data is an array of Miqaat (each with active_status)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Miqaat" }
+                    }
+                  }
                 }
               }
             }
@@ -417,13 +425,154 @@
         }
       }
     },
+    "/miqaats/active": {
+      "get": {
+        "tags": ["Miqaats"],
+        "summary": "Get the active miqaat",
+        "description": "Returns the single miqaat that is currently active (active_status true). Use this to get the current miqaat id for building URLs. Returns 404 if no miqaat is active.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Miqaat" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active miqaat set",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{id}": {
+      "patch": {
+        "tags": ["Miqaats"],
+        "summary": "Update a miqaat",
+        "description": "Update name, dates, description, or active_status. When active_status is set to true, all other miqaats are set inactive (only one can be active at a time).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Miqaat ID"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "start_date": { "type": "string", "format": "date" },
+                  "end_date": { "type": "string", "format": "date" },
+                  "description": { "type": "string", "nullable": true },
+                  "active_status": { "type": "boolean", "description": "Set to true to make this the active miqaat (deactivates others)" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Miqaat" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Miqaat not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Miqaats"],
+        "summary": "Update a miqaat (same as PATCH)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "start_date": { "type": "string", "format": "date" },
+                  "end_date": { "type": "string", "format": "date" },
+                  "description": { "type": "string", "nullable": true },
+                  "active_status": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Miqaat" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Miqaat not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "422": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
     "/miqaat-check-definitions": {
       "get": {
         "tags": [
           "Miqaat Check Definitions"
         ],
         "summary": "List miqaat check definitions",
-        "description": "Paginated list, optionally filtered by miqaat_id. Ordered by miqaat_id then name.",
+        "description": "Paginated list, optionally filtered by miqaat_id. When miqaat_id is omitted, results are limited to the active miqaat. When miqaat_id is provided, it must be the active miqaat (403 MIQAAT_NOT_ACTIVE otherwise). Ordered by miqaat_id then name.",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -758,6 +907,7 @@
           "Events"
         ],
         "summary": "Get all events",
+        "description": "Returns only events for the active miqaat.",
         "responses": {
           "200": {
             "description": "Successful response",
@@ -852,6 +1002,7 @@
           "Events"
         ],
         "summary": "Get events by miqaat ID",
+        "description": "miqaat_id must be the current active miqaat (403 MIQAAT_NOT_ACTIVE otherwise).",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -860,7 +1011,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "Miqaat ID"
+            "description": "Miqaat ID (must be the active miqaat)"
           }
         ],
         "responses": {
@@ -870,6 +1021,21 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Miqaat is not the current active miqaat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "MIQAAT_NOT_ACTIVE" },
+                    "message": { "type": "string", "example": "Miqaat is not the current active miqaat." }
+                  }
                 }
               }
             }
@@ -1085,6 +1251,7 @@
           "Sharafs"
         ],
         "summary": "Get all sharafs with optional filtering",
+        "description": "Returns only sharafs whose event belongs to the active miqaat.",
         "parameters": [
           {
             "name": "sharaf_definition_id",
@@ -1119,6 +1286,24 @@
               "type": "string"
             },
             "description": "Filter by Head of Family ITS"
+          },
+          {
+            "name": "member_its",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by person ITS: return sharafs where this person is HOF or a member (alias: its_id)"
+          },
+          {
+            "name": "its_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by person ITS: return sharafs where this person is HOF or a member (alias: member_its)"
           },
           {
             "name": "token",
@@ -1765,7 +1950,7 @@
           "Sharaf Payments"
         ],
         "summary": "List sharaf payments",
-        "description": "Paginated list, optionally filtered by sharaf_id.",
+        "description": "Paginated list, optionally filtered by sharaf_id. Returns only payments for sharafs that belong to the active miqaat.",
         "parameters": [
           {
             "name": "sharaf_id",
@@ -1993,13 +2178,103 @@
         }
       }
     },
+    "/sharafs/{sharaf_id}/payments/{payment_definition_id}": {
+      "patch": {
+        "tags": [
+          "Sharaf Payments"
+        ],
+        "summary": "Toggle payment status for a sharaf by payment definition",
+        "description": "Generic endpoint to toggle payment_status for any payment definition (e.g. Hadiyat, Misaaq, Nikah, Ziyafat, Najwa Raqam). Find or create the sharaf_payments record and update payment_status.",
+        "parameters": [
+          {
+            "name": "sharaf_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf ID"
+          },
+          {
+            "name": "payment_definition_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Payment definition ID (from payment_definitions table)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paid": {
+                    "type": "boolean",
+                    "description": "Whether the payment is paid"
+                  }
+                },
+                "required": [
+                  "paid"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "description": "Updated sharaf payment record with sharaf and paymentDefinition relations"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sharaf not found, or payment definition not found / not applicable for this sharaf",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sharafs/{sharaf_id}/payments": {
       "post": {
         "tags": [
           "Sharaf Payments"
         ],
         "summary": "Create or update a sharaf payment",
-        "description": "Creates or updates a payment record for the sharaf. payment_status is set to false. Use lagat/najwa endpoints for toggling paid status.",
+        "description": "Creates or updates a payment record for the sharaf. payment_status is set to false. Use PATCH /sharafs/{sharaf_id}/payments/{payment_definition_id} for toggling paid status (or lagat/najwa for backward compatibility).",
         "parameters": [
           {
             "name": "sharaf_id",
@@ -2181,7 +2456,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "Miqaat ID (must exist in miqaats)"
+            "description": "Miqaat ID (must be the active miqaat; 403 MIQAAT_NOT_ACTIVE otherwise)"
           },
           {
             "name": "its_id",
@@ -2255,6 +2530,21 @@
               }
             }
           },
+          "403": {
+            "description": "Miqaat is not the current active miqaat (error: MIQAAT_NOT_ACTIVE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "MIQAAT_NOT_ACTIVE" },
+                    "message": { "type": "string", "example": "Miqaat is not the current active miqaat." }
+                  }
+                }
+              }
+            }
+          },
           "404": {
             "description": "Miqaat not found",
             "content": {
@@ -2319,7 +2609,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "Miqaat ID (must exist; used to validate that mcd_id belongs to this miqaat)"
+            "description": "Miqaat ID (must be the active miqaat; 403 MIQAAT_NOT_ACTIVE otherwise)"
           }
         ],
         "requestBody": {
@@ -2478,6 +2768,21 @@
               }
             }
           },
+          "403": {
+            "description": "Miqaat is not the current active miqaat (error: MIQAAT_NOT_ACTIVE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "MIQAAT_NOT_ACTIVE" },
+                    "message": { "type": "string", "example": "Miqaat is not the current active miqaat." }
+                  }
+                }
+              }
+            }
+          },
           "404": {
             "description": "Miqaat or check definition not found",
             "content": {
@@ -2519,7 +2824,7 @@
           "Miqaat Checks"
         ],
         "summary": "Upsert a miqaat check (clear/unclear)",
-        "description": "Same as PUT: creates or updates a single miqaat_checks row. Uniqueness is on (its_id, mcd_id).",
+        "description": "Same as PUT: creates or updates a single miqaat_checks row. miqaat_id must be the active miqaat (403 MIQAAT_NOT_ACTIVE otherwise). Uniqueness is on (its_id, mcd_id).",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -2527,7 +2832,8 @@
             "required": true,
             "schema": {
               "type": "integer"
-            }
+            },
+            "description": "Miqaat ID (must be the active miqaat)"
           }
         ],
         "requestBody": {
@@ -2585,6 +2891,21 @@
               }
             }
           },
+          "403": {
+            "description": "Miqaat is not the current active miqaat (error: MIQAAT_NOT_ACTIVE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "error": { "type": "string", "example": "MIQAAT_NOT_ACTIVE" },
+                    "message": { "type": "string", "example": "Miqaat is not the current active miqaat." }
+                  }
+                }
+              }
+            }
+          },
           "404": {
             "description": "Miqaat or check definition not found",
             "content": {
@@ -2608,13 +2929,198 @@
         }
       }
     },
+    "/miqaats/{miqaat_id}/mumin-profile/{its_id}": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get Mumin Dashboard profile (group or family)",
+        "description": "Resolves and returns the full profile for the Mumin Dashboard in one call. Level 1 (Group): If user's ITS is in wajebaat_groups for the miqaat, returns group profile with all members. Level 2 (Family): If not in a group, returns family profile (census where hof_id = user's hof_id). Includes members with census, wajebaat (is_isolated, category), and clearance_status for primary its_id.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Miqaat ID (must be active)"
+          },
+          {
+            "name": "its_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ITS ID of the logged-in mumin"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "profile_type": { "type": "string", "enum": ["group", "family"] },
+                        "master_its": { "type": "string", "description": "Present when profile_type=group" },
+                        "hof_its": { "type": "string", "description": "Present when profile_type=family" },
+                        "wg_id": { "type": "integer", "description": "Present when profile_type=group" },
+                        "group_name": { "type": "string", "nullable": true, "description": "Present when profile_type=group" },
+                        "members": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "its_id": { "type": "string" },
+                              "person": {
+                                "type": "object",
+                                "nullable": true,
+                                "description": "Census record for the member"
+                              },
+                              "wajebaat": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "id": { "type": "integer" },
+                                  "amount": { "type": "number" },
+                                  "currency": { "type": "string" },
+                                  "status": { "type": "boolean" },
+                                  "is_isolated": { "type": "boolean" },
+                                  "category": {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "properties": {
+                                      "wc_id": { "type": "integer" },
+                                      "name": { "type": "string" },
+                                      "hex_color": { "type": "string" }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "clearance_status": {
+                          "type": "object",
+                          "properties": {
+                            "can_mark_paid": { "type": "boolean" },
+                            "pending_departments": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "mcd_id": { "type": "integer" },
+                                  "name": { "type": "string" }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Census record not found for this ITS",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/wajebaat/by-its-list": {
+      "get": {
+        "tags": ["Wajebaat"],
+        "summary": "Get wajebaat records for multiple ITSs",
+        "description": "Fetches wajebaat records for multiple ITSs in one call. Query param: its_ids=123,456,789 (comma-separated). Returns array of wajebaat objects with is_isolated and category populated.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Miqaat ID (must be active)"
+          },
+          {
+            "name": "its_ids",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Comma-separated ITS IDs (e.g. 123,456,789)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response (array of wajebaat with is_isolated and category)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "data"],
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "its_id": { "type": "string" },
+                          "amount": { "type": "number" },
+                          "currency": { "type": "string" },
+                          "status": { "type": "boolean" },
+                          "is_isolated": { "type": "boolean" },
+                          "category": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "wc_id": { "type": "integer" },
+                              "name": { "type": "string" },
+                              "hex_color": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/miqaats/{miqaat_id}/wajebaat/{its_id}": {
       "get": {
         "tags": [
           "Wajebaat"
         ],
         "summary": "Get wajebaat for a member in a miqaat",
-        "description": "Returns the single wajebaat record for the given miqaat and member. Returns 404 if no record exists.",
+        "description": "Returns the single wajebaat record for the given miqaat and member. Includes is_isolated and category (wc_id, name, hex_color). Returns 404 if no record exists.",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -3164,7 +3670,7 @@
       "get": {
         "tags": ["Wajebaat"],
         "summary": "Get all wajebaat records for a miqaat",
-        "description": "Returns all wajebaat records for a specific miqaat. Returns empty array if no records exist (not 404).",
+        "description": "Returns all wajebaat records for a specific miqaat. miqaat_id must be the active miqaat (403 MIQAAT_NOT_ACTIVE otherwise). Returns empty array if no records exist (not 404). All other wajebaat endpoints that take miqaat_id also require the active miqaat.",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -3173,7 +3679,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "Miqaat ID"
+            "description": "Miqaat ID (must be the active miqaat)"
           }
         ],
         "responses": {
@@ -4180,6 +4686,19 @@
           }
         }
       },
+      "Miqaat": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "name": { "type": "string", "example": "Miqaat 2026" },
+          "start_date": { "type": "string", "format": "date" },
+          "end_date": { "type": "string", "format": "date" },
+          "description": { "type": "string", "nullable": true },
+          "active_status": { "type": "boolean", "description": "Whether this miqaat is the current active one (only one can be active at a time)", "example": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
       "CreateSharafRequest": {
         "type": "object",
         "required": [
@@ -4303,7 +4822,7 @@
         "properties": {
           "miqaat_id": {
             "type": "integer",
-            "description": "ID of the miqaat",
+            "description": "ID of the miqaat (must be the active miqaat; 403 MIQAAT_NOT_ACTIVE otherwise)",
             "example": 1
           },
           "entries": {

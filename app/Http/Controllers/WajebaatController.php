@@ -52,6 +52,9 @@ class WajebaatController extends Controller
         }
 
         $miqaatId = (int) $request->input('miqaat_id');
+        if (($err = $this->ensureActiveMiqaat($miqaatId)) !== null) {
+            return $err;
+        }
         $entries = (array) $request->input('entries', []);
         $lookupIts = $request->filled('its_id') ? (string) $request->input('its_id') : null;
 
@@ -202,6 +205,7 @@ class WajebaatController extends Controller
     /**
      * GET: single wajebaat for a member in a miqaat.
      * Returns 404 if no wajebaat exists for the given miqaat_id and its_id.
+     * Includes is_isolated and category (wc_id, name, hex_color) for frontend display.
      */
     public function show(string $miqaat_id, string $its_id): JsonResponse
     {
@@ -220,16 +224,22 @@ class WajebaatController extends Controller
                 422
             );
         }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
 
         $wajebaat = Wajebaat::query()
             ->forItsInMiqaat((string) $its_id, (int) $miqaat_id)
+            ->with('category')
             ->first();
 
         if ($wajebaat === null) {
             return $this->jsonError('NOT_FOUND', 'Wajebaat record not found for this miqaat and member.', 404);
         }
 
-        return $this->jsonSuccessWithData($wajebaat);
+        $data = $this->formatWajebaatWithCategory($wajebaat);
+
+        return $this->jsonSuccessWithData($data);
     }
 
     /**
@@ -498,6 +508,9 @@ class WajebaatController extends Controller
                 422
             );
         }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
 
         $miqaatId = (int) $miqaat_id;
         $itsId = (string) $its_id;
@@ -570,6 +583,9 @@ class WajebaatController extends Controller
                 422
             );
         }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
 
         $miqaatId = (int) $miqaat_id;
         $itsId = (string) $its_id;
@@ -607,6 +623,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;
@@ -671,6 +690,9 @@ class WajebaatController extends Controller
                 422
             );
         }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
 
         $miqaatId = (int) $miqaat_id;
 
@@ -708,6 +730,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;
@@ -753,6 +778,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;
@@ -867,6 +895,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;
@@ -1026,6 +1057,9 @@ class WajebaatController extends Controller
                 $validator->errors()->first() ?? 'Validation failed.',
                 422
             );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
         }
 
         $miqaatId = (int) $miqaat_id;
@@ -1266,6 +1300,9 @@ class WajebaatController extends Controller
                 422
             );
         }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
 
         $miqaatId = (int) $miqaat_id;
         $wgId = (int) $wg_id;
@@ -1320,6 +1357,187 @@ class WajebaatController extends Controller
                 ];
             })->values()->toArray(),
         ];
+    }
+
+    /**
+     * GET: Mumin Dashboard profile — group (Level 1) or family (Level 2).
+     *
+     * Resolves profile scope for the logged-in mumin:
+     * - Level 1 (Group): If user's ITS is in wajebaat_groups for the miqaat, returns group profile with all members.
+     * - Level 2 (Family): If not in a group, returns family profile (census where hof_id = user's hof_id).
+     *
+     * Returns members with census, wajebaat (including is_isolated and category), and clearance_status for primary its_id.
+     */
+    public function muminProfile(string $miqaat_id, string $its_id): JsonResponse
+    {
+        $validator = Validator::make([
+            'miqaat_id' => $miqaat_id,
+            'its_id' => $its_id,
+        ], [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+            'its_id' => ['required', 'string', 'exists:census,its_id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
+
+        $miqaatId = (int) $miqaat_id;
+        $itsId = (string) $its_id;
+
+        $profileType = 'family';
+        $masterIts = null;
+        $hofIts = null;
+        $wgId = null;
+        $groupName = null;
+        $memberIts = collect();
+
+        // Check if user is in a wajebaat group
+        $groupRow = WajebaatGroup::query()->forMember($miqaatId, $itsId)->first();
+
+        if ($groupRow !== null) {
+            $profileType = 'group';
+            $wgId = (int) $groupRow->wg_id;
+            $masterIts = (string) $groupRow->master_its;
+            $groupName = $groupRow->group_name;
+
+            $memberIts = WajebaatGroup::query()
+                ->forGroup($miqaatId, $wgId)
+                ->pluck('its_id')
+                ->unique()
+                ->values();
+        } else {
+            // Family profile: get census for user → hof_id, then family members
+            $userCensus = Census::query()->where('its_id', $itsId)->first();
+            if ($userCensus === null) {
+                return $this->jsonError('NOT_FOUND', 'Census record not found for this ITS.', 404);
+            }
+
+            $hofIts = (string) $userCensus->hof_id;
+            $hof = Census::query()->where('its_id', $hofIts)->first();
+            $members = Census::query()
+                ->where('hof_id', $hofIts)
+                ->where('its_id', '!=', $hofIts)
+                ->orderBy('age', 'desc')
+                ->get();
+
+            $memberIts = collect([$hof])->merge($members)->filter()->pluck('its_id')->values();
+        }
+
+        // Fetch census for all members
+        $people = Census::query()
+            ->whereIn('its_id', $memberIts)
+            ->get()
+            ->keyBy('its_id');
+
+        // Fetch wajebaat for all members in this miqaat (only those who have records)
+        $wajebaats = Wajebaat::query()
+            ->where('miqaat_id', $miqaatId)
+            ->whereIn('its_id', $memberIts)
+            ->with('category')
+            ->get()
+            ->keyBy('its_id');
+
+        $members = $memberIts->map(function ($mIts) use ($people, $wajebaats) {
+            $wajebaat = $wajebaats->get($mIts);
+            return [
+                'its_id' => (string) $mIts,
+                'person' => $people->get($mIts),
+                'wajebaat' => $wajebaat !== null ? $this->formatWajebaatWithCategory($wajebaat) : null,
+            ];
+        })->values()->all();
+
+        $pending = $this->pendingDepartmentChecks($miqaatId, $itsId);
+        $clearanceStatus = [
+            'can_mark_paid' => empty($pending),
+            'pending_departments' => $pending,
+        ];
+
+        $data = [
+            'profile_type' => $profileType,
+            'members' => $members,
+            'clearance_status' => $clearanceStatus,
+        ];
+
+        if ($profileType === 'group') {
+            $data['master_its'] = $masterIts;
+            $data['wg_id'] = $wgId;
+            $data['group_name'] = $groupName;
+        } else {
+            $data['hof_its'] = $hofIts;
+        }
+
+        return $this->jsonSuccessWithData($data);
+    }
+
+    /**
+     * GET: wajebaat records for multiple ITSs in one call.
+     * Query params: its_ids=123,456,789 (comma-separated)
+     * Returns array of wajebaat objects with is_isolated and category populated.
+     */
+    public function wajebaatByItsList(Request $request, string $miqaat_id): JsonResponse
+    {
+        $validator = Validator::make(array_merge($request->query(), [
+            'miqaat_id' => $miqaat_id,
+        ]), [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+            'its_ids' => ['required', 'string', 'regex:/^[\d,]+$/'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+        if (($err = $this->ensureActiveMiqaat((int) $miqaat_id)) !== null) {
+            return $err;
+        }
+
+        $miqaatId = (int) $miqaat_id;
+        $itsIds = array_filter(array_map('trim', explode(',', (string) $request->query('its_ids'))));
+
+        if (empty($itsIds)) {
+            return $this->jsonSuccessWithData([]);
+        }
+
+        $wajebaats = Wajebaat::query()
+            ->where('miqaat_id', $miqaatId)
+            ->whereIn('its_id', $itsIds)
+            ->with('category')
+            ->get();
+
+        $data = $wajebaats->map(fn ($w) => $this->formatWajebaatWithCategory($w))->values()->all();
+
+        return $this->jsonSuccessWithData($data);
+    }
+
+    /**
+     * Format wajebaat for API response with category as { wc_id, name, hex_color }.
+     */
+    protected function formatWajebaatWithCategory(Wajebaat $wajebaat): array
+    {
+        $data = $wajebaat->toArray();
+        $data['is_isolated'] = (bool) ($wajebaat->is_isolated ?? false);
+
+        $category = $wajebaat->relationLoaded('category') ? $wajebaat->category : $wajebaat->category;
+        $data['category'] = $category !== null
+            ? [
+                'wc_id' => (int) $category->wc_id,
+                'name' => (string) $category->name,
+                'hex_color' => (string) ($category->hex_color ?? ''),
+            ]
+            : null;
+
+        return $data;
     }
 
     /**

@@ -33,9 +33,12 @@ Route::get('/users/{id}', [UserController::class, 'show']);
 Route::post('/users', [UserController::class, 'store']);
 Route::put('/users/{id}', [UserController::class, 'update']);
 Route::delete('/users/{id}', [UserController::class, 'destroy']);
-// Miqaat routes
+// Miqaat routes (active before {miqaat_id} so "active" is not captured as id)
 Route::get('/miqaats', [MiqaatController::class, 'index']);
+Route::get('/miqaats/active', [MiqaatController::class, 'active']);
 Route::post('/miqaats', [MiqaatController::class, 'store']);
+Route::patch('/miqaats/{id}', [MiqaatController::class, 'update']);
+Route::put('/miqaats/{id}', [MiqaatController::class, 'update']);
 Route::get('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'index']);
 Route::put('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
 Route::post('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
@@ -80,12 +83,15 @@ Route::post('/payment-definitions', [PaymentDefinitionController::class, 'store'
 // Sharaf Payment routes
 Route::get('/sharaf-payments', [SharafPaymentController::class, 'index']);
 Route::post('/sharafs/{sharaf_id}/payments', [SharafPaymentController::class, 'store']);
+Route::patch('/sharafs/{sharaf_id}/payments/{payment_definition_id}', [SharafPaymentController::class, 'toggle']);
 Route::post('/sharafs/{sharaf_id}/lagat', [SharafPaymentController::class, 'lagat']);
 Route::post('/sharafs/{sharaf_id}/najwa', [SharafPaymentController::class, 'najwa']);
 // Wajebaat (Takhmeen / Finance Ada) routes
 Route::post('/wajebaat/takhmeen', [WajebaatController::class, 'takhmeenStore']);
 Route::get('/wajebaat/history/{its_id}', [WajebaatController::class, 'history']);
+Route::get('/miqaats/{miqaat_id}/mumin-profile/{its_id}', [WajebaatController::class, 'muminProfile']);
 Route::get('/miqaats/{miqaat_id}/wajebaat', [WajebaatController::class, 'index']);
+Route::get('/miqaats/{miqaat_id}/wajebaat/by-its-list', [WajebaatController::class, 'wajebaatByItsList']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/{its_id}', [WajebaatController::class, 'show']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/related-its/{its_id}', [WajebaatController::class, 'relatedIts']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/related/{its_id}', [WajebaatController::class, 'related']);

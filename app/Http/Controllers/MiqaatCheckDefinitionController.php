@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\UserType;
+use App\Models\Miqaat;
 use App\Models\MiqaatCheckDepartment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,7 +38,15 @@ class MiqaatCheckDefinitionController extends Controller
         $query = MiqaatCheckDepartment::query()->with('miqaat')->orderBy('miqaat_id')->orderBy('name');
 
         if ($request->filled('miqaat_id')) {
+            if (($err = $this->ensureActiveMiqaat((int) $request->input('miqaat_id'))) !== null) {
+                return $err;
+            }
             $query->where('miqaat_id', $request->input('miqaat_id'));
+        } else {
+            $activeId = Miqaat::getActiveId();
+            if ($activeId !== null) {
+                $query->where('miqaat_id', $activeId);
+            }
         }
 
         if ($request->filled('user_type')) {
