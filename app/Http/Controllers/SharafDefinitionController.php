@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Event;
 use App\Models\PaymentDefinition;
 use App\Models\Sharaf;
 use App\Models\SharafDefinition;
@@ -12,11 +13,78 @@ use Illuminate\Support\Facades\Validator;
 
 class SharafDefinitionController extends Controller
 {
-    public function index(string $event_id): JsonResponse
+    /**
+     * GET /api/events/{eventId}/sharaf-definitions
+     * Optional query: include=positions,payment-definitions
+     */
+    public function index(Request $request, string $event_id): JsonResponse
     {
-        $definitions = SharafDefinition::where('event_id', $event_id)->get();
+        $validator = Validator::make(
+            ['event_id' => $event_id],
+            ['event_id' => ['required', 'integer']]
+        );
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Invalid event ID.',
+                400
+            );
+        }
 
-        return $this->jsonSuccessWithData($definitions);
+        $eventId = (int) $event_id;
+        $event = Event::find($eventId);
+        if (! $event) {
+            return $this->jsonError('NOT_FOUND', 'Event not found.', 404);
+        }
+
+        $includeRaw = $request->query('include', '');
+        $allowedIncludes = ['positions', 'payment-definitions'];
+        $includeList = array_map('trim', array_filter(explode(',', $includeRaw)));
+        foreach ($includeList as $value) {
+            if (! in_array($value, $allowedIncludes, true)) {
+                return $this->jsonError(
+                    'VALIDATION_ERROR',
+                    'Invalid value in include. Allowed: ' . implode(', ', $allowedIncludes) . '.',
+                    400
+                );
+            }
+        }
+
+        $includePositions = in_array('positions', $includeList, true);
+        $includePaymentDefinitions = in_array('payment-definitions', $includeList, true);
+
+        $query = SharafDefinition::where('event_id', $eventId);
+        if ($includePositions || $includePaymentDefinitions) {
+            $with = [];
+            if ($includePositions) {
+                $with['sharafPositions'] = fn ($q) => $q->orderBy('order');
+            }
+            if ($includePaymentDefinitions) {
+                $with['paymentDefinitions'] = fn ($q) => $q->orderBy('name');
+            }
+            $query->with($with);
+        }
+
+        $definitions = $query->get();
+
+        if (! $includePositions && ! $includePaymentDefinitions) {
+            return $this->jsonSuccessWithData($definitions);
+        }
+
+        $data = $definitions->map(function (SharafDefinition $def) use ($includePositions, $includePaymentDefinitions) {
+            $arr = $def->toArray();
+            if ($includePositions) {
+                $arr['positions'] = $def->sharafPositions->map(fn (SharafPosition $p) => $p->toArray())->values()->all();
+                unset($arr['sharaf_positions']);
+            }
+            if ($includePaymentDefinitions) {
+                $arr['payment_definitions'] = $def->paymentDefinitions->map(fn (PaymentDefinition $pd) => $pd->toArray())->values()->all();
+                unset($arr['payment_definitions']);
+            }
+            return $arr;
+        })->all();
+
+        return $this->jsonSuccessWithData($data);
     }
 
     public function sharafs(string $sd_id): JsonResponse
