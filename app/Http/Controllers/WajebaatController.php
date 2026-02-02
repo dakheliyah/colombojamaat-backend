@@ -1972,65 +1972,234 @@ class WajebaatController extends Controller
         $miqaatId = (int) $miqaat_id;
         $itsId = (string) $its_id;
 
-        $profileType = 'family';
-        $masterIts = null;
-        $hofIts = null;
-        $wgId = null;
-        $groupName = null;
-        $memberIts = collect();
+        // Get user's census record
+        $userCensus = Census::query()->where('its_id', $itsId)->first();
+        if ($userCensus === null) {
+            return $this->jsonError('NOT_FOUND', 'Census record not found for this ITS.', 404);
+        }
 
-        // Check if user is in a wajebaat group
-        $groupRow = WajebaatGroup::query()->forMember($miqaatId, $itsId)->first();
+        // Always get family members
+        $hofIts = (string) $userCensus->hof_id;
+        $hof = Census::query()->where('its_id', $hofIts)->first();
+        $familyMembers = Census::query()
+            ->where('hof_id', $hofIts)
+            ->where('its_id', '!=', $hofIts)
+            ->orderBy('age', 'desc')
+            ->get();
+        
+        $familyMemberIts = collect([$hof])->merge($familyMembers)->filter()->pluck('its_id')->values();
+
+        // Check if HoF is in a wajebaat group
+        $groupRow = WajebaatGroup::query()->forMember($miqaatId, $hofIts)->first();
+        $groupInfo = null;
+        $groupMemberIts = collect();
 
         if ($groupRow !== null) {
-            $profileType = 'group';
             $wgId = (int) $groupRow->wg_id;
             $masterIts = (string) $groupRow->master_its;
             $groupName = $groupRow->group_name;
 
-            $memberIts = WajebaatGroup::query()
+            $groupMemberIts = WajebaatGroup::query()
                 ->forGroup($miqaatId, $wgId)
                 ->pluck('its_id')
                 ->unique()
                 ->values();
-        } else {
-            // Family profile: get census for user → hof_id, then family members
-            $userCensus = Census::query()->where('its_id', $itsId)->first();
-            if ($userCensus === null) {
-                return $this->jsonError('NOT_FOUND', 'Census record not found for this ITS.', 404);
-            }
 
-            $hofIts = (string) $userCensus->hof_id;
-            $hof = Census::query()->where('its_id', $hofIts)->first();
-            $members = Census::query()
-                ->where('hof_id', $hofIts)
-                ->where('its_id', '!=', $hofIts)
-                ->orderBy('age', 'desc')
-                ->get();
-
-            $memberIts = collect([$hof])->merge($members)->filter()->pluck('its_id')->values();
+            $groupInfo = [
+                'wg_id' => $wgId,
+                'master_its' => $masterIts,
+                'group_name' => $groupName,
+            ];
         }
+
+        // Combine family and group members (deduplicate)
+        $allMemberIts = $familyMemberIts->merge($groupMemberIts)->unique()->values();
 
         // Fetch census for all members
         $people = Census::query()
-            ->whereIn('its_id', $memberIts)
+            ->whereIn('its_id', $allMemberIts)
             ->get()
             ->keyBy('its_id');
 
         // Fetch wajebaat for all members in this miqaat (only those who have records)
         $wajebaats = Wajebaat::query()
             ->where('miqaat_id', $miqaatId)
-            ->whereIn('its_id', $memberIts)
+            ->whereIn('its_id', $allMemberIts)
             ->with('category')
             ->get()
             ->keyBy('its_id');
 
-        $members = $memberIts->map(function ($mIts) use ($people, $wajebaats) {
+        // For group members, fetch their HoF information and all related family members
+        $groupMemberHofs = collect();
+        $allGroupRelatedIts = collect();
+        $relatedPeople = collect();
+        $relatedWajebaats = collect();
+        
+        if ($groupMemberIts->isNotEmpty()) {
+            // Get HoF IDs for all group members
+            $groupMemberHofIds = $people
+                ->whereIn('its_id', $groupMemberIts)
+                ->pluck('hof_id')
+                ->unique()
+                ->filter()
+                ->values();
+            
+            // Fetch HoF census records (excluding those already in $people)
+            $hofIdsToFetch = $groupMemberHofIds->diff($allMemberIts)->values();
+            
+            if ($hofIdsToFetch->isNotEmpty()) {
+                $fetchedHofs = Census::query()
+                    ->whereIn('its_id', $hofIdsToFetch)
+                    ->get()
+                    ->keyBy('its_id');
+                $groupMemberHofs = $groupMemberHofs->merge($fetchedHofs);
+            }
+            
+            // Also include HoFs that are already in $people
+            $existingHofs = $people->whereIn('its_id', $groupMemberHofIds);
+            $groupMemberHofs = $groupMemberHofs->merge($existingHofs);
+            
+            // Get all related ITS (family members of each group member)
+            foreach ($groupMemberIts as $groupMemberItsId) {
+                $groupMemberPerson = $people->get($groupMemberItsId);
+                if ($groupMemberPerson && !empty($groupMemberPerson->hof_id)) {
+                    // Get all family members of this group member
+                    $relatedFamilyMembers = Census::query()
+                        ->where('hof_id', $groupMemberPerson->hof_id)
+                        ->pluck('its_id')
+                        ->values();
+                    $allGroupRelatedIts = $allGroupRelatedIts->merge($relatedFamilyMembers);
+                }
+            }
+            
+            // Deduplicate related ITS
+            $allGroupRelatedIts = $allGroupRelatedIts->unique()->values();
+            
+            // Fetch census and wajebaat for all related ITS
+            if ($allGroupRelatedIts->isNotEmpty()) {
+                $relatedPeople = Census::query()
+                    ->whereIn('its_id', $allGroupRelatedIts)
+                    ->get()
+                    ->keyBy('its_id');
+                
+                $relatedWajebaats = Wajebaat::query()
+                    ->where('miqaat_id', $miqaatId)
+                    ->whereIn('its_id', $allGroupRelatedIts)
+                    ->with('category')
+                    ->get()
+                    ->keyBy('its_id');
+            }
+        }
+
+        // Build family members array with details
+        $familyMembersData = $familyMemberIts->map(function ($mIts) use ($people, $wajebaats) {
             $wajebaat = $wajebaats->get($mIts);
             return [
                 'its_id' => (string) $mIts,
                 'person' => $people->get($mIts),
                 'wajebaat' => $wajebaat !== null ? $this->formatWajebaatWithCategory($wajebaat) : null,
+            ];
+        })->values()->all();
+
+        // Build group members array with details (including their HoF and HoF clearance status)
+        $groupMembersData = [];
+        if ($groupMemberIts->isNotEmpty()) {
+            $groupMembersData = $groupMemberIts->map(function ($mIts) use ($people, $wajebaats, $groupMemberHofs, $miqaatId) {
+                $wajebaat = $wajebaats->get($mIts);
+                $person = $people->get($mIts);
+                
+                $memberData = [
+                    'its_id' => (string) $mIts,
+                    'person' => $person,
+                    'wajebaat' => $wajebaat !== null ? $this->formatWajebaatWithCategory($wajebaat) : null,
+                ];
+                
+                // Include their HoF information with clearance status
+                if ($person !== null && !empty($person->hof_id)) {
+                    $memberHof = $groupMemberHofs->get($person->hof_id);
+                    if ($memberHof === null) {
+                        $memberHof = $people->get($person->hof_id);
+                    }
+                    if ($memberHof !== null) {
+                        $memberData['hof'] = $memberHof;
+                        
+                        // Get clearance status for this HoF
+                        $hofPending = $this->pendingDepartmentChecks($miqaatId, $person->hof_id);
+                        $memberData['hof_clearance_status'] = [
+                            'can_mark_paid' => empty($hofPending),
+                            'pending_departments' => $hofPending,
+                        ];
+                    }
+                }
+                
+                return $memberData;
+            })->values()->all();
+        }
+
+        // Build all_group_hof array (all unique HoFs from group members with clearance status)
+        $allGroupHofData = [];
+        if ($groupMemberHofs->isNotEmpty()) {
+            $allGroupHofData = $groupMemberHofs->map(function ($hof) use ($miqaatId) {
+                $hofPending = $this->pendingDepartmentChecks($miqaatId, $hof->its_id);
+                return [
+                    'hof' => $hof,
+                    'clearance_status' => [
+                        'can_mark_paid' => empty($hofPending),
+                        'pending_departments' => $hofPending,
+                    ],
+                ];
+            })->values()->all();
+        }
+
+        // Build all_group_members array (all related ITS - family members of group members with HoF clearance status)
+        $allGroupMembersData = [];
+        if ($relatedPeople->isNotEmpty() && $allGroupRelatedIts->isNotEmpty()) {
+            $allGroupMembersData = $allGroupRelatedIts->map(function ($mIts) use ($relatedPeople, $relatedWajebaats, $miqaatId) {
+                $wajebaat = $relatedWajebaats->get($mIts);
+                $person = $relatedPeople->get($mIts);
+                
+                $memberData = [
+                    'its_id' => (string) $mIts,
+                    'person' => $person,
+                    'wajebaat' => $wajebaat !== null ? $this->formatWajebaatWithCategory($wajebaat) : null,
+                ];
+                
+                // Include HoF clearance status if person has a HoF
+                if ($person !== null && !empty($person->hof_id)) {
+                    $hofPending = $this->pendingDepartmentChecks($miqaatId, $person->hof_id);
+                    $memberData['hof_clearance_status'] = [
+                        'can_mark_paid' => empty($hofPending),
+                        'pending_departments' => $hofPending,
+                    ];
+                }
+                
+                return $memberData;
+            })->values()->all();
+        }
+
+        // Build members array (all members combined - group members and related ITS only)
+        // Exclude family members to avoid duplication since they're already in data.family.members
+        // But include group members even if they're also family members (they'll have both flags)
+        $membersToInclude = $groupMemberIts
+            ->merge($allGroupRelatedIts)
+            ->unique()
+            ->diff($familyMemberIts->diff($groupMemberIts)) // Exclude family-only members, keep those who are also group members
+            ->values();
+        
+        $members = $membersToInclude->map(function ($mIts) use ($people, $wajebaats, $relatedPeople, $relatedWajebaats, $familyMemberIts, $groupMemberIts) {
+            // Check if this person is in $people or $relatedPeople
+            $person = $people->get($mIts) ?? $relatedPeople->get($mIts);
+            $wajebaat = $wajebaats->get($mIts) ?? $relatedWajebaats->get($mIts);
+            
+            $isFamilyMember = $familyMemberIts->contains($mIts);
+            $isGroupMember = $groupMemberIts->contains($mIts);
+            
+            return [
+                'its_id' => (string) $mIts,
+                'person' => $person,
+                'wajebaat' => $wajebaat !== null ? $this->formatWajebaatWithCategory($wajebaat) : null,
+                'is_family_member' => $isFamilyMember,
+                'is_group_member' => $isGroupMember,
             ];
         })->values()->all();
 
@@ -2041,17 +2210,22 @@ class WajebaatController extends Controller
         ];
 
         $data = [
-            'profile_type' => $profileType,
+            'family' => [
+                'hof_its' => $hofIts,
+                'member_count' => $familyMemberIts->count(),
+                'members' => $familyMembersData,
+            ],
             'members' => $members,
             'clearance_status' => $clearanceStatus,
         ];
 
-        if ($profileType === 'group') {
-            $data['master_its'] = $masterIts;
-            $data['wg_id'] = $wgId;
-            $data['group_name'] = $groupName;
-        } else {
-            $data['hof_its'] = $hofIts;
+        // Add group information if HoF is in a group
+        if ($groupInfo !== null) {
+            $data['group'] = array_merge($groupInfo, [
+                'members' => $groupMembersData,
+                'all_group_hof' => $allGroupHofData,
+                'all_group_members' => $allGroupMembersData,
+            ]);
         }
 
         return $this->jsonSuccessWithData($data);

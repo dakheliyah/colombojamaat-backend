@@ -3412,8 +3412,8 @@
     "/miqaats/{miqaat_id}/mumin-profile/{its_id}": {
       "get": {
         "tags": ["Wajebaat"],
-        "summary": "Get Mumin Dashboard profile (group or family)",
-        "description": "Resolves and returns the full profile for the Mumin Dashboard in one call. Level 1 (Group): If user's ITS is in wajebaat_groups for the miqaat, returns group profile with all members. Level 2 (Family): If not in a group, returns family profile (census where hof_id = user's hof_id). Includes members with census, wajebaat (is_isolated, category), and clearance_status for primary its_id.",
+        "summary": "Get Mumin Dashboard profile (family and group)",
+        "description": "Returns the full profile for the Mumin Dashboard. Always includes family information (based on HoF relationship). If the HoF is part of a wajebaat group, also includes group information. Returns family members, group members (with their HoF info), combined members list, and clearance status.",
         "parameters": [
           {
             "name": "miqaat_id",
@@ -3442,14 +3442,104 @@
                     "success": { "type": "boolean", "example": true },
                     "data": {
                       "type": "object",
+                      "required": ["family", "members", "clearance_status"],
                       "properties": {
-                        "profile_type": { "type": "string", "enum": ["group", "family"] },
-                        "master_its": { "type": "string", "description": "Present when profile_type=group" },
-                        "hof_its": { "type": "string", "description": "Present when profile_type=family" },
-                        "wg_id": { "type": "integer", "description": "Present when profile_type=group" },
-                        "group_name": { "type": "string", "nullable": true, "description": "Present when profile_type=group" },
+                        "family": {
+                          "type": "object",
+                          "required": ["hof_its", "member_count", "members"],
+                          "properties": {
+                            "hof_its": { "type": "string", "description": "Head of Family ITS ID" },
+                            "member_count": { "type": "integer", "description": "Number of family members" },
+                            "members": {
+                              "type": "array",
+                              "description": "Family members with their details",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "its_id": { "type": "string" },
+                                  "person": {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "description": "Census record for the family member"
+                                  },
+                                  "wajebaat": {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "properties": {
+                                      "id": { "type": "integer" },
+                                      "amount": { "type": "number" },
+                                      "currency": { "type": "string" },
+                                      "status": { "type": "boolean" },
+                                      "is_isolated": { "type": "boolean" },
+                                      "category": {
+                                        "type": "object",
+                                        "nullable": true,
+                                        "properties": {
+                                          "wc_id": { "type": "integer" },
+                                          "name": { "type": "string" },
+                                          "hex_color": { "type": "string" }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "group": {
+                          "type": "object",
+                          "nullable": true,
+                          "description": "Present only if HoF is part of a wajebaat group",
+                          "properties": {
+                            "wg_id": { "type": "integer", "description": "Group ID" },
+                            "master_its": { "type": "string", "description": "Master ITS ID" },
+                            "group_name": { "type": "string", "nullable": true, "description": "Group name" },
+                            "members": {
+                              "type": "array",
+                              "description": "Group members with their details and HoF information",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "its_id": { "type": "string" },
+                                  "person": {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "description": "Census record for the group member"
+                                  },
+                                  "wajebaat": {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "properties": {
+                                      "id": { "type": "integer" },
+                                      "amount": { "type": "number" },
+                                      "currency": { "type": "string" },
+                                      "status": { "type": "boolean" },
+                                      "is_isolated": { "type": "boolean" },
+                                      "category": {
+                                        "type": "object",
+                                        "nullable": true,
+                                        "properties": {
+                                          "wc_id": { "type": "integer" },
+                                          "name": { "type": "string" },
+                                          "hex_color": { "type": "string" }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "hof": {
+                                    "type": "object",
+                                    "nullable": true,
+                                    "description": "Head of Family census record for this group member"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
                         "members": {
                           "type": "array",
+                          "description": "Combined list of all members (family + group, deduplicated)",
                           "items": {
                             "type": "object",
                             "properties": {
@@ -3478,7 +3568,9 @@
                                     }
                                   }
                                 }
-                              }
+                              },
+                              "is_family_member": { "type": "boolean", "description": "True if member belongs to the family" },
+                              "is_group_member": { "type": "boolean", "description": "True if member belongs to the group" }
                             }
                           }
                         },
