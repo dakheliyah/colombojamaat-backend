@@ -25,7 +25,7 @@ class SharafController extends Controller
     }
 
     /**
-     * Get all sharafs with optional filtering and pagination.
+     * Get all sharafs with optional filtering.
      */
     public function index(Request $request): JsonResponse
     {
@@ -37,8 +37,6 @@ class SharafController extends Controller
             'its_id' => ['nullable', 'string'],
             'token' => ['nullable', 'string'],
             'hof_name' => ['nullable', 'string'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         if ($validator->fails()) {
@@ -90,23 +88,9 @@ class SharafController extends Controller
             });
         }
 
-        // Pagination
-        $perPage = $request->input('per_page', 15);
-        $page = $request->input('page', 1);
+        $sharafs = $query->orderBy('sharaf_definition_id')->orderBy('rank')->get();
 
-        $results = $query->orderBy('sharaf_definition_id')->orderBy('rank')->paginate($perPage, ['*'], 'page', $page);
-
-        return $this->jsonSuccessWithData([
-            'data' => $results->items(),
-            'pagination' => [
-                'current_page' => $results->currentPage(),
-                'per_page' => $results->perPage(),
-                'total' => $results->total(),
-                'last_page' => $results->lastPage(),
-                'from' => $results->firstItem(),
-                'to' => $results->lastItem(),
-            ],
-        ]);
+        return $this->jsonSuccessWithData($sharafs);
     }
 
     public function store(Request $request): JsonResponse
