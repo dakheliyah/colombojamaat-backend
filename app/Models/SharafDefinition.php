@@ -14,6 +14,7 @@ class SharafDefinition extends Model
     protected $fillable = [
         'event_id',
         'name',
+        'key',
         'description',
     ];
 

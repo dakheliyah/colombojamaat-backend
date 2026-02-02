@@ -33,6 +33,7 @@ class SharafDefinitionController extends Controller
         $validator = Validator::make($request->all(), [
             'event_id' => ['required', 'integer', 'exists:events,id'],
             'name' => ['required', 'string', 'max:255'],
+            'key' => ['nullable', 'string', 'max:20'],
             'description' => ['nullable', 'string'],
         ]);
 
@@ -47,6 +48,7 @@ class SharafDefinitionController extends Controller
         $sharafDefinition = SharafDefinition::create([
             'event_id' => $request->input('event_id'),
             'name' => $request->input('name'),
+            'key' => $request->input('key'),
             'description' => $request->input('description'),
         ]);
 
@@ -67,6 +69,7 @@ class SharafDefinitionController extends Controller
         $validator = Validator::make($request->all(), [
             'event_id' => ['sometimes', 'integer', 'exists:events,id'],
             'name' => ['sometimes', 'string', 'max:255'],
+            'key' => ['nullable', 'string', 'max:20'],
             'description' => ['nullable', 'string'],
         ]);
 
@@ -78,7 +81,7 @@ class SharafDefinitionController extends Controller
             );
         }
 
-        $sharafDefinition->update($request->only(['event_id', 'name', 'description']));
+        $sharafDefinition->update($request->only(['event_id', 'name', 'key', 'description']));
 
         return $this->jsonSuccessWithData($sharafDefinition->fresh('event'));
     }

@@ -1064,6 +1064,11 @@
                     "type": "string",
                     "description": "Name of the sharaf definition"
                   },
+                  "key": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "description": "Optional key identifier for the sharaf definition"
+                  },
                   "description": {
                     "type": "string",
                     "description": "Description of the sharaf definition"
