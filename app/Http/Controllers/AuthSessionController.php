@@ -5,31 +5,36 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AuthSessionController extends Controller
 {
     /**
-     * Log in by ITS number. Validates the user exists and sets the user cookie.
+     * Log in by ITS number and password. Validates credentials and sets the user cookie.
      *
      * POST /api/auth/login
-     * Request body: { "its_no": "12345" }
+     * Request body: { "its_no": "12345", "password": "password123" }
      */
     public function login(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'its_no' => ['required', 'string', 'max:255'],
+            'password' => ['required', 'string'],
         ]);
 
         if ($validator->fails()) {
+            $firstError = $validator->errors()->first();
             return $this->jsonError(
                 'VALIDATION_ERROR',
-                $validator->errors()->first('its_no') ?? 'its_no is required.',
+                $firstError ?? 'its_no and password are required.',
                 422
             );
         }
 
-        $itsNo = trim($validator->validated()['its_no']);
+        $validated = $validator->validated();
+        $itsNo = trim($validated['its_no']);
+        $password = $validated['password'];
 
         if (! $this->isValidItsNo($itsNo)) {
             return $this->jsonError(
@@ -39,12 +44,20 @@ class AuthSessionController extends Controller
             );
         }
 
-        $user = User::where('its_no', $itsNo)->first();
+        $user = User::with(['roles', 'sharafTypes'])->where('its_no', $itsNo)->first();
 
         if (! $user) {
             return $this->jsonError(
                 'INVALID_CREDENTIALS',
-                'No user found with this ITS number.',
+                'Invalid credentials.',
+                401
+            );
+        }
+
+        if (! Hash::check($password, $user->password)) {
+            return $this->jsonError(
+                'INVALID_CREDENTIALS',
+                'Invalid credentials.',
                 401
             );
         }
@@ -61,7 +74,7 @@ class AuthSessionController extends Controller
         );
 
         return response()
-            ->json(['success' => true, 'its_no' => $itsNo], 200)
+            ->json(['success' => true, 'data' => $user], 200)
             ->cookie($cookie);
     }
 
