@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Enums\UserType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -20,7 +20,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'user_type',
         'its_no',
     ];
 
@@ -44,7 +43,22 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'user_type' => UserType::class,
         ];
+    }
+
+    /**
+     * Get the roles assigned to the user.
+     */
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(UserRole::class, 'user_role', 'user_id', 'role_id');
+    }
+
+    /**
+     * Get the sharaf types the user can access (for sharaf definition visibility).
+     */
+    public function sharafTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(SharafType::class, 'user_sharaf_type');
     }
 }

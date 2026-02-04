@@ -37,6 +37,11 @@ class SharafDefinitionController extends Controller
             return $this->jsonError('NOT_FOUND', 'Event not found.', 404);
         }
 
+        $user = $request->user();
+        if (! $user) {
+            return $this->jsonError('UNAUTHORIZED', 'No valid session.', 401);
+        }
+
         $includeRaw = $request->query('include', '');
         $allowedIncludes = ['positions', 'payment-definitions'];
         $includeList = array_map('trim', array_filter(explode(',', $includeRaw)));
@@ -53,9 +58,15 @@ class SharafDefinitionController extends Controller
         $includePositions = in_array('positions', $includeList, true);
         $includePaymentDefinitions = in_array('payment-definitions', $includeList, true);
 
-        $query = SharafDefinition::where('event_id', $eventId);
+        $allowedSharafTypeIds = $user->sharafTypes()->pluck('id')->all();
+        $query = SharafDefinition::where('event_id', $eventId)->with('sharafType');
+        if ($allowedSharafTypeIds !== []) {
+            $query->whereIn('sharaf_type_id', $allowedSharafTypeIds);
+        } else {
+            $query->whereRaw('0 = 1');
+        }
         if ($includePositions || $includePaymentDefinitions) {
-            $with = [];
+            $with = ['sharafType'];
             if ($includePositions) {
                 $with['sharafPositions'] = fn ($q) => $q->orderBy('order');
             }
@@ -100,6 +111,7 @@ class SharafDefinitionController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'event_id' => ['required', 'integer', 'exists:events,id'],
+            'sharaf_type_id' => ['required', 'integer', 'exists:sharaf_types,id'],
             'name' => ['required', 'string', 'max:255'],
             'key' => ['nullable', 'string', 'max:20'],
             'description' => ['nullable', 'string'],
@@ -115,12 +127,13 @@ class SharafDefinitionController extends Controller
 
         $sharafDefinition = SharafDefinition::create([
             'event_id' => $request->input('event_id'),
+            'sharaf_type_id' => $request->input('sharaf_type_id'),
             'name' => $request->input('name'),
             'key' => $request->input('key'),
             'description' => $request->input('description'),
         ]);
 
-        return $this->jsonSuccessWithData($sharafDefinition, 201);
+        return $this->jsonSuccessWithData($sharafDefinition->load('sharafType'), 201);
     }
 
     /**
@@ -136,6 +149,7 @@ class SharafDefinitionController extends Controller
 
         $validator = Validator::make($request->all(), [
             'event_id' => ['sometimes', 'integer', 'exists:events,id'],
+            'sharaf_type_id' => ['sometimes', 'integer', 'exists:sharaf_types,id'],
             'name' => ['sometimes', 'string', 'max:255'],
             'key' => ['nullable', 'string', 'max:20'],
             'description' => ['nullable', 'string'],
@@ -149,9 +163,9 @@ class SharafDefinitionController extends Controller
             );
         }
 
-        $sharafDefinition->update($request->only(['event_id', 'name', 'key', 'description']));
+        $sharafDefinition->update($request->only(['event_id', 'sharaf_type_id', 'name', 'key', 'description']));
 
-        return $this->jsonSuccessWithData($sharafDefinition->fresh('event'));
+        return $this->jsonSuccessWithData($sharafDefinition->fresh(['event', 'sharafType']));
     }
 
     public function positions(string $id): JsonResponse
