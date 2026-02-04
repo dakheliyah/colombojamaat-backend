@@ -76,6 +76,10 @@
       "description": "Sharaf payment operations"
     },
     {
+      "name": "Sharaf Definition Mappings",
+      "description": "Sharaf definition mapping operations for shifting sharafs between events"
+    },
+    {
       "name": "Wajebaat",
       "description": "Wajebaat (Takhmeen / Finance Ada) operations"
     }
@@ -1191,6 +1195,711 @@
           },
           "404": {
             "description": "Sharaf definition not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definition-mappings": {
+      "get": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "List all sharaf definition mappings",
+        "parameters": [
+          {
+            "name": "definition_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Filter by sharaf definition ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Create a new sharaf definition mapping",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source_sharaf_definition_id": {
+                    "type": "integer",
+                    "description": "ID of the source sharaf definition"
+                  },
+                  "target_sharaf_definition_id": {
+                    "type": "integer",
+                    "description": "ID of the target sharaf definition"
+                  },
+                  "created_by_its": {
+                    "type": "string",
+                    "description": "ITS number of user who created the mapping"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "Optional notes about the mapping"
+                  }
+                },
+                "required": [
+                  "source_sharaf_definition_id",
+                  "target_sharaf_definition_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Mapping created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definition-mappings/{id}": {
+      "get": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Get a specific sharaf definition mapping",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Mapping ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Update a sharaf definition mapping",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Mapping ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "is_active": {
+                    "type": "boolean",
+                    "description": "Whether the mapping is active"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "Notes about the mapping"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Update a sharaf definition mapping",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Mapping ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "is_active": {
+                    "type": "boolean",
+                    "description": "Whether the mapping is active"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "Notes about the mapping"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Delete a sharaf definition mapping",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Mapping ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definition-mappings/{id}/position-mappings": {
+      "post": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Add a position mapping",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf definition mapping ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source_sharaf_position_id": {
+                    "type": "integer",
+                    "description": "ID of the source sharaf position"
+                  },
+                  "target_sharaf_position_id": {
+                    "type": "integer",
+                    "description": "ID of the target sharaf position"
+                  }
+                },
+                "required": [
+                  "source_sharaf_position_id",
+                  "target_sharaf_position_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Position mapping created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definition-mappings/{id}/position-mappings/{positionMappingId}": {
+      "delete": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Remove a position mapping",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf definition mapping ID"
+          },
+          {
+            "name": "positionMappingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Position mapping ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Position mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definition-mappings/{id}/payment-definition-mappings": {
+      "post": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Add a payment definition mapping",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf definition mapping ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source_payment_definition_id": {
+                    "type": "integer",
+                    "description": "ID of the source payment definition"
+                  },
+                  "target_payment_definition_id": {
+                    "type": "integer",
+                    "description": "ID of the target payment definition"
+                  }
+                },
+                "required": [
+                  "source_payment_definition_id",
+                  "target_payment_definition_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment definition mapping created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definition-mappings/{id}/payment-definition-mappings/{paymentMappingId}": {
+      "delete": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Remove a payment definition mapping",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf definition mapping ID"
+          },
+          {
+            "name": "paymentMappingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Payment definition mapping ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment definition mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definition-mappings/{id}/validate": {
+      "get": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Validate mapping completeness",
+        "description": "Check if all required position and payment definition mappings exist. If sharaf_ids is provided, only validates mappings for the specified sharafs. Otherwise, validates for all sharafs in the source definition. If reverse_direction is true, validates in reverse direction (target -> source).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf definition mapping ID"
+          },
+          {
+            "name": "sharaf_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "description": "Optional array of sharaf IDs to validate. If omitted, validates all sharafs in source definition."
+          },
+          {
+            "name": "reverse_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "If true, validates in reverse direction (target -> source). Default: false."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definition-mappings/{id}/shift": {
+      "post": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Execute the shift operation",
+        "description": "Shift sharafs, members, clearances, and payments from source to target definition. If sharaf_ids is provided, only shifts the specified sharafs. Otherwise, shifts all sharafs from the source definition. If reverse_direction is true, shifts from target to source (reverse direction).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf definition mapping ID"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "shifted_by_its": {
+                    "type": "string",
+                    "description": "ITS number of user executing the shift"
+                  },
+                  "sharaf_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "description": "Optional array of sharaf IDs to shift. If omitted, shifts all sharafs from source definition."
+                  },
+                  "reverse_direction": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "If true, shifts from target to source (reverse direction). Default: false."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Shift completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error (mapping incomplete or inactive)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sharaf-definition-mappings/{id}/audit-logs": {
+      "get": {
+        "tags": [
+          "Sharaf Definition Mappings"
+        ],
+        "summary": "Get audit logs for a mapping",
+        "description": "Retrieve all shift operation audit logs for a specific mapping",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sharaf definition mapping ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mapping not found",
             "content": {
               "application/json": {
                 "schema": {

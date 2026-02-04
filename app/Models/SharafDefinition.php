@@ -49,4 +49,31 @@ class SharafDefinition extends Model
     {
         return $this->hasMany(PaymentDefinition::class);
     }
+
+    /**
+     * Get the mappings where this definition is the source.
+     */
+    public function mappingsAsSource(): HasMany
+    {
+        return $this->hasMany(SharafDefinitionMapping::class, 'source_sharaf_definition_id');
+    }
+
+    /**
+     * Get the mappings where this definition is the target.
+     */
+    public function mappingsAsTarget(): HasMany
+    {
+        return $this->hasMany(SharafDefinitionMapping::class, 'target_sharaf_definition_id');
+    }
+
+    /**
+     * Get all mappings involving this definition (both as source and target).
+     * Note: This requires the relationships to be loaded first.
+     */
+    public function getMappingsAttribute()
+    {
+        $source = $this->relationLoaded('mappingsAsSource') ? $this->mappingsAsSource : $this->mappingsAsSource()->get();
+        $target = $this->relationLoaded('mappingsAsTarget') ? $this->mappingsAsTarget : $this->mappingsAsTarget()->get();
+        return $source->merge($target);
+    }
 }
