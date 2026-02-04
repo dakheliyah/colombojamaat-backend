@@ -2203,7 +2203,8 @@ class WajebaatController extends Controller
             ];
         })->values()->all();
 
-        $pending = $this->pendingDepartmentChecks($miqaatId, $itsId);
+        // Clearance status should be calculated for the HoF, not the logged-in user
+        $pending = $this->pendingDepartmentChecks($miqaatId, $hofIts);
         $clearanceStatus = [
             'can_mark_paid' => empty($pending),
             'pending_departments' => $pending,

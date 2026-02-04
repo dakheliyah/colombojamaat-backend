@@ -13,6 +13,7 @@ use App\Http\Controllers\SharafMemberController;
 use App\Http\Controllers\PaymentDefinitionController;
 use App\Http\Controllers\SharafPaymentController;
 use App\Http\Controllers\SharafPositionController;
+use App\Http\Controllers\SharafDefinitionMappingController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SharafTypeController;
 use App\Http\Controllers\UserController;
@@ -74,6 +75,23 @@ Route::put('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'upda
 Route::patch('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'update']);
 Route::get('/sharaf-definitions/{id}/positions', [SharafDefinitionController::class, 'positions']);
 Route::get('/sharaf-definitions/{id}/payment-definitions', [SharafDefinitionController::class, 'paymentDefinitions']);
+// Sharaf Definition Mapping routes
+Route::get('/sharaf-definition-mappings', [SharafDefinitionMappingController::class, 'index']);
+Route::post('/sharaf-definition-mappings', [SharafDefinitionMappingController::class, 'store']);
+Route::get('/sharaf-definition-mappings/{id}', [SharafDefinitionMappingController::class, 'show']);
+Route::put('/sharaf-definition-mappings/{id}', [SharafDefinitionMappingController::class, 'update']);
+Route::patch('/sharaf-definition-mappings/{id}', [SharafDefinitionMappingController::class, 'update']);
+Route::delete('/sharaf-definition-mappings/{id}', [SharafDefinitionMappingController::class, 'destroy']);
+// Position mapping routes
+Route::post('/sharaf-definition-mappings/{id}/position-mappings', [SharafDefinitionMappingController::class, 'addPositionMapping']);
+Route::delete('/sharaf-definition-mappings/{id}/position-mappings/{positionMappingId}', [SharafDefinitionMappingController::class, 'removePositionMapping']);
+// Payment definition mapping routes
+Route::post('/sharaf-definition-mappings/{id}/payment-definition-mappings', [SharafDefinitionMappingController::class, 'addPaymentDefinitionMapping']);
+Route::delete('/sharaf-definition-mappings/{id}/payment-definition-mappings/{paymentMappingId}', [SharafDefinitionMappingController::class, 'removePaymentDefinitionMapping']);
+// Validation and shift routes
+Route::get('/sharaf-definition-mappings/{id}/validate', [SharafDefinitionMappingController::class, 'validateMapping']);
+Route::post('/sharaf-definition-mappings/{id}/shift', [SharafDefinitionMappingController::class, 'shift']);
+Route::get('/sharaf-definition-mappings/{id}/audit-logs', [SharafDefinitionMappingController::class, 'auditLogs']);
 // Sharaf Position routes
 Route::post('/sharaf-positions', [SharafPositionController::class, 'store']);
 Route::put('/sharaf-positions/{id}', [SharafPositionController::class, 'update']);
