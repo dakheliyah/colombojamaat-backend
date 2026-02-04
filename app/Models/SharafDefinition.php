@@ -13,10 +13,19 @@ class SharafDefinition extends Model
 
     protected $fillable = [
         'event_id',
+        'sharaf_type_id',
         'name',
         'key',
         'description',
     ];
+
+    /**
+     * Get the sharaf type for the sharaf definition.
+     */
+    public function sharafType(): BelongsTo
+    {
+        return $this->belongsTo(SharafType::class);
+    }
 
     /**
      * Get the event that owns the sharaf definition.

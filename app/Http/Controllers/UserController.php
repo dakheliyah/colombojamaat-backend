@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\UserType;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,7 +15,7 @@ class UserController extends Controller
      */
     public function index(): JsonResponse
     {
-        $users = User::orderBy('id')->get();
+        $users = User::with(['roles', 'sharafTypes'])->orderBy('id')->get();
 
         return $this->jsonSuccessWithData($users);
     }
@@ -26,7 +25,7 @@ class UserController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $user = User::find($id);
+        $user = User::with(['roles', 'sharafTypes'])->find($id);
 
         if (!$user) {
             return $this->jsonError('NOT_FOUND', 'User not found.', 404);
@@ -40,7 +39,7 @@ class UserController extends Controller
      */
     public function showByItsNo(string $its_no): JsonResponse
     {
-        $user = User::where('its_no', $its_no)->first();
+        $user = User::with(['roles', 'sharafTypes'])->where('its_no', $its_no)->first();
 
         if (!$user) {
             return $this->jsonError('NOT_FOUND', 'User not found.', 404);
@@ -64,7 +63,10 @@ class UserController extends Controller
                 'max:255',
                 $request->filled('its_no') ? Rule::unique('users', 'its_no') : null,
             ])),
-            'user_type' => ['nullable', Rule::enum(UserType::class)],
+            'role_ids' => ['nullable', 'array'],
+            'role_ids.*' => ['integer', 'exists:user_roles,id'],
+            'sharaf_type_ids' => ['nullable', 'array'],
+            'sharaf_type_ids.*' => ['integer', 'exists:sharaf_types,id'],
         ]);
 
         if ($validator->fails()) {
@@ -80,10 +82,16 @@ class UserController extends Controller
             'email' => $request->input('email'),
             'password' => $request->input('password'),
             'its_no' => $request->filled('its_no') ? $request->input('its_no') : null,
-            'user_type' => $request->input('user_type'),
         ]);
 
-        return $this->jsonSuccessWithData($user, 201);
+        if ($request->filled('role_ids')) {
+            $user->roles()->sync($request->input('role_ids'));
+        }
+        if ($request->filled('sharaf_type_ids')) {
+            $user->sharafTypes()->sync($request->input('sharaf_type_ids'));
+        }
+
+        return $this->jsonSuccessWithData($user->load(['roles', 'sharafTypes']), 201);
     }
 
     /**
@@ -107,7 +115,10 @@ class UserController extends Controller
                 'max:255',
                 $request->filled('its_no') ? Rule::unique('users', 'its_no')->ignore($id) : null,
             ])),
-            'user_type' => ['nullable', Rule::enum(UserType::class)],
+            'role_ids' => ['nullable', 'array'],
+            'role_ids.*' => ['integer', 'exists:user_roles,id'],
+            'sharaf_type_ids' => ['nullable', 'array'],
+            'sharaf_type_ids.*' => ['integer', 'exists:sharaf_types,id'],
         ];
 
         $validator = Validator::make($request->all(), $rules);
@@ -130,9 +141,18 @@ class UserController extends Controller
             unset($data['password']);
         }
 
+        if (array_key_exists('role_ids', $data)) {
+            $user->roles()->sync($data['role_ids']);
+            unset($data['role_ids']);
+        }
+        if (array_key_exists('sharaf_type_ids', $data)) {
+            $user->sharafTypes()->sync($data['sharaf_type_ids']);
+            unset($data['sharaf_type_ids']);
+        }
+
         $user->update($data);
 
-        return $this->jsonSuccessWithData($user->fresh());
+        return $this->jsonSuccessWithData($user->fresh(['roles', 'sharafTypes']));
     }
 
     /**

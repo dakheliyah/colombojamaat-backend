@@ -13,11 +13,14 @@ use App\Http\Controllers\SharafMemberController;
 use App\Http\Controllers\PaymentDefinitionController;
 use App\Http\Controllers\SharafPaymentController;
 use App\Http\Controllers\SharafPositionController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SharafTypeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WajebaatController;
 use Illuminate\Support\Facades\Route;
 // Auth Session (user cookie)
 Route::get('/auth/session', [AuthSessionController::class, 'show']);
+Route::post('/auth/login', [AuthSessionController::class, 'login']);
 // Census routes
 Route::get('/census', [CensusController::class, 'index']);
 Route::get('/census/search', [CensusController::class, 'search']);
@@ -26,6 +29,8 @@ Route::get('/census/{its_id}/with-relations', [CensusController::class, 'showWit
 Route::get('/census/{its_id}', [CensusController::class, 'show']);
 // Family routes
 Route::get('/families/{hof_its}/summary', [FamilySummaryController::class, 'show']);
+// Roles (all assignable roles for user create/edit forms)
+Route::get('/roles', [RoleController::class, 'index']);
 // User routes
 Route::get('/users', [UserController::class, 'index']);
 Route::get('/users/its/{its_no}', [UserController::class, 'showByItsNo']);
@@ -52,8 +57,16 @@ Route::delete('/miqaat-check-definitions/{mcd_id}', [MiqaatCheckDefinitionContro
 // Events routes
 Route::get('/events', [EventController::class, 'index']);
 Route::post('/events', [EventController::class, 'store']);
-Route::get('/events/{event_id}/sharaf-definitions', [SharafDefinitionController::class, 'index']);
+Route::get('/events/{event_id}/sharaf-definitions', [SharafDefinitionController::class, 'index'])
+    ->middleware('user.from.cookie');
 Route::get('/events/{miqaat_id}', [EventController::class, 'byMiqaat']);
+// Sharaf Type routes (CRUD)
+Route::get('/sharaf-types', [SharafTypeController::class, 'index']);
+Route::post('/sharaf-types', [SharafTypeController::class, 'store']);
+Route::get('/sharaf-types/{id}', [SharafTypeController::class, 'show']);
+Route::put('/sharaf-types/{id}', [SharafTypeController::class, 'update']);
+Route::patch('/sharaf-types/{id}', [SharafTypeController::class, 'update']);
+Route::delete('/sharaf-types/{id}', [SharafTypeController::class, 'destroy']);
 // Sharaf Definition routes
 Route::get('/sharaf-definitions/{sd_id}/sharafs', [SharafDefinitionController::class, 'sharafs']);
 Route::post('/sharaf-definitions', [SharafDefinitionController::class, 'store']);

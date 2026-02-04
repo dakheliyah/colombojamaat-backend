@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Enums\SharafStatus;
-use App\Enums\UserType;
 use App\Models\Event;
 use App\Models\Miqaat;
 use App\Models\Sharaf;
@@ -11,7 +10,9 @@ use App\Models\SharafClearance;
 use App\Models\SharafDefinition;
 use App\Models\SharafMember;
 use App\Models\SharafPosition;
+use App\Models\SharafType;
 use App\Models\User;
+use App\Models\UserRole;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -24,18 +25,21 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(SharafTypeSeeder::class);
+        $this->call(UserRoleSeeder::class);
+
         // Seed Users
-        User::factory()->create([
+        $testUser = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
-            'user_type' => UserType::BS,
         ]);
+        $testUser->roles()->attach(UserRole::where('name', 'Master')->first()->id);
 
-        User::factory()->create([
+        $adminUser = User::factory()->create([
             'name' => 'Admin User',
             'email' => 'admin@example.com',
-            'user_type' => UserType::ADMIN,
         ]);
+        $adminUser->roles()->attach(UserRole::where('name', 'Admin')->first()->id);
 
         // Seed Miqaats
         $miqaat1 = Miqaat::create([
