@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -113,6 +114,20 @@ class AuthSessionController extends Controller
                 'message' => 'An unexpected error occurred.',
             ], 500);
         }
+    }
+
+    /**
+     * Log out by clearing the session cookie. Idempotent: returns 200 even if no cookie.
+     *
+     * POST /api/auth/logout — expects credentials (cookies). Cookie name: user.
+     */
+    public function logout(Request $request): JsonResponse
+    {
+        $cookie = Cookie::forget('user', '/');
+
+        return response()
+            ->json(['success' => true], 200)
+            ->cookie($cookie);
     }
 
     private function unauthorized(): JsonResponse

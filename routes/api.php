@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Route;
 // Auth Session (user cookie)
 Route::get('/auth/session', [AuthSessionController::class, 'show']);
 Route::post('/auth/login', [AuthSessionController::class, 'login']);
+Route::post('/auth/logout', [AuthSessionController::class, 'logout']);
 // Census routes
 Route::get('/census', [CensusController::class, 'index']);
 Route::get('/census/search', [CensusController::class, 'search']);

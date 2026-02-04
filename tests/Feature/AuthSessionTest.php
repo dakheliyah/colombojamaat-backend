@@ -77,4 +77,27 @@ class AuthSessionTest extends TestCase
         $response->assertHeader('Access-Control-Allow-Credentials', 'true');
         $response->assertHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
     }
+
+    public function test_logout_returns_200_and_clears_cookie(): void
+    {
+        $response = $this->withCredentials()
+            ->withUnencryptedCookie('user', '30361286')
+            ->postJson('/api/auth/logout');
+
+        $response->assertStatus(200)
+            ->assertJson(['success' => true]);
+
+        $setCookie = $response->headers->get('Set-Cookie');
+        $this->assertStringContainsString('user=', $setCookie);
+        $this->assertStringContainsString('Max-Age=0', $setCookie);
+        $this->assertStringContainsString('path=/', $setCookie);
+    }
+
+    public function test_logout_without_cookie_returns_200_idempotent(): void
+    {
+        $response = $this->postJson('/api/auth/logout');
+
+        $response->assertStatus(200)
+            ->assertJson(['success' => true]);
+    }
 }
