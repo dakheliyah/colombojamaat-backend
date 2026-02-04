@@ -430,8 +430,9 @@ class SharafDefinitionMappingController extends Controller
             return $this->jsonError('NOT_FOUND', 'Mapping not found.', 404);
         }
 
-        $auditLogs = \App\Models\SharafShiftAuditLog::where('sharaf_definition_mapping_id', $id)
-            ->orderBy('shifted_at', 'desc')
+        // Get audit logs ordered by shifted_at (desc), fallback to created_at if shifted_at is NULL
+        $auditLogs = \App\Models\SharafShiftAuditLog::where('sharaf_definition_mapping_id', (int) $id)
+            ->orderByRaw('COALESCE(shifted_at, created_at) DESC')
             ->orderBy('created_at', 'desc')
             ->get();
 
