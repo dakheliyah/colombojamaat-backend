@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -44,9 +45,13 @@ class AuthSessionController extends Controller
             );
         }
 
-        $user = User::with(['roles', 'sharafTypes'])->where('its_no', $itsNo)->first();
+        // Query password directly from database to bypass the 'hashed' cast
+        $userData = DB::table('users')
+            ->where('its_no', $itsNo)
+            ->select('id', 'password')
+            ->first();
 
-        if (! $user) {
+        if (! $userData || empty($userData->password)) {
             return $this->jsonError(
                 'INVALID_CREDENTIALS',
                 'Invalid credentials.',
@@ -54,13 +59,16 @@ class AuthSessionController extends Controller
             );
         }
 
-        if (! Hash::check($password, $user->password)) {
+        if (! Hash::check($password, $userData->password)) {
             return $this->jsonError(
                 'INVALID_CREDENTIALS',
                 'Invalid credentials.',
                 401
             );
         }
+
+        // Load user with relationships for response
+        $user = User::with(['roles', 'sharafTypes'])->find($userData->id);
 
         $cookie = cookie(
             name: 'user',
