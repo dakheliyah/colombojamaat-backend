@@ -1778,6 +1778,260 @@
         }
       }
     },
+    "/sharaf-definitions/{sd_id}/sharafs-with-members": {
+      "get": {
+        "tags": [
+          "Sharaf Definitions",
+          "Sharafs"
+        ],
+        "summary": "Get sharafs with members for a sharaf definition",
+        "description": "Returns all sharafs for a specific sharaf definition, with each sharaf including its HOF details and all assigned members. Optimized for PDF generation and reporting.",
+        "parameters": [
+          {
+            "name": "sd_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The ID of the sharaf definition"
+          },
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Filter sharafs by event ID. If not provided, returns sharafs from all events (but only for the active miqaat)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "sharaf_definition_id": {
+                            "type": "integer",
+                            "example": 5
+                          },
+                          "event_id": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "rank": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Sharaf Name"
+                          },
+                          "hof_its": {
+                            "type": "string",
+                            "example": "123456"
+                          },
+                          "hof_name": {
+                            "type": "string",
+                            "example": "John Doe"
+                          },
+                          "capacity": {
+                            "type": "integer",
+                            "example": 10
+                          },
+                          "status": {
+                            "type": "string",
+                            "example": "confirmed"
+                          },
+                          "token": {
+                            "type": "string",
+                            "example": "ABC123"
+                          },
+                          "comments": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "sharaf_definition": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "example": 5
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "Ziyafat"
+                              },
+                              "key": {
+                                "type": "string",
+                                "example": "Z"
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "Ziyafat sharaf definition"
+                              }
+                            }
+                          },
+                          "members": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "integer",
+                                  "example": 1
+                                },
+                                "sharaf_id": {
+                                  "type": "integer",
+                                  "example": 1
+                                },
+                                "sharaf_position_id": {
+                                  "type": "integer",
+                                  "example": 2
+                                },
+                                "its_id": {
+                                  "type": "string",
+                                  "example": "789012"
+                                },
+                                "its": {
+                                  "type": "string",
+                                  "example": "789012"
+                                },
+                                "sp_keyno": {
+                                  "type": "integer",
+                                  "example": 1
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "example": "Jane Doe"
+                                },
+                                "phone": {
+                                  "type": "string",
+                                  "example": "1234567890"
+                                },
+                                "najwa": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "created_at": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "updated_at": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "sharaf_position": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "integer",
+                                      "example": 2
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "example": "FM"
+                                    },
+                                    "display_name": {
+                                      "type": "string",
+                                      "example": "Farzand"
+                                    },
+                                    "order": {
+                                      "type": "integer",
+                                      "example": 1
+                                    },
+                                    "capacity": {
+                                      "type": "integer",
+                                      "nullable": true
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sharaf definition not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "NOT_FOUND"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Sharaf definition not found."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "VALIDATION_ERROR"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid event ID."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sharaf-definitions/{id}/positions": {
       "get": {
         "tags": [

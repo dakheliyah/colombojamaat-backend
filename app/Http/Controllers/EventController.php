@@ -140,10 +140,10 @@ class EventController extends Controller
         // Get all sharaf definitions for this event
         $sharafDefinitions = SharafDefinition::where('event_id', $eventId)->get();
 
-        // Collect all ITS numbers first for bulk census lookup
+        // Collect all ITS numbers first for bulk census lookup (ONLY from sharaf_members)
+        // HOF is already in sharaf_members table, so we don't need to get it from sharafs.hof_its
         $allItsNumbers = [];
         foreach ($sharafs as $sharaf) {
-            $allItsNumbers[] = $sharaf->hof_its;
             foreach ($sharaf->sharafMembers as $member) {
                 $allItsNumbers[] = $member->its_id;
             }
@@ -176,22 +176,8 @@ class EventController extends Controller
             $femaleCount = 0;
 
             foreach ($definitionSharafs as $sharaf) {
-                // Count HOF
-                $hofIts = $sharaf->hof_its;
-                $totalMembers++;
-                
-                // Get HOF gender from census (using preloaded data)
-                $hofCensus = $censusRecords->get($hofIts);
-                if ($hofCensus) {
-                    $gender = strtolower($hofCensus->gender ?? '');
-                    if ($gender === 'male') {
-                        $maleCount++;
-                    } elseif ($gender === 'female') {
-                        $femaleCount++;
-                    }
-                }
-
-                // Count members (only members are tracked for clash detection)
+                // Count ALL members (including HOF) from sharaf_members table
+                // HOF is already stored in sharaf_members, so we don't need to count separately from sharafs.hof_its
                 foreach ($sharaf->sharafMembers as $member) {
                     $totalMembers++;
                     $memberIts = $member->its_id;
