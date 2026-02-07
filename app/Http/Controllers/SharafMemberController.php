@@ -88,6 +88,30 @@ class SharafMemberController extends Controller
         }
     }
 
+    public function update(Request $request, string $sharaf_id, string $its): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $member = SharafMember::where('sharaf_id', $sharaf_id)
+            ->where('its_id', $its)
+            ->firstOrFail();
+
+        $member->update(['name' => $request->input('name')]);
+        $member->load('sharafPosition');
+
+        return $this->jsonSuccessWithData($member);
+    }
+
     public function destroy(string $sharaf_id, string $its): JsonResponse
     {
         $this->allocationService->removeMember((int) $sharaf_id, $its);
