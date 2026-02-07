@@ -160,7 +160,7 @@ class EventController extends Controller
         $overallSummary = [
             'total_sharafs' => 0,
             'total_members' => 0,
-            'male_count' => 0,
+            'male_count' => 0,  
             'female_count' => 0,
         ];
 
@@ -180,29 +180,18 @@ class EventController extends Controller
                 $hofIts = $sharaf->hof_its;
                 $totalMembers++;
                 
-                // Track HOF for clash detection
-                if (!isset($itsToSharafs[$hofIts])) {
-                    $itsToSharafs[$hofIts] = [];
-                }
-                $itsToSharafs[$hofIts][] = [
-                    'sharaf_id' => $sharaf->id,
-                    'sharaf_name' => $sharaf->name,
-                    'sharaf_definition_id' => $definition->id,
-                    'sharaf_definition_name' => $definition->name,
-                    'role' => 'HOF',
-                ];
-
                 // Get HOF gender from census (using preloaded data)
                 $hofCensus = $censusRecords->get($hofIts);
                 if ($hofCensus) {
-                    if ($hofCensus->gender === 'male') {
+                    $gender = strtolower($hofCensus->gender ?? '');
+                    if ($gender === 'male') {
                         $maleCount++;
-                    } elseif ($hofCensus->gender === 'female') {
+                    } elseif ($gender === 'female') {
                         $femaleCount++;
                     }
                 }
 
-                // Count members
+                // Count members (only members are tracked for clash detection)
                 foreach ($sharaf->sharafMembers as $member) {
                     $totalMembers++;
                     $memberIts = $member->its_id;
@@ -222,9 +211,10 @@ class EventController extends Controller
                     // Get member gender from census (using preloaded data)
                     $memberCensus = $censusRecords->get($memberIts);
                     if ($memberCensus) {
-                        if ($memberCensus->gender === 'male') {
+                        $gender = strtolower($memberCensus->gender ?? '');
+                        if ($gender === 'male') {
                             $maleCount++;
-                        } elseif ($memberCensus->gender === 'female') {
+                        } elseif ($gender === 'female') {
                             $femaleCount++;
                         }
                     }
