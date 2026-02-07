@@ -186,4 +186,29 @@ class MiqaatCheckDefinitionController extends Controller
 
         return $this->jsonSuccess(200);
     }
+
+    /**
+     * Get check definitions by miqaat ID (for reporting - no active miqaat restriction).
+     */
+    public function byMiqaat(string $miqaat_id): JsonResponse
+    {
+        $validator = Validator::make(['miqaat_id' => $miqaat_id], [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Invalid miqaat ID.',
+                422
+            );
+        }
+
+        $definitions = MiqaatCheckDepartment::where('miqaat_id', (int) $miqaat_id)
+            ->with('miqaat')
+            ->orderBy('name')
+            ->get();
+
+        return $this->jsonSuccessWithData($definitions);
+    }
 }

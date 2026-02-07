@@ -90,6 +90,10 @@
     {
       "name": "Wajebaat",
       "description": "Wajebaat (Takhmeen / Finance Ada) operations"
+    },
+    {
+      "name": "Reports",
+      "description": "Reporting API with flexible querying and CSV export"
     }
   ],
   "paths": {
@@ -722,6 +726,48 @@
         }
       }
     },
+    "/miqaats/{miqaat_id}/check-definitions": {
+      "get": {
+        "tags": [
+          "Miqaat Check Definitions"
+        ],
+        "summary": "Get check definitions for a specific miqaat (for reporting)",
+        "description": "Returns all miqaat check definitions (departments) for the given miqaat ID, without requiring the miqaat to be active.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID of the miqaat"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/miqaat-check-definitions/{mcd_id}": {
       "get": {
         "tags": [
@@ -997,6 +1043,69 @@
         }
       }
     },
+    "/events/all": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Get all events (for reporting)",
+        "description": "Returns all events with their miqaat, regardless of active status.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/miqaats/{miqaat_id}/events": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Get events for a specific miqaat (for reporting)",
+        "description": "Returns events for the given miqaat ID, without requiring it to be the active miqaat.",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID of the miqaat"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{event_id}/sharaf-definitions": {
       "get": {
         "tags": [
@@ -1022,6 +1131,232 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{event_id}/sharaf-report-summary": {
+      "get": {
+        "tags": [
+          "Events",
+          "Sharafs"
+        ],
+        "summary": "Get sharaf report summary for an event",
+        "description": "Returns comprehensive summary statistics for sharafs in an event, including counts by sharaf definition type, gender breakdowns, and clash detection (same ITS number appearing in multiple sharafs).",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The ID of the event"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "event_id": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "event_name": {
+                          "type": "string",
+                          "example": "Event Name"
+                        },
+                        "summary_by_definition": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "sharaf_definition_id": {
+                                "type": "integer",
+                                "example": 1
+                              },
+                              "sharaf_definition_name": {
+                                "type": "string",
+                                "example": "Sharaf Type A"
+                              },
+                              "total_sharafs": {
+                                "type": "integer",
+                                "example": 10
+                              },
+                              "total_members": {
+                                "type": "integer",
+                                "example": 45
+                              },
+                              "male_count": {
+                                "type": "integer",
+                                "example": 25
+                              },
+                              "female_count": {
+                                "type": "integer",
+                                "example": 20
+                              }
+                            }
+                          }
+                        },
+                        "overall_summary": {
+                          "type": "object",
+                          "properties": {
+                            "total_sharafs": {
+                              "type": "integer",
+                              "example": 50
+                            },
+                            "total_members": {
+                              "type": "integer",
+                              "example": 200
+                            },
+                            "male_count": {
+                              "type": "integer",
+                              "example": 110
+                            },
+                            "female_count": {
+                              "type": "integer",
+                              "example": 90
+                            }
+                          }
+                        },
+                        "clashes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "its_no": {
+                                "type": "string",
+                                "example": "123456"
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "John Doe"
+                              },
+                              "gender": {
+                                "type": "string",
+                                "example": "male"
+                              },
+                              "sharafs": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "sharaf_id": {
+                                      "type": "integer",
+                                      "example": 1
+                                    },
+                                    "sharaf_name": {
+                                      "type": "string",
+                                      "example": "Sharaf 1"
+                                    },
+                                    "sharaf_definition_id": {
+                                      "type": "integer",
+                                      "example": 1
+                                    },
+                                    "sharaf_definition_name": {
+                                      "type": "string",
+                                      "example": "Sharaf Type A"
+                                    },
+                                    "role": {
+                                      "type": "string",
+                                      "enum": ["HOF", "member"],
+                                      "example": "HOF"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "NOT_FOUND"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Event not found."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "VALIDATION_ERROR"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid event ID."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Miqaat is not the current active miqaat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "MIQAAT_NOT_ACTIVE"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Miqaat is not the current active miqaat."
+                    }
+                  }
                 }
               }
             }
@@ -6485,6 +6820,239 @@
           },
           "422": {
             "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/entities": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "List all available entity types for reporting",
+        "description": "Returns a list of all entity types that can be queried through the reporting API",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "type": "census",
+                      "description": "Census records"
+                    },
+                    {
+                      "type": "wajebaat",
+                      "description": "Wajebaat (Takhmeen) records"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/{entity_type}": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Query data with filters and export options",
+        "description": "Main reporting endpoint that allows querying any entity type with flexible filters. Supports both JSON and CSV export formats. Returns all matching results (no pagination).",
+        "parameters": [
+          {
+            "name": "entity_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["census", "wajebaat", "sharafs", "sharaf-members", "sharaf-payments", "events", "miqaat-checks"]
+            },
+            "description": "The entity type to query"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["json", "csv"],
+              "default": "json"
+            },
+            "description": "Response format: json or csv"
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Field to sort by"
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"],
+              "default": "asc"
+            },
+            "description": "Sort order"
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated list of fields to include (for CSV, determines columns)"
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated list of relationships to eager load (JSON only)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                },
+                "description": "CSV file download"
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/{entity_type}/fields": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get available fields for an entity type",
+        "description": "Returns a list of all available fields and relationships for a given entity type. Useful for building field selectors in the frontend.",
+        "parameters": [
+          {
+            "name": "entity_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["census", "wajebaat", "sharafs", "sharaf-members", "sharaf-payments", "events", "miqaat-checks"]
+            },
+            "description": "The entity type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "fields": ["its_id", "name", "city", "jamaat"],
+                    "relationships": ["hof", "members"]
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Entity type not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/{entity_type}/filters": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get available filters for an entity type",
+        "description": "Returns a list of all available filters with their types and operators for a given entity type. Useful for building dynamic filter UIs in the frontend.",
+        "parameters": [
+          {
+            "name": "entity_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["census", "wajebaat", "sharafs", "sharaf-members", "sharaf-payments", "events", "miqaat-checks"]
+            },
+            "description": "The entity type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "name": "city",
+                      "type": "string",
+                      "operators": ["like", "equals"]
+                    },
+                    {
+                      "name": "status",
+                      "type": "boolean",
+                      "operators": ["equals"]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Entity type not found",
             "content": {
               "application/json": {
                 "schema": {

@@ -18,6 +18,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SharafTypeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WajebaatController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 // Auth Session (user cookie)
 Route::get('/auth/session', [AuthSessionController::class, 'show']);
@@ -46,6 +47,7 @@ Route::get('/miqaats/active', [MiqaatController::class, 'active']);
 Route::post('/miqaats', [MiqaatController::class, 'store']);
 Route::patch('/miqaats/{id}', [MiqaatController::class, 'update']);
 Route::put('/miqaats/{id}', [MiqaatController::class, 'update']);
+Route::get('/miqaats/{miqaat_id}/events', [EventController::class, 'byMiqaatId']);
 Route::get('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'index']);
 Route::put('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
 Route::post('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
@@ -62,6 +64,7 @@ Route::post('/events', [EventController::class, 'store']);
 Route::get('/events/{event_id}/sharaf-definitions', [SharafDefinitionController::class, 'index'])
     ->middleware('user.from.cookie');
 Route::get('/events/{miqaat_id}', [EventController::class, 'byMiqaat']);
+Route::get('/events/{event_id}/sharaf-report-summary', [EventController::class, 'sharafReportSummary']);
 // Sharaf Type routes (CRUD)
 Route::get('/sharaf-types', [SharafTypeController::class, 'index']);
 Route::post('/sharaf-types', [SharafTypeController::class, 'store']);
@@ -150,3 +153,8 @@ Route::get('/miqaats/{miqaat_id}/wajebaat-groups/by-member/{its_id}', [WajebaatC
 Route::get('/miqaats/{miqaat_id}/wajebaat-groups/{wg_id}', [WajebaatController::class, 'groupMembers']);
 Route::put('/miqaats/{miqaat_id}/wajebaat-groups/{wg_id}', [WajebaatController::class, 'groupsUpdate']);
 Route::delete('/miqaats/{miqaat_id}/wajebaat-groups/{wg_id}', [WajebaatController::class, 'groupsDestroy']);
+// Reporting routes
+Route::get('/reports/entities', [ReportController::class, 'entities']);
+Route::get('/reports/{entity_type}', [ReportController::class, 'index']);
+Route::get('/reports/{entity_type}/fields', [ReportController::class, 'fields']);
+Route::get('/reports/{entity_type}/filters', [ReportController::class, 'filters']);
