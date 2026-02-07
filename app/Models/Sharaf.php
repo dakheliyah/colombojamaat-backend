@@ -15,6 +15,7 @@ class Sharaf extends Model
     protected $fillable = [
         'sharaf_definition_id',
         'rank',
+        'name',
         'capacity',
         'status',
         'hof_its',

@@ -2682,6 +2682,15 @@
               "type": "string"
             },
             "description": "Filter by HOF full name (joined from census)"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by sharaf name (partial match)"
           }
         ],
         "responses": {
@@ -7139,6 +7148,12 @@
             "description": "Rank of the sharaf (must be unique within the sharaf_definition_id, use 0 for auto-assign)",
             "example": 1
           },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Optional name/label for the sharaf",
+            "example": "Sharaf Group 1"
+          },
           "capacity": {
             "type": "integer",
             "description": "Maximum number of people in the sharaf (minimum: 1)",
@@ -7184,6 +7199,11 @@
           },
           "rank": {
             "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Optional name/label for the sharaf"
           },
           "capacity": {
             "type": "integer"

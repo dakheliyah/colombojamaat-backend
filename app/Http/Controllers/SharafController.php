@@ -37,6 +37,7 @@ class SharafController extends Controller
             'its_id' => ['nullable', 'string'],
             'token' => ['nullable', 'string'],
             'hof_name' => ['nullable', 'string'],
+            'name' => ['nullable', 'string'],
         ]);
 
         if ($validator->fails()) {
@@ -74,6 +75,10 @@ class SharafController extends Controller
             $query->where('census.name', 'like', '%' . $request->input('hof_name') . '%');
         }
 
+        if ($request->has('name')) {
+            $query->where('sharafs.name', 'like', '%' . $request->input('name') . '%');
+        }
+
         // Filter by person: sharafs where the given ITS ID is HOF or a member (member_its / its_id are aliases)
         $memberIts = $request->input('member_its') ?? $request->input('its_id');
         if ($memberIts !== null && $memberIts !== '') {
@@ -98,6 +103,7 @@ class SharafController extends Controller
         $validator = Validator::make($request->all(), [
             'sharaf_definition_id' => ['required', 'integer', 'exists:sharaf_definitions,id'],
             'rank' => ['required', 'integer', 'min:0'],
+            'name' => ['nullable', 'string', 'max:255'],
             'capacity' => ['required', 'integer', 'min:1'],
             'status' => ['nullable', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
             'hof_its' => ['required', 'string'],
@@ -198,6 +204,7 @@ class SharafController extends Controller
         $sharaf = Sharaf::create([
             'sharaf_definition_id' => $sharafDefinitionId,
             'rank' => $requestedRank, // Use auto-assigned rank if rank was 0
+            'name' => $request->input('name'),
             'capacity' => $request->input('capacity'),
             'status' => $request->input('status') ?: 'pending',
             'hof_its' => $request->input('hof_its'),
@@ -227,6 +234,7 @@ class SharafController extends Controller
         $validator = Validator::make($request->all(), [
             'sharaf_definition_id' => ['nullable', 'integer', 'exists:sharaf_definitions,id'],
             'rank' => ['nullable', 'integer', 'min:0'],
+            'name' => ['nullable', 'string', 'max:255'],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'status' => ['nullable', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
             'hof_its' => ['nullable', 'string'],
@@ -245,6 +253,7 @@ class SharafController extends Controller
         $updateData = $request->only([
             'sharaf_definition_id',
             'rank',
+            'name',
             'capacity',
             'status',
             'hof_its',
