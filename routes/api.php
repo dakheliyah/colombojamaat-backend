@@ -75,6 +75,7 @@ Route::patch('/sharaf-types/{id}', [SharafTypeController::class, 'update']);
 Route::delete('/sharaf-types/{id}', [SharafTypeController::class, 'destroy']);
 // Sharaf Definition routes
 Route::get('/sharaf-definitions/{sd_id}/sharafs', [SharafDefinitionController::class, 'sharafs']);
+Route::get('/sharaf-definitions/{sd_id}/sharafs-with-members', [SharafDefinitionController::class, 'sharafsWithMembers']);
 Route::post('/sharaf-definitions', [SharafDefinitionController::class, 'store']);
 Route::put('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'update']);
 Route::patch('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'update']);
