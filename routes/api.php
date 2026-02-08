@@ -115,6 +115,8 @@ Route::post('/sharafs/{sharaf_id}/evaluate-confirmation', [SharafController::cla
 // Sharaf Member routes
 Route::get('/sharafs/{sharaf_id}/members', [SharafMemberController::class, 'index']);
 Route::post('/sharafs/{sharaf_id}/members', [SharafMemberController::class, 'store']);
+Route::patch('/sharafs/{sharaf_id}/members/on-vms', [SharafMemberController::class, 'updateOnVmsBulk']);
+Route::patch('/sharafs/{sharaf_id}/members/{its}/on-vms', [SharafMemberController::class, 'updateOnVms']);
 Route::delete('/sharafs/{sharaf_id}/members/{its}', [SharafMemberController::class, 'destroy']);
 // Sharaf Clearance routes
 Route::post('/sharafs/{sharaf_id}/clearances', [SharafClearanceController::class, 'store']);

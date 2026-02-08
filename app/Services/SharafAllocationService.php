@@ -19,12 +19,13 @@ class SharafAllocationService
      * @param string|null $name Optional name of the member
      * @param string|null $phone Optional phone number of the member
      * @param string|null $najwa Optional najwa number of the member
+     * @param bool|null $onVms Optional on_vms flag. Defaults to 0.
      * @return array Returns array with 'warnings' key containing any warnings
      * @throws DuplicateSharafAssignmentException If person is already assigned to the same sharaf
      */
-    public function addMember(int $sharafId, int $positionId, string $its, ?int $spKeyno = null, ?string $name = null, ?string $phone = null, ?string $najwa = null): array
+    public function addMember(int $sharafId, int $positionId, string $its, ?int $spKeyno = null, ?string $name = null, ?string $phone = null, ?string $najwa = null, ?bool $onVms = false): array
     {
-        return DB::transaction(function () use ($sharafId, $positionId, $its, $spKeyno, $name, $phone, $najwa) {
+        return DB::transaction(function () use ($sharafId, $positionId, $its, $spKeyno, $name, $phone, $najwa, $onVms) {
             // VALIDATION STEP 1: Check if person is already assigned to the SAME sharaf_id
             // This should return an ERROR and prevent the addition
             $duplicateAssignment = SharafMember::where('sharaf_id', $sharafId)
@@ -104,6 +105,7 @@ class SharafAllocationService
                 'name' => $name,
                 'phone' => $phone,
                 'najwa' => $najwa,
+                'on_vms' => $onVms ?? false,
             ]);
 
             return ['warnings' => $warnings];

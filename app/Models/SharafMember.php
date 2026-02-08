@@ -18,6 +18,11 @@ class SharafMember extends Model
         'name',
         'phone',
         'najwa',
+        'on_vms',
+    ];
+
+    protected $casts = [
+        'on_vms' => 'boolean',
     ];
 
     /**
