@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\Sharaf;
 use App\Models\SharafDefinition;
 use App\Models\Census;
+use App\Models\Miqaat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -258,6 +259,124 @@ class EventController extends Controller
             'event_name' => $event->name,
             'summary_by_definition' => $summaryByDefinition,
             'overall_summary' => $overallSummary,
+            'clashes' => $clashes,
+        ];
+
+        return $this->jsonSuccessWithData($data);
+    }
+
+    /**
+     * GET /api/miqaats/{miqaat_id}/sharaf-report-summary-cross-events
+     * Returns clash detection report for all sharafs across all events in a miqaat.
+     * Identifies people who appear in multiple sharafs across different events.
+     */
+    public function sharafReportSummaryCrossEvents(string $miqaat_id): JsonResponse
+    {
+        $validator = Validator::make(
+            ['miqaat_id' => $miqaat_id],
+            ['miqaat_id' => ['required', 'integer']]
+        );
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Invalid miqaat ID.',
+                422
+            );
+        }
+
+        $miqaatId = (int) $miqaat_id;
+        $miqaat = Miqaat::find($miqaatId);
+
+        if (!$miqaat) {
+            return $this->jsonError('NOT_FOUND', 'Miqaat not found.', 404);
+        }
+
+        // Ensure miqaat is active
+        if (($err = $this->ensureActiveMiqaat($miqaatId)) !== null) {
+            return $err;
+        }
+
+        // Get all sharafs for all events in this miqaat, filtered by active miqaat
+        $sharafs = Sharaf::whereHas('sharafDefinition.event', function ($q) use ($miqaatId) {
+            $q->where('miqaat_id', $miqaatId);
+        })
+            ->whereHas('sharafDefinition.event.miqaat', fn ($q) => $q->active())
+            ->with([
+                'sharafDefinition.event',
+                'sharafMembers.sharafPosition' => function ($q) {
+                    $q->orderBy('order');
+                }
+            ])
+            ->get();
+
+        // Collect all ITS numbers from sharaf_members (includes HOF since it's also in sharaf_members)
+        $allItsNumbers = [];
+        $itsToSharafs = []; // Track: its_no => [array of sharaf entries with event info]
+
+        foreach ($sharafs as $sharaf) {
+            $event = $sharaf->sharafDefinition->event;
+            $eventId = $event->id;
+            $eventName = $event->name;
+
+            // Process all members from sharaf_members (including HOF)
+            foreach ($sharaf->sharafMembers as $member) {
+                $memberIts = $member->its_id;
+                $allItsNumbers[] = $memberIts;
+
+                // Track member with event information
+                if (!isset($itsToSharafs[$memberIts])) {
+                    $itsToSharafs[$memberIts] = [];
+                }
+
+                // Determine role - check if this member is the HOF
+                // HOF can be identified by: matching hof_its OR having position name 'HOF'
+                $isHof = ($member->its_id === $sharaf->hof_its) || 
+                         ($member->sharafPosition && strtolower($member->sharafPosition->name ?? '') === 'hof');
+                $role = $isHof ? 'HOF' : 'member';
+
+                $itsToSharafs[$memberIts][] = [
+                    'sharaf_id' => $sharaf->id,
+                    'sharaf_name' => $sharaf->name,
+                    'sharaf_definition_id' => $sharaf->sharaf_definition_id,
+                    'sharaf_definition_name' => $sharaf->sharafDefinition->name,
+                    'event_id' => $eventId,
+                    'event_name' => $eventName,
+                    'role' => $role,
+                ];
+            }
+        }
+
+        $allItsNumbers = array_unique($allItsNumbers);
+
+        // Load all census records in one query
+        $censusRecords = Census::whereIn('its_id', $allItsNumbers)
+            ->get()
+            ->keyBy('its_id');
+
+        // Detect cross-event clashes
+        // A clash exists when the same ITS appears in sharafs from DIFFERENT events
+        $clashes = [];
+        foreach ($itsToSharafs as $itsNo => $sharafEntries) {
+            // Get unique event IDs for this ITS
+            $eventIds = array_unique(array_column($sharafEntries, 'event_id'));
+
+            // Only report clash if person appears in multiple DIFFERENT events
+            if (count($eventIds) > 1) {
+                $census = $censusRecords->get($itsNo);
+
+                $clashes[] = [
+                    'its_no' => $itsNo,
+                    'name' => $census ? $census->name : null,
+                    'gender' => $census ? $census->gender : null,
+                    'sharafs' => $sharafEntries,
+                ];
+            }
+        }
+
+        $data = [
+            'miqaat_id' => $miqaat->id,
+            'miqaat_name' => $miqaat->name,
             'clashes' => $clashes,
         ];
 

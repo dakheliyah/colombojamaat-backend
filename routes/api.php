@@ -48,6 +48,7 @@ Route::post('/miqaats', [MiqaatController::class, 'store']);
 Route::patch('/miqaats/{id}', [MiqaatController::class, 'update']);
 Route::put('/miqaats/{id}', [MiqaatController::class, 'update']);
 Route::get('/miqaats/{miqaat_id}/events', [EventController::class, 'byMiqaatId']);
+Route::get('/miqaats/{miqaat_id}/sharaf-report-summary-cross-events', [EventController::class, 'sharafReportSummaryCrossEvents']);
 Route::get('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'index']);
 Route::put('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
 Route::post('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);

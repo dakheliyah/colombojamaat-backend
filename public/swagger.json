@@ -1106,6 +1106,187 @@
         }
       }
     },
+    "/miqaats/{miqaat_id}/sharaf-report-summary-cross-events": {
+      "get": {
+        "tags": [
+          "Miqaats",
+          "Sharafs"
+        ],
+        "summary": "Get cross-event clash detection report for a miqaat",
+        "description": "Returns clash detection report for all sharafs across all events in a specific miqaat. Identifies people (by ITS number) who appear in multiple sharafs across different events. Only reports clashes where the same person appears in sharafs from different events (not same-event clashes).",
+        "parameters": [
+          {
+            "name": "miqaat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The ID of the miqaat"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "miqaat_id": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "miqaat_name": {
+                          "type": "string",
+                          "example": "Miqaat Name"
+                        },
+                        "clashes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "its_no": {
+                                "type": "string",
+                                "example": "123456"
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "John Doe"
+                              },
+                              "gender": {
+                                "type": "string",
+                                "example": "male"
+                              },
+                              "sharafs": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "sharaf_id": {
+                                      "type": "integer",
+                                      "example": 1
+                                    },
+                                    "sharaf_name": {
+                                      "type": "string",
+                                      "example": "Sharaf 1"
+                                    },
+                                    "sharaf_definition_id": {
+                                      "type": "integer",
+                                      "example": 1
+                                    },
+                                    "sharaf_definition_name": {
+                                      "type": "string",
+                                      "example": "Sharaf Type A"
+                                    },
+                                    "event_id": {
+                                      "type": "integer",
+                                      "example": 1
+                                    },
+                                    "event_name": {
+                                      "type": "string",
+                                      "example": "Event 1"
+                                    },
+                                    "role": {
+                                      "type": "string",
+                                      "enum": ["HOF", "member"],
+                                      "example": "HOF"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Miqaat not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "NOT_FOUND"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Miqaat not found."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "VALIDATION_ERROR"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid miqaat ID."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Miqaat is not the current active miqaat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "MIQAAT_NOT_ACTIVE"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Miqaat is not the current active miqaat."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{event_id}/sharaf-definitions": {
       "get": {
         "tags": [
