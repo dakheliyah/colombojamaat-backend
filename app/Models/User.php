@@ -61,4 +61,12 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(SharafType::class, 'user_sharaf_type');
     }
+
+    /**
+     * Check if the user has a role by name.
+     */
+    public function hasRole(string $name): bool
+    {
+        return $this->roles->contains('name', $name);
+    }
 }

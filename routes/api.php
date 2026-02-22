@@ -19,6 +19,8 @@ use App\Http\Controllers\SharafTypeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WajebaatController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SilaFitraConfigController;
+use App\Http\Controllers\SilaFitraController;
 use Illuminate\Support\Facades\Route;
 // Auth Session (user cookie)
 Route::get('/auth/session', [AuthSessionController::class, 'show']);
@@ -52,6 +54,17 @@ Route::get('/miqaats/{miqaat_id}/sharaf-report-summary-cross-events', [EventCont
 Route::get('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'index']);
 Route::put('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
 Route::post('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
+// Sila Fitra routes (config, calculations, receipt)
+Route::middleware('user.from.cookie')->group(function () {
+    Route::get('/miqaats/{miqaat_id}/sila-fitra-config', [SilaFitraConfigController::class, 'show']);
+    Route::put('/miqaats/{miqaat_id}/sila-fitra-config', [SilaFitraConfigController::class, 'update']);
+    Route::get('/miqaats/{miqaat_id}/sila-fitra/me', [SilaFitraController::class, 'me']);
+    Route::post('/miqaats/{miqaat_id}/sila-fitra/save', [SilaFitraController::class, 'save']);
+    Route::post('/miqaats/{miqaat_id}/sila-fitra/receipt', [SilaFitraController::class, 'uploadReceipt']);
+    Route::get('/miqaats/{miqaat_id}/sila-fitra/receipt/{calculationId}', [SilaFitraController::class, 'serveReceipt']);
+    Route::get('/miqaats/{miqaat_id}/sila-fitra/submissions', [SilaFitraController::class, 'submissions']);
+    Route::patch('/miqaats/{miqaat_id}/sila-fitra/{calculationId}/verify', [SilaFitraController::class, 'verify']);
+});
 // Miqaat Check Definition routes (CRUD for miqaat_check_definitions table)
 Route::get('/miqaat-check-definitions', [MiqaatCheckDefinitionController::class, 'index']);
 Route::post('/miqaat-check-definitions', [MiqaatCheckDefinitionController::class, 'store']);

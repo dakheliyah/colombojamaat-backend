@@ -10,23 +10,44 @@ use Symfony\Component\HttpFoundation\Response;
 class ResolveUserFromCookie
 {
     /**
-     * Resolve the current user from the 'user' cookie (ITS number) and set it on the request.
+     * Resolve the current user from the 'user' cookie (ITS number) or Authorization: Bearer <its_no>.
      * Does not block the request if no valid user; $request->user() will be null.
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $raw = $request->cookie('user');
-        if ($raw !== null && $raw !== '') {
-            $value = trim($raw);
-            if ($value !== '' && $this->isValidItsNo($value)) {
-                $user = User::with('sharafTypes')->where('its_no', $value)->first();
-                if ($user) {
-                    $request->setUserResolver(fn () => $user);
-                }
+        $itsNo = $this->resolveItsNo($request);
+        if ($itsNo !== null) {
+            $user = User::with(['sharafTypes', 'roles'])->where('its_no', $itsNo)->first();
+            if ($user) {
+                $request->setUserResolver(fn () => $user);
             }
         }
 
         return $next($request);
+    }
+
+    /**
+     * Get ITS number from cookie or Authorization Bearer header (for API clients that don't send cookies).
+     */
+    private function resolveItsNo(Request $request): ?string
+    {
+        $raw = $request->cookie('user');
+        if ($raw !== null && $raw !== '') {
+            $value = trim((string) $raw);
+            if ($value !== '' && $this->isValidItsNo($value)) {
+                return $value;
+            }
+        }
+
+        $header = $request->header('Authorization');
+        if ($header && str_starts_with($header, 'Bearer ')) {
+            $value = trim(substr($header, 7));
+            if ($value !== '' && $this->isValidItsNo($value)) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     private function isValidItsNo(string $value): bool

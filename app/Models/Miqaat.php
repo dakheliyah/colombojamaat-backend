@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Miqaat extends Model
 {
@@ -64,5 +65,21 @@ class Miqaat extends Model
     public function checkDefinitions(): HasMany
     {
         return $this->hasMany(MiqaatCheckDepartment::class, 'miqaat_id', 'id');
+    }
+
+    /**
+     * Get the Sila Fitra config for this miqaat.
+     */
+    public function silaFitraConfig(): HasOne
+    {
+        return $this->hasOne(SilaFitraConfig::class);
+    }
+
+    /**
+     * Get the Sila Fitra calculations for this miqaat.
+     */
+    public function silaFitraCalculations(): HasMany
+    {
+        return $this->hasMany(SilaFitraCalculation::class);
     }
 }
