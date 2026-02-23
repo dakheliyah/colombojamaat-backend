@@ -63,6 +63,7 @@ class SilaFitraController extends Controller
             'non_misaq_count' => ['required', 'integer', 'min:0'],
             'hamal_count' => ['required', 'integer', 'min:0'],
             'mayat_count' => ['required', 'integer', 'min:0'],
+            'haj_e_badal' => ['nullable', 'integer', 'min:0'],
             'calculated_amount' => ['required', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
         ]);
@@ -82,9 +83,13 @@ class SilaFitraController extends Controller
 
         $config = SilaFitraConfig::where('miqaat_id', $miqaatId)->first();
         if ($config) {
-            $expected = (float) $config->misaqwala_rate * (int) $request->input('misaqwala_count')
+            $baseExpected = (float) $config->misaqwala_rate * (int) $request->input('misaqwala_count')
                 + (float) $config->non_misaq_hamal_mayat_rate
                 * ((int) $request->input('non_misaq_count') + (int) $request->input('hamal_count') + (int) $request->input('mayat_count'));
+            $hajEBadalAmount = $request->has('haj_e_badal') && $request->input('haj_e_badal') !== null
+                ? (float) $request->input('haj_e_badal')
+                : 0.0;
+            $expected = $baseExpected + $hajEBadalAmount;
             $actual = (float) $request->input('calculated_amount');
             if (abs($expected - $actual) > 0.01) {
                 return $this->jsonError(
@@ -107,6 +112,7 @@ class SilaFitraController extends Controller
                 'non_misaq_count' => $request->input('non_misaq_count'),
                 'hamal_count' => $request->input('hamal_count'),
                 'mayat_count' => $request->input('mayat_count'),
+                'haj_e_badal' => $request->has('haj_e_badal') ? $request->input('haj_e_badal') : null,
                 'calculated_amount' => $request->input('calculated_amount'),
                 'currency' => $currency,
             ]
@@ -309,6 +315,7 @@ class SilaFitraController extends Controller
             'non_misaq_count' => $c->non_misaq_count,
             'hamal_count' => $c->hamal_count,
             'mayat_count' => $c->mayat_count,
+            'haj_e_badal' => $c->haj_e_badal,
             'calculated_amount' => $c->calculated_amount,
             'currency' => $c->currency,
             'receipt_path' => $c->receipt_path,

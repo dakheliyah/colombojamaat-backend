@@ -39,6 +39,7 @@ One row per household (miqaat + hof_its): counts, calculated amount, optional re
 | non_misaq_count   | int UNSIGNED    | NO       | 0       |                                      |
 | hamal_count       | int UNSIGNED    | NO       | 0       |                                      |
 | mayat_count       | int UNSIGNED    | NO       | 0       |                                      |
+| haj_e_badal       | int UNSIGNED    | YES      | NULL    | Optional                              |
 | calculated_amount | decimal(10,2)   | NO       | -       | Total amount                         |
 | currency          | varchar(3)      | NO       | 'LKR'   |                                      |
 | receipt_path      | varchar(500)    | YES      | NULL    | Stored file path or URL after upload |
@@ -114,6 +115,7 @@ Base path assumed: `/api` (or your existing API prefix). Auth: same as rest of a
   "non_misaq_count": 1,
   "hamal_count": 0,
   "mayat_count": 0,
+  "haj_e_badal": null,
   "calculated_amount": "375.00",
   "currency": "LKR",
   "receipt_path": "sila-fitra/1/ITS001/receipt.jpg",
@@ -141,12 +143,13 @@ Base path assumed: `/api` (or your existing API prefix). Auth: same as rest of a
   "non_misaq_count": 1,
   "hamal_count": 0,
   "mayat_count": 0,
+  "haj_e_badal": null,
   "calculated_amount": 375.00,
   "currency": "LKR"
 }
 ```
 
-- **Response (200 or 201):** Full calculation object (same shape as 2.3). If a row for (miqaat_id, hof_its) exists, update it; otherwise insert.
+- **Response (200 or 201):** Full calculation object (same shape as 2.3). Optional field `haj_e_badal` (integer, nullable) is accepted on save. If a row for (miqaat_id, hof_its) exists, update it; otherwise insert.
 - **Authorization:** The authenticated user must be allowed to act for this household: either they are the HOF (session ITS = hof_its) or they are a family member (session ITS belongs to the same family as hof_its, per census/family resolution). So any family member can save on behalf of the HOF.
 
 ---
@@ -187,6 +190,7 @@ Base path assumed: `/api` (or your existing API prefix). Auth: same as rest of a
       "non_misaq_count": 1,
       "hamal_count": 0,
       "mayat_count": 0,
+      "haj_e_badal": null,
       "calculated_amount": "375.00",
       "currency": "LKR",
       "receipt_path": "sila-fitra/1/ITS001/receipt.jpg",
@@ -234,8 +238,9 @@ Document the chosen option and the exact URL shape so the frontend can show the 
 
 ## 3. Calculation formula
 
-- **Total = (misaqwala_count × misaqwala_rate) + (non_misaq_count + hamal_count + mayat_count) × non_misaq_hamal_mayat_rate**
-- Frontend will compute this in the modal using config; backend may optionally validate on save that `calculated_amount` matches this formula for consistency.
+- **Base = (misaqwala_count × misaqwala_rate) + (non_misaq_count + hamal_count + mayat_count) × non_misaq_hamal_mayat_rate**
+- **Total = Base + (haj_e_badal ?? 0)** — when `haj_e_badal` is present it is treated as an additive amount in the same currency and added to the base for validation.
+- Frontend will compute this in the modal using config; backend validates on save that `calculated_amount` matches this formula for consistency.
 
 ---
 
