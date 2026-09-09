@@ -31,6 +31,7 @@ class SharafController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'sharaf_definition_id' => ['nullable', 'integer', 'exists:sharaf_definitions,id'],
+            'miqaat_id' => ['nullable', 'integer', 'exists:miqaats,id'],
             'status' => ['nullable', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
             'hof_its' => ['nullable', 'string'],
             'member_its' => ['nullable', 'string'],
@@ -49,10 +50,19 @@ class SharafController extends Controller
         }
 
         $query = Sharaf::query()
-            ->whereHas('sharafDefinition.event.miqaat', fn ($q) => $q->active())
             ->leftJoin('census', 'sharafs.hof_its', '=', 'census.its_id')
             ->select('sharafs.*', 'census.name as hof_name')
             ->with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition']);
+
+        if ($request->filled('miqaat_id')) {
+            $miqaatId = (int) $request->input('miqaat_id');
+            $query->whereHas(
+                'sharafDefinition.event',
+                fn ($q) => $q->where('miqaat_id', $miqaatId)
+            );
+        } else {
+            $query->whereHas('sharafDefinition.event.miqaat', fn ($q) => $q->active());
+        }
 
         // Apply filters
         if ($request->has('sharaf_definition_id')) {

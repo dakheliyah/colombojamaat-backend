@@ -80,29 +80,53 @@ class SharafPaymentService
     /**
      * Toggle payment status for a sharaf by payment_definition_id.
      * Find or create the sharaf_payments record and update payment_status.
+     * When marking paid, paid_amount/paid_currency record what was actually received
+     * (may differ from the agreed payment_amount/payment_currency).
      *
      * @param int $sharafId
      * @param int $paymentDefinitionId
      * @param bool $paid
+     * @param float|string|null $paidAmount
+     * @param string|null $paidCurrency
      * @return SharafPayment
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
-    public function togglePaymentByDefinitionId(int $sharafId, int $paymentDefinitionId, bool $paid): SharafPayment
-    {
+    public function togglePaymentByDefinitionId(
+        int $sharafId,
+        int $paymentDefinitionId,
+        bool $paid,
+        $paidAmount = null,
+        ?string $paidCurrency = null
+    ): SharafPayment {
         $sharaf = Sharaf::findOrFail($sharafId);
 
-        $paymentDefinition = PaymentDefinition::where('id', $paymentDefinitionId)
+        PaymentDefinition::where('id', $paymentDefinitionId)
             ->where('sharaf_definition_id', $sharaf->sharaf_definition_id)
             ->firstOrFail();
 
-        return SharafPayment::updateOrCreate(
-            [
-                'sharaf_id' => $sharafId,
-                'payment_definition_id' => $paymentDefinitionId,
-            ],
-            [
-                'payment_status' => $paid ? 1 : 0,
-            ]
-        );
+        $payment = SharafPayment::firstOrNew([
+            'sharaf_id' => $sharafId,
+            'payment_definition_id' => $paymentDefinitionId,
+        ]);
+
+        if ($payment->payment_amount === null) {
+            $payment->payment_amount = 0;
+        }
+        if (!$payment->payment_currency) {
+            $payment->payment_currency = 'LKR';
+        }
+
+        $payment->payment_status = $paid ? 1 : 0;
+
+        if ($paid) {
+            $amount = $paidAmount ?? $payment->paid_amount ?? $payment->payment_amount ?? 0;
+            $currency = $paidCurrency ?? $payment->paid_currency ?? $payment->payment_currency ?? 'LKR';
+            $payment->paid_amount = $amount;
+            $payment->paid_currency = strtoupper(substr((string) $currency, 0, 3));
+        }
+
+        $payment->save();
+
+        return $payment;
     }
 }

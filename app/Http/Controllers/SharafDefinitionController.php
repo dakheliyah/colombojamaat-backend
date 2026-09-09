@@ -91,7 +91,6 @@ class SharafDefinitionController extends Controller
             }
             if ($includePaymentDefinitions) {
                 $arr['payment_definitions'] = $def->paymentDefinitions->map(fn (PaymentDefinition $pd) => $pd->toArray())->values()->all();
-                unset($arr['payment_definitions']);
             }
             return $arr;
         })->all();

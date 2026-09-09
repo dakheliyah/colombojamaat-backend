@@ -65,6 +65,8 @@ class SharafPaymentController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'paid' => ['required', 'boolean'],
+            'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'paid_currency' => ['nullable', 'string', 'max:3'],
         ]);
 
         if ($validator->fails()) {
@@ -79,7 +81,9 @@ class SharafPaymentController extends Controller
             $sharafPayment = $this->paymentService->togglePaymentByDefinitionId(
                 (int) $sharaf_id,
                 (int) $payment_definition_id,
-                (bool) $request->input('paid')
+                (bool) $request->input('paid'),
+                $request->input('paid_amount'),
+                $request->input('paid_currency')
             );
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->jsonError(

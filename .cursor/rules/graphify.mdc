@@ -1,0 +1,13 @@
+---
+description: Use the Graphify knowledge graph before exploring the API from scratch
+alwaysApply: true
+---
+
+# Graphify
+
+This repo has a code graph in `graphify-out/`.
+
+- Architecture / “where is X” questions: read `graphify-out/GRAPH_REPORT.md` first, then `graphify query "..."`.
+- After large edits to `app/` or `routes/`, rebuild with `/graphify app --update`.
+- Open `graphify-out/graph.html` in a browser for the interactive map.
+- Do not commit `graphify-out/`.

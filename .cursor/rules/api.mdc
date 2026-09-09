@@ -1,0 +1,17 @@
+---
+description: Laravel API conventions for Colombo Jamaat Bethak
+alwaysApply: true
+---
+
+# API conventions
+
+Laravel 12 app. Routes: `routes/api.php`. Controllers: `app/Http/Controllers`. Domain logic: `app/Services`.
+
+- Session identity is the `user` cookie (ITS number), resolved by `user.from.cookie` (`ResolveUserFromCookie`). Not Bearer tokens.
+- Put new endpoints in `routes/api.php`. Keep `{id}` routes after static path segments (`active`, `search`, etc.).
+- `users.user_type` is removed. Roles live on `user_role`; sharaf visibility on `user_sharaf_type`.
+- Role **Master** is the Bhaisaheb (BS) role in the frontend.
+- When adding a feature, update the matching frontend types in `src/types/api.ts` and client in `src/services/api.ts` (sibling repo).
+- Do not commit `.env`, `vendor/`, SQL dumps (`backup_*.sql`, `miqaat_api.sql`), or `graphify-out/`.
+
+Graph: `graphify-out/GRAPH_REPORT.md`. Rebuild after large `app/` or `routes/` changes with `/graphify app --update`.

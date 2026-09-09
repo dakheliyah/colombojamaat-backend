@@ -16,10 +16,13 @@ class SharafPayment extends Model
         'payment_amount',
         'payment_status',
         'payment_currency',
+        'paid_amount',
+        'paid_currency',
     ];
 
     protected $casts = [
         'payment_amount' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
         'payment_status' => 'boolean',
     ];
 

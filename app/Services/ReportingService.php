@@ -59,7 +59,8 @@ class ReportingService
             ],
             'sharaf-payments' => [
                 'id', 'sharaf_id', 'payment_definition_id', 'payment_amount',
-                'payment_status', 'payment_currency', 'created_at', 'updated_at',
+                'payment_status', 'payment_currency', 'paid_amount', 'paid_currency',
+                'created_at', 'updated_at',
             ],
             'events' => [
                 'id', 'miqaat_id', 'date', 'name', 'description',

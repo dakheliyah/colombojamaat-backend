@@ -17,6 +17,7 @@ class UserRoleSeeder extends Seeder
             'Master',
             'Finance',
             'Anjuman',
+            'Anjuman Supervisor',
             'Help Desk',
             'Follow Up',
         ];
