@@ -64,6 +64,8 @@ class PaymentDefinitionController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'user_type' => ['nullable', 'string', 'max:255'],
+            'default_amount' => ['nullable', 'numeric', 'min:0'],
+            'default_currency' => ['nullable', 'string', 'size:3', 'regex:/^[A-Za-z]{3}$/'],
         ]);
 
         if ($validator->fails()) {
@@ -87,11 +89,14 @@ class PaymentDefinitionController extends Controller
             );
         }
 
+        $defaultCurrency = $request->input('default_currency');
         $paymentDefinition = PaymentDefinition::create([
             'sharaf_definition_id' => $request->input('sharaf_definition_id'),
             'name' => $request->input('name'),
             'description' => $request->input('description'),
             'user_type' => $request->input('user_type', 'Finance'),
+            'default_amount' => $request->input('default_amount'),
+            'default_currency' => $defaultCurrency ? strtoupper((string) $defaultCurrency) : null,
         ]);
 
         return $this->jsonSuccessWithData($paymentDefinition, 201);
@@ -113,6 +118,8 @@ class PaymentDefinitionController extends Controller
             'name' => ['sometimes', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'user_type' => ['sometimes', 'string', 'max:255'],
+            'default_amount' => ['nullable', 'numeric', 'min:0'],
+            'default_currency' => ['nullable', 'string', 'size:3', 'regex:/^[A-Za-z]{3}$/'],
         ]);
 
         if ($validator->fails()) {
@@ -141,7 +148,11 @@ class PaymentDefinitionController extends Controller
             }
         }
 
-        $paymentDefinition->update($request->only(['sharaf_definition_id', 'name', 'description', 'user_type']));
+        $payload = $request->only(['sharaf_definition_id', 'name', 'description', 'user_type', 'default_amount', 'default_currency']);
+        if (array_key_exists('default_currency', $payload) && $payload['default_currency']) {
+            $payload['default_currency'] = strtoupper((string) $payload['default_currency']);
+        }
+        $paymentDefinition->update($payload);
 
         return $this->jsonSuccessWithData($paymentDefinition->fresh('sharafDefinition'));
     }

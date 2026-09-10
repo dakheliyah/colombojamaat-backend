@@ -172,6 +172,8 @@ class SharafDefinitionCopyService
                 'name' => $paymentDefinition->name,
                 'description' => $paymentDefinition->description,
                 'user_type' => $paymentDefinition->user_type,
+                'default_amount' => $paymentDefinition->default_amount,
+                'default_currency' => $paymentDefinition->default_currency,
             ]);
         }
     }

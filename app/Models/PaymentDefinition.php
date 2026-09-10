@@ -17,6 +17,12 @@ class PaymentDefinition extends Model
         'name',
         'description',
         'user_type',
+        'default_amount',
+        'default_currency',
+    ];
+
+    protected $casts = [
+        'default_amount' => 'decimal:2',
     ];
 
     /**
