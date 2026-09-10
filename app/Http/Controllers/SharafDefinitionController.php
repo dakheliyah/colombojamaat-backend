@@ -8,12 +8,18 @@ use App\Models\Sharaf;
 use App\Models\SharafDefinition;
 use App\Models\SharafPosition;
 use App\Models\Census;
+use App\Services\SharafDefinitionCopyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use InvalidArgumentException;
 
 class SharafDefinitionController extends Controller
 {
+    public function __construct(private SharafDefinitionCopyService $copyService)
+    {
+    }
+
     /**
      * GET /api/events/{eventId}/sharaf-definitions
      * Optional query: include=positions,payment-definitions
@@ -134,6 +140,116 @@ class SharafDefinitionController extends Controller
         ]);
 
         return $this->jsonSuccessWithData($sharafDefinition->load('sharafType'), 201);
+    }
+
+    /**
+     * POST /api/sharaf-definitions/{id}/copy
+     * Copy a definition (name, type, positions, payment definitions) onto another event.
+     */
+    public function copy(Request $request, string $id): JsonResponse
+    {
+        $validator = Validator::make(
+            array_merge($request->all(), ['id' => $id]),
+            [
+                'id' => ['required', 'integer'],
+                'event_id' => ['required', 'integer', 'exists:events,id'],
+                'sharaf_type_id' => ['nullable', 'integer', 'exists:sharaf_types,id'],
+                'name' => ['sometimes', 'string', 'max:255'],
+                'key' => ['nullable', 'string', 'max:20'],
+                'description' => ['nullable', 'string'],
+            ]
+        );
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $overrides = [];
+        foreach (['name', 'key', 'description', 'sharaf_type_id'] as $field) {
+            if ($request->exists($field)) {
+                $overrides[$field] = $request->input($field);
+            }
+        }
+
+        try {
+            $copy = $this->copyService->copy((int) $id, (int) $request->input('event_id'), $overrides);
+        } catch (InvalidArgumentException $e) {
+            $notFound = str_contains(strtolower($e->getMessage()), 'not found');
+
+            return $this->jsonError(
+                $notFound ? 'NOT_FOUND' : 'VALIDATION_ERROR',
+                $e->getMessage(),
+                $notFound ? 404 : 422
+            );
+        }
+
+        return $this->jsonSuccessWithData($this->formatCopiedDefinition($copy), 201);
+    }
+
+    /**
+     * POST /api/events/{event_id}/sharaf-definitions/copy-from
+     * Copy all sharaf definitions from a source event onto the target event.
+     */
+    public function copyFromEvent(Request $request, string $event_id): JsonResponse
+    {
+        $validator = Validator::make(
+            array_merge($request->all(), ['event_id' => $event_id]),
+            [
+                'event_id' => ['required', 'integer', 'exists:events,id'],
+                'source_event_id' => ['required', 'integer', 'exists:events,id'],
+            ]
+        );
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        try {
+            $result = $this->copyService->copyFromEvent(
+                (int) $request->input('source_event_id'),
+                (int) $event_id
+            );
+        } catch (InvalidArgumentException $e) {
+            $notFound = str_contains(strtolower($e->getMessage()), 'not found');
+
+            return $this->jsonError(
+                $notFound ? 'NOT_FOUND' : 'VALIDATION_ERROR',
+                $e->getMessage(),
+                $notFound ? 404 : 422
+            );
+        }
+
+        return $this->jsonSuccessWithData([
+            'copied' => array_map(fn (SharafDefinition $def) => $this->formatCopiedDefinition($def), $result['copied']),
+            'skipped' => $result['skipped'],
+        ], 201);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatCopiedDefinition(SharafDefinition $def): array
+    {
+        $arr = $def->toArray();
+        $arr['positions'] = $def->sharafPositions
+            ->map(fn (SharafPosition $p) => $p->toArray())
+            ->values()
+            ->all();
+        unset($arr['sharaf_positions']);
+        $arr['payment_definitions'] = $def->paymentDefinitions
+            ->map(fn (PaymentDefinition $pd) => $pd->toArray())
+            ->values()
+            ->all();
+
+        return $arr;
     }
 
     /**

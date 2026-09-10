@@ -77,6 +77,7 @@ Route::get('/events', [EventController::class, 'index']);
 Route::post('/events', [EventController::class, 'store']);
 Route::get('/events/{event_id}/sharaf-definitions', [SharafDefinitionController::class, 'index'])
     ->middleware('user.from.cookie');
+Route::post('/events/{event_id}/sharaf-definitions/copy-from', [SharafDefinitionController::class, 'copyFromEvent']);
 Route::get('/events/{miqaat_id}', [EventController::class, 'byMiqaat']);
 Route::get('/events/{event_id}/sharaf-report-summary', [EventController::class, 'sharafReportSummary']);
 // Sharaf Type routes (CRUD)
@@ -90,6 +91,7 @@ Route::delete('/sharaf-types/{id}', [SharafTypeController::class, 'destroy']);
 Route::get('/sharaf-definitions/{sd_id}/sharafs', [SharafDefinitionController::class, 'sharafs']);
 Route::get('/sharaf-definitions/{sd_id}/sharafs-with-members', [SharafDefinitionController::class, 'sharafsWithMembers']);
 Route::post('/sharaf-definitions', [SharafDefinitionController::class, 'store']);
+Route::post('/sharaf-definitions/{id}/copy', [SharafDefinitionController::class, 'copy']);
 Route::put('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'update']);
 Route::patch('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'update']);
 Route::get('/sharaf-definitions/{id}/positions', [SharafDefinitionController::class, 'positions']);
