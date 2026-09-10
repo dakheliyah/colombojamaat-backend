@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -84,11 +85,26 @@ class UserController extends Controller
             'its_no' => $request->filled('its_no') ? $request->input('its_no') : null,
         ]);
 
+        $audit = app(AuditLogService::class);
         if ($request->filled('role_ids')) {
             $user->roles()->sync($request->input('role_ids'));
+            $audit->recordManual(
+                $user,
+                'updated',
+                ['role_ids' => []],
+                ['role_ids' => $request->input('role_ids')],
+                'Assigned user roles'
+            );
         }
         if ($request->filled('sharaf_type_ids')) {
             $user->sharafTypes()->sync($request->input('sharaf_type_ids'));
+            $audit->recordManual(
+                $user,
+                'updated',
+                ['sharaf_type_ids' => []],
+                ['sharaf_type_ids' => $request->input('sharaf_type_ids')],
+                'Assigned user sharaf types'
+            );
         }
 
         return $this->jsonSuccessWithData($user->load(['roles', 'sharafTypes']), 201);
@@ -141,12 +157,35 @@ class UserController extends Controller
             unset($data['password']);
         }
 
+        $audit = app(AuditLogService::class);
         if (array_key_exists('role_ids', $data)) {
+            $oldRoleIds = $user->roles()->pluck('user_roles.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+            $newRoleIds = collect($data['role_ids'] ?? [])->map(fn ($id) => (int) $id)->sort()->values()->all();
             $user->roles()->sync($data['role_ids']);
+            if ($oldRoleIds !== $newRoleIds) {
+                $audit->recordManual(
+                    $user,
+                    'updated',
+                    ['role_ids' => $oldRoleIds],
+                    ['role_ids' => $newRoleIds],
+                    'Updated user roles'
+                );
+            }
             unset($data['role_ids']);
         }
         if (array_key_exists('sharaf_type_ids', $data)) {
+            $oldTypeIds = $user->sharafTypes()->pluck('sharaf_types.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+            $newTypeIds = collect($data['sharaf_type_ids'] ?? [])->map(fn ($id) => (int) $id)->sort()->values()->all();
             $user->sharafTypes()->sync($data['sharaf_type_ids']);
+            if ($oldTypeIds !== $newTypeIds) {
+                $audit->recordManual(
+                    $user,
+                    'updated',
+                    ['sharaf_type_ids' => $oldTypeIds],
+                    ['sharaf_type_ids' => $newTypeIds],
+                    'Updated user sharaf types'
+                );
+            }
             unset($data['sharaf_type_ids']);
         }
 

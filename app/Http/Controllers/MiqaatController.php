@@ -89,7 +89,10 @@ class MiqaatController extends Controller
 
         DB::transaction(function () use ($miqaat, $request, $setActive) {
             if ($setActive) {
-                Miqaat::where('id', '!=', $miqaat->id)->update(['active_status' => false]);
+                Miqaat::where('id', '!=', $miqaat->id)
+                    ->where('active_status', true)
+                    ->get()
+                    ->each(fn (Miqaat $other) => $other->update(['active_status' => false]));
             }
             $updates = $request->only(['name', 'start_date', 'end_date', 'description', 'active_status']);
             if (array_key_exists('active_status', $updates)) {

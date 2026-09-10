@@ -1,6 +1,9 @@
 <?php
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthSessionController;
 use App\Http\Controllers\CensusController;
+use App\Http\Controllers\CurrencyController;
+use App\Http\Controllers\CurrencyConversionController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\FamilySummaryController;
 use App\Http\Controllers\MiqaatCheckController;
@@ -34,6 +37,20 @@ Route::get('/census/{its_id}/with-relations', [CensusController::class, 'showWit
 Route::get('/census/{its_id}', [CensusController::class, 'show']);
 // Family routes
 Route::get('/families/{hof_its}/summary', [FamilySummaryController::class, 'show']);
+// Audit logs (master CRUD + sharaf instance changes)
+Route::get('/audit-logs', [AuditLogController::class, 'index']);
+// Currency master
+Route::get('/currencies', [CurrencyController::class, 'index']);
+Route::post('/currencies', [CurrencyController::class, 'store']);
+Route::put('/currencies/{id}', [CurrencyController::class, 'update']);
+Route::patch('/currencies/{id}', [CurrencyController::class, 'update']);
+Route::delete('/currencies/{id}', [CurrencyController::class, 'destroy']);
+// Currency conversion rates (dated FX used for takhmeen INR categorization)
+Route::get('/currency-conversions', [CurrencyConversionController::class, 'index']);
+Route::post('/currency-conversions', [CurrencyConversionController::class, 'store']);
+Route::put('/currency-conversions/{id}', [CurrencyConversionController::class, 'update']);
+Route::patch('/currency-conversions/{id}', [CurrencyConversionController::class, 'update']);
+Route::delete('/currency-conversions/{id}', [CurrencyConversionController::class, 'destroy']);
 // Roles (all assignable roles for user create/edit forms)
 Route::get('/roles', [RoleController::class, 'index']);
 // User routes
@@ -120,6 +137,7 @@ Route::patch('/sharaf-positions/{id}', [SharafPositionController::class, 'update
 // Sharaf routes
 Route::get('/sharafs', [SharafController::class, 'index']);
 Route::post('/sharafs', [SharafController::class, 'store']);
+Route::get('/sharafs/{sharaf_id}/audit-logs', [AuditLogController::class, 'forSharaf']);
 Route::get('/sharafs/{sharaf_id}', [SharafController::class, 'show']);
 Route::put('/sharafs/{sharaf_id}', [SharafController::class, 'update']);
 Route::patch('/sharafs/{sharaf_id}', [SharafController::class, 'update']);

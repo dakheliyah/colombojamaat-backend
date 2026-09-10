@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SilaFitraConfig extends Model
 {
+    use AuditsChanges;
     protected $table = 'sila_fitra_config';
 
     protected $fillable = [

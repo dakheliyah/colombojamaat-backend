@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 
 class CurrencyConversion extends Model
 {
+    use AuditsChanges;
     use HasFactory;
 
     protected $table = 'currency_conversions';
@@ -25,8 +27,8 @@ class CurrencyConversion extends Model
 
     protected $casts = [
         'rate' => 'decimal:6',
-        'effective_date' => 'date',
-        'expiry_date' => 'date',
+        'effective_date' => 'date:Y-m-d',
+        'expiry_date' => 'date:Y-m-d',
         'is_active' => 'boolean',
     ];
 

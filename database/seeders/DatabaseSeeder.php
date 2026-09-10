@@ -27,6 +27,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(SharafTypeSeeder::class);
         $this->call(UserRoleSeeder::class);
+        $this->call(CurrencySeeder::class);
+        $this->call(CurrencyConversionSeeder::class);
 
         // Seed Users
         $testUser = User::factory()->create([

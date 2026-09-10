@@ -53,6 +53,19 @@ class SharafDefinitionCopyService
 
             $this->cloneChildren($source, $copy);
 
+            app(AuditLogService::class)->recordManual(
+                $copy,
+                'copied',
+                null,
+                [
+                    'source_sharaf_definition_id' => $source->id,
+                    'source_name' => $source->name,
+                    'target_event_id' => $targetEventId,
+                ],
+                "Copied sharaf definition \"{$source->name}\" as \"{$copy->name}\"",
+                ['source_id' => $source->id, 'target_event_id' => $targetEventId]
+            );
+
             return $copy->load([
                 'sharafType',
                 'sharafPositions' => fn ($q) => $q->orderBy('order'),
