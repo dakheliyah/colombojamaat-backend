@@ -56,7 +56,7 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
+            'password' => ['required_without:its_no', 'nullable', 'string', 'min:8'],
             'its_no' => array_values(array_filter([
                 'nullable',
                 'string',
@@ -80,7 +80,7 @@ class UserController extends Controller
         $user = User::create([
             'name' => $request->input('name'),
             'email' => $request->input('email'),
-            'password' => $request->input('password'),
+            'password' => $request->filled('password') ? $request->input('password') : null,
             'its_no' => $request->filled('its_no') ? $request->input('its_no') : null,
         ]);
 
