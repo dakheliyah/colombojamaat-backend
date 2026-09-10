@@ -29,7 +29,11 @@ class EventController extends Controller
      */
     public function getAll(): JsonResponse
     {
-        $events = Event::with('miqaat')->orderBy('miqaat_id')->orderBy('date')->get();
+        $events = Event::with('miqaat')
+            ->whereHas('miqaat', fn ($q) => $q->notArchived())
+            ->orderBy('miqaat_id')
+            ->orderBy('date')
+            ->get();
 
         return $this->jsonSuccessWithData($events);
     }
@@ -85,6 +89,15 @@ class EventController extends Controller
             return $this->jsonError(
                 'VALIDATION_ERROR',
                 $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $miqaat = Miqaat::find($request->input('miqaat_id'));
+        if ($miqaat && $miqaat->archived) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                'Cannot create an event on an archived miqaat.',
                 422
             );
         }

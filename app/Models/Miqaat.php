@@ -18,20 +18,30 @@ class Miqaat extends Model
         'end_date',
         'description',
         'active_status',
+        'archived',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'active_status' => 'boolean',
+        'archived' => 'boolean',
     ];
 
     /**
-     * Scope to only active miqaat (active_status = true).
+     * Scope to only the live miqaat (active_status = true, not archived).
      */
     public function scopeActive($query)
     {
-        return $query->where('active_status', true);
+        return $query->where('active_status', true)->where('archived', false);
+    }
+
+    /**
+     * Scope to miqaats that should appear in Settings and dropdowns.
+     */
+    public function scopeNotArchived($query)
+    {
+        return $query->where('archived', false);
     }
 
     /**
