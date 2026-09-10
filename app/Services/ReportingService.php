@@ -443,8 +443,7 @@ class ReportingService
      */
     protected function buildSharafQuery(array $filters): Builder
     {
-        $query = Sharaf::query()
-            ->whereHas('sharafDefinition.event.miqaat', fn ($q) => $q->active());
+        $query = Sharaf::query()->forMiqaat();
 
         if (isset($filters['sharaf_definition_id'])) {
             $definitionIds = is_array($filters['sharaf_definition_id']) 

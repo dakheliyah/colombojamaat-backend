@@ -131,10 +131,10 @@ class EventController extends Controller
         }
 
         // Get all sharafs for this event, filtered by active miqaat
-        $sharafs = Sharaf::whereHas('sharafDefinition', function ($q) use ($eventId) {
-            $q->where('event_id', $eventId);
-        })
-            ->whereHas('sharafDefinition.event.miqaat', fn ($q) => $q->active())
+        $sharafs = Sharaf::forMiqaat()
+            ->whereIn('sharafs.sharaf_definition_id', function ($sub) use ($eventId) {
+                $sub->select('id')->from('sharaf_definitions')->where('event_id', $eventId);
+            })
             ->with(['sharafDefinition', 'sharafMembers'])
             ->get();
 
@@ -284,10 +284,7 @@ class EventController extends Controller
         }
 
         // Get all sharafs for all events in this miqaat, filtered by active miqaat
-        $sharafs = Sharaf::whereHas('sharafDefinition.event', function ($q) use ($miqaatId) {
-            $q->where('miqaat_id', $miqaatId);
-        })
-            ->whereHas('sharafDefinition.event.miqaat', fn ($q) => $q->active())
+        $sharafs = Sharaf::forMiqaat($miqaatId)
             ->with([
                 'sharafDefinition.event',
                 'sharafMembers.sharafPosition' => function ($q) {

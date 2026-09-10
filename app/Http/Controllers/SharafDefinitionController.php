@@ -349,8 +349,8 @@ class SharafDefinitionController extends Controller
         }
 
         // Build query for sharafs
-        $query = Sharaf::where('sharaf_definition_id', $sdId)
-            ->whereHas('sharafDefinition.event.miqaat', fn ($q) => $q->active())
+        $query = Sharaf::where('sharafs.sharaf_definition_id', $sdId)
+            ->forMiqaat()
             ->with([
                 'sharafDefinition',
                 'sharafMembers.sharafPosition' => function ($q) {

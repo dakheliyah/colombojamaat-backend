@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\SharafStatus;
 use App\Models\Concerns\AuditsChanges;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,6 +36,27 @@ class Sharaf extends Model
         'capacity' => 'integer',
         'status' => SharafStatus::class,
     ];
+
+    /**
+     * Limit to sharafs whose definition belongs to a miqaat.
+     * Defaults to the currently active miqaat. Uses a single-level subquery
+     * instead of nested whereHas (definition → event → miqaat).
+     */
+    public function scopeForMiqaat(Builder $query, ?int $miqaatId = null): Builder
+    {
+        $miqaatId = $miqaatId ?? Miqaat::getActiveId();
+
+        if ($miqaatId === null) {
+            return $query->whereRaw('0 = 1');
+        }
+
+        return $query->whereIn('sharafs.sharaf_definition_id', function ($sub) use ($miqaatId) {
+            $sub->select('sharaf_definitions.id')
+                ->from('sharaf_definitions')
+                ->join('events', 'events.id', '=', 'sharaf_definitions.event_id')
+                ->where('events.miqaat_id', $miqaatId);
+        });
+    }
 
     /**
      * Get the sharaf definition that owns the sharaf.

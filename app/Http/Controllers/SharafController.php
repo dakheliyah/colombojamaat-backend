@@ -52,25 +52,20 @@ class SharafController extends Controller
         $query = Sharaf::query()
             ->leftJoin('census', 'sharafs.hof_its', '=', 'census.its_id')
             ->select('sharafs.*', 'census.name as hof_name')
-            ->with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition']);
+            // List consumers use definition + payments; members/clearances are fetched per-sharaf.
+            ->with(['sharafDefinition', 'sharafPayments.paymentDefinition']);
 
-        if ($request->filled('miqaat_id')) {
-            $miqaatId = (int) $request->input('miqaat_id');
-            $query->whereHas(
-                'sharafDefinition.event',
-                fn ($q) => $q->where('miqaat_id', $miqaatId)
-            );
-        } else {
-            $query->whereHas('sharafDefinition.event.miqaat', fn ($q) => $q->active());
-        }
+        $query->forMiqaat(
+            $request->filled('miqaat_id') ? (int) $request->input('miqaat_id') : null
+        );
 
         // Apply filters
         if ($request->has('sharaf_definition_id')) {
-            $query->where('sharaf_definition_id', $request->input('sharaf_definition_id'));
+            $query->where('sharafs.sharaf_definition_id', $request->input('sharaf_definition_id'));
         }
 
         if ($request->has('status')) {
-            $query->where('status', $request->input('status'));
+            $query->where('sharafs.status', $request->input('status'));
         }
 
         if ($request->has('hof_its')) {
@@ -103,7 +98,7 @@ class SharafController extends Controller
             });
         }
 
-        $sharafs = $query->orderBy('sharaf_definition_id')->orderBy('rank')->get();
+        $sharafs = $query->orderBy('sharafs.sharaf_definition_id')->orderBy('sharafs.rank')->get();
 
         return $this->jsonSuccessWithData($sharafs);
     }
