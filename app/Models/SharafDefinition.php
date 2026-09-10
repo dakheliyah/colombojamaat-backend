@@ -17,7 +17,12 @@ class SharafDefinition extends Model
         'sharaf_type_id',
         'name',
         'key',
+        'default_capacity',
         'description',
+    ];
+
+    protected $casts = [
+        'default_capacity' => 'integer',
     ];
 
     /**

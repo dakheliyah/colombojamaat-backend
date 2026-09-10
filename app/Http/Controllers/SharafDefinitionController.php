@@ -120,6 +120,7 @@ class SharafDefinitionController extends Controller
             'sharaf_type_id' => ['required', 'integer', 'exists:sharaf_types,id'],
             'name' => ['required', 'string', 'max:255'],
             'key' => ['nullable', 'string', 'max:20'],
+            'default_capacity' => ['nullable', 'integer', 'min:1'],
             'description' => ['nullable', 'string'],
         ]);
 
@@ -136,6 +137,7 @@ class SharafDefinitionController extends Controller
             'sharaf_type_id' => $request->input('sharaf_type_id'),
             'name' => $request->input('name'),
             'key' => $request->input('key'),
+            'default_capacity' => $request->input('default_capacity'),
             'description' => $request->input('description'),
         ]);
 
@@ -156,6 +158,7 @@ class SharafDefinitionController extends Controller
                 'sharaf_type_id' => ['nullable', 'integer', 'exists:sharaf_types,id'],
                 'name' => ['sometimes', 'string', 'max:255'],
                 'key' => ['nullable', 'string', 'max:20'],
+                'default_capacity' => ['nullable', 'integer', 'min:1'],
                 'description' => ['nullable', 'string'],
             ]
         );
@@ -169,7 +172,7 @@ class SharafDefinitionController extends Controller
         }
 
         $overrides = [];
-        foreach (['name', 'key', 'description', 'sharaf_type_id'] as $field) {
+        foreach (['name', 'key', 'description', 'sharaf_type_id', 'default_capacity'] as $field) {
             if ($request->exists($field)) {
                 $overrides[$field] = $request->input($field);
             }
@@ -268,6 +271,7 @@ class SharafDefinitionController extends Controller
             'sharaf_type_id' => ['sometimes', 'integer', 'exists:sharaf_types,id'],
             'name' => ['sometimes', 'string', 'max:255'],
             'key' => ['nullable', 'string', 'max:20'],
+            'default_capacity' => ['nullable', 'integer', 'min:1'],
             'description' => ['nullable', 'string'],
         ]);
 
@@ -279,7 +283,7 @@ class SharafDefinitionController extends Controller
             );
         }
 
-        $sharafDefinition->update($request->only(['event_id', 'sharaf_type_id', 'name', 'key', 'description']));
+        $sharafDefinition->update($request->only(['event_id', 'sharaf_type_id', 'name', 'key', 'default_capacity', 'description']));
 
         return $this->jsonSuccessWithData($sharafDefinition->fresh(['event', 'sharafType']));
     }

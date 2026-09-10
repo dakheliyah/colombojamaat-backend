@@ -15,7 +15,7 @@ class SharafDefinitionCopyService
      * Copy a sharaf definition (including positions and payment definitions) onto a target event.
      * Allocated sharafs, members, payments, and mappings are not copied.
      *
-     * @param  array{name?: string|null, key?: string|null, description?: string|null, sharaf_type_id?: int|null}  $overrides
+     * @param  array{name?: string|null, key?: string|null, description?: string|null, sharaf_type_id?: int|null, default_capacity?: int|null}  $overrides
      */
     public function copy(int $sourceId, int $targetEventId, array $overrides = []): SharafDefinition
     {
@@ -46,6 +46,9 @@ class SharafDefinitionCopyService
                     : $source->sharaf_type_id,
                 'name' => $name,
                 'key' => array_key_exists('key', $overrides) ? $overrides['key'] : $source->key,
+                'default_capacity' => array_key_exists('default_capacity', $overrides)
+                    ? $overrides['default_capacity']
+                    : $source->default_capacity,
                 'description' => array_key_exists('description', $overrides)
                     ? $overrides['description']
                     : $source->description,
@@ -122,6 +125,7 @@ class SharafDefinitionCopyService
                     'sharaf_type_id' => $source->sharaf_type_id,
                     'name' => $source->name,
                     'key' => $source->key,
+                    'default_capacity' => $source->default_capacity,
                     'description' => $source->description,
                 ]);
 
