@@ -38,4 +38,12 @@ class Event extends Model
     {
         return $this->hasMany(SharafDefinition::class);
     }
+
+    /**
+     * Get the color legends for the event.
+     */
+    public function colorLegends(): HasMany
+    {
+        return $this->hasMany(EventColorLegend::class);
+    }
 }

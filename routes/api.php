@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthSessionController;
 use App\Http\Controllers\CensusController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CurrencyConversionController;
+use App\Http\Controllers\EventColorLegendController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\FamilySummaryController;
 use App\Http\Controllers\MiqaatCheckController;
@@ -95,6 +96,11 @@ Route::post('/events', [EventController::class, 'store']);
 Route::get('/events/{event_id}/sharaf-definitions', [SharafDefinitionController::class, 'index'])
     ->middleware('user.from.cookie');
 Route::post('/events/{event_id}/sharaf-definitions/copy-from', [SharafDefinitionController::class, 'copyFromEvent']);
+Route::get('/events/{event_id}/color-legends', [EventColorLegendController::class, 'index']);
+Route::post('/events/{event_id}/color-legends', [EventColorLegendController::class, 'store']);
+Route::put('/color-legends/{id}', [EventColorLegendController::class, 'update']);
+Route::patch('/color-legends/{id}', [EventColorLegendController::class, 'update']);
+Route::delete('/color-legends/{id}', [EventColorLegendController::class, 'destroy']);
 Route::get('/events/{miqaat_id}', [EventController::class, 'byMiqaat']);
 Route::get('/events/{event_id}/sharaf-report-summary', [EventController::class, 'sharafReportSummary']);
 // Sharaf Type routes (CRUD)

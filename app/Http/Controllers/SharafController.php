@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enums\SharafStatus;
+use App\Models\EventColorLegend;
 use App\Models\Sharaf;
+use App\Models\SharafDefinition;
 use App\Services\SharafApprovalService;
 use App\Services\SharafConfirmationEvaluator;
 use Illuminate\Http\JsonResponse;
@@ -53,7 +55,7 @@ class SharafController extends Controller
             ->leftJoin('census', 'sharafs.hof_its', '=', 'census.its_id')
             ->select('sharafs.*', 'census.name as hof_name')
             // List consumers use definition + payments; members/clearances are fetched per-sharaf.
-            ->with(['sharafDefinition', 'sharafPayments.paymentDefinition']);
+            ->with(['sharafDefinition', 'sharafPayments.paymentDefinition', 'colorLegend']);
 
         $query->forMiqaat(
             $request->filled('miqaat_id') ? (int) $request->input('miqaat_id') : null
@@ -245,6 +247,7 @@ class SharafController extends Controller
             'hof_its' => ['nullable', 'string'],
             'token' => ['nullable', 'string', 'max:50', 'unique:sharafs,token,' . $sharaf->id],
             'comments' => ['nullable', 'string'],
+            'color_legend_id' => ['nullable', 'integer', 'exists:event_color_legends,id'],
         ]);
 
         if ($validator->fails()) {
@@ -264,11 +267,30 @@ class SharafController extends Controller
             'hof_its',
             'token',
             'comments',
+            'color_legend_id',
         ]);
 
         // Only update status if it's explicitly provided and not empty
         if (array_key_exists('status', $updateData) && empty($updateData['status'])) {
             unset($updateData['status']);
+        }
+
+        // Allow clearing the color legend with an explicit null
+        if ($request->exists('color_legend_id') && $request->input('color_legend_id') === null) {
+            $updateData['color_legend_id'] = null;
+        }
+
+        if (array_key_exists('color_legend_id', $updateData) && $updateData['color_legend_id'] !== null) {
+            $legend = EventColorLegend::find($updateData['color_legend_id']);
+            $definitionId = $updateData['sharaf_definition_id'] ?? $sharaf->sharaf_definition_id;
+            $definition = SharafDefinition::find($definitionId);
+            if (! $legend || ! $definition || (int) $legend->event_id !== (int) $definition->event_id) {
+                return $this->jsonError(
+                    'VALIDATION_ERROR',
+                    'Color legend must belong to the same event as the sharaf.',
+                    422
+                );
+            }
         }
 
         try {
@@ -318,14 +340,14 @@ class SharafController extends Controller
         }
 
         $sharaf->refresh();
-        $sharaf->load(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition']);
+        $sharaf->load(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition', 'colorLegend']);
 
         return $this->jsonSuccessWithData($sharaf);
     }
 
     public function show(string $sharaf_id): JsonResponse
     {
-        $sharaf = Sharaf::with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition', 'hof'])
+        $sharaf = Sharaf::with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition', 'hof', 'colorLegend'])
             ->findOrFail($sharaf_id);
 
         return $this->jsonSuccessWithData($sharaf);

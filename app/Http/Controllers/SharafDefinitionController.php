@@ -107,7 +107,7 @@ class SharafDefinitionController extends Controller
     public function sharafs(string $sd_id): JsonResponse
     {
         $sharafs = Sharaf::where('sharaf_definition_id', $sd_id)
-            ->with(['sharafDefinition', 'sharafMembers', 'sharafClearances', 'sharafPayments.paymentDefinition'])
+            ->with(['sharafDefinition', 'sharafMembers', 'sharafClearances', 'sharafPayments.paymentDefinition', 'colorLegend'])
             ->get();
 
         return $this->jsonSuccessWithData($sharafs);
@@ -353,6 +353,7 @@ class SharafDefinitionController extends Controller
             ->forMiqaat()
             ->with([
                 'sharafDefinition',
+                'colorLegend',
                 'sharafMembers.sharafPosition' => function ($q) {
                     $q->orderBy('order');
                 }

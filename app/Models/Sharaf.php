@@ -23,6 +23,7 @@ class Sharaf extends Model
         'hof_its',
         'token',
         'comments',
+        'color_legend_id',
     ];
 
     protected $appends = ['hof_name'];
@@ -64,6 +65,14 @@ class Sharaf extends Model
     public function sharafDefinition(): BelongsTo
     {
         return $this->belongsTo(SharafDefinition::class);
+    }
+
+    /**
+     * Get the color legend assigned to this sharaf.
+     */
+    public function colorLegend(): BelongsTo
+    {
+        return $this->belongsTo(EventColorLegend::class, 'color_legend_id');
     }
 
     /**
