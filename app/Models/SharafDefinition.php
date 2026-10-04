@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +17,7 @@ class SharafDefinition extends Model
         'event_id',
         'sharaf_type_id',
         'name',
+        'sort_order',
         'key',
         'default_capacity',
         'description',
@@ -23,7 +25,24 @@ class SharafDefinition extends Model
 
     protected $casts = [
         'default_capacity' => 'integer',
+        'sort_order' => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('display_order', function (Builder $builder) {
+            $builder->orderBy('sharaf_definitions.sort_order')->orderBy('sharaf_definitions.name');
+        });
+
+        static::creating(function (SharafDefinition $definition) {
+            if ($definition->sort_order === null || (int) $definition->sort_order === 0) {
+                $max = static::withoutGlobalScope('display_order')
+                    ->where('event_id', $definition->event_id)
+                    ->max('sort_order');
+                $definition->sort_order = ((int) $max) + 1;
+            }
+        });
+    }
 
     /**
      * Get the sharaf type for the sharaf definition.

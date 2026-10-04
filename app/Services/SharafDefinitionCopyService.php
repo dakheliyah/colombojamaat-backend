@@ -104,6 +104,7 @@ class SharafDefinitionCopyService
                 'sharafPositions' => fn ($q) => $q->orderBy('order'),
                 'paymentDefinitions' => fn ($q) => $q->orderBy('name'),
             ])
+            ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
 

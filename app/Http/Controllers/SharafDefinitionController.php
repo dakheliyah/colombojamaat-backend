@@ -8,9 +8,11 @@ use App\Models\Sharaf;
 use App\Models\SharafDefinition;
 use App\Models\SharafPosition;
 use App\Models\Census;
+use App\Services\AuditLogService;
 use App\Services\SharafDefinitionCopyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
 
@@ -102,6 +104,80 @@ class SharafDefinitionController extends Controller
         })->all();
 
         return $this->jsonSuccessWithData($data);
+    }
+
+    /**
+     * PUT /api/events/{eventId}/sharaf-definitions/order
+     * Body: { ids: number[] } — every definition for the event, in display order.
+     */
+    public function reorder(Request $request, string $event_id): JsonResponse
+    {
+        $event = Event::find($event_id);
+        if (! $event) {
+            return $this->jsonError('NOT_FOUND', 'Event not found.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'distinct'],
+        ]);
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $ids = array_map('intval', $request->input('ids'));
+        $existing = SharafDefinition::withoutGlobalScope('display_order')
+            ->where('event_id', $event->id)
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $sortedExisting = $existing;
+        $sortedIds = $ids;
+        sort($sortedExisting);
+        sort($sortedIds);
+        if ($sortedExisting !== $sortedIds) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                'ids must list every sharaf definition for this event exactly once.',
+                422
+            );
+        }
+
+        $previous = SharafDefinition::withoutGlobalScope('display_order')
+            ->where('event_id', $event->id)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'sort_order']);
+
+        DB::transaction(function () use ($ids) {
+            foreach ($ids as $index => $id) {
+                DB::table('sharaf_definitions')->where('id', $id)->update([
+                    'sort_order' => $index + 1,
+                    'updated_at' => now(),
+                ]);
+            }
+        });
+
+        $ordered = SharafDefinition::where('event_id', $event->id)->with('sharafType')->get();
+        $sample = $ordered->first();
+        if ($sample) {
+            app(AuditLogService::class)->recordManual(
+                $sample,
+                'reordered',
+                ['order' => $previous->map(fn ($def) => ['id' => $def->id, 'name' => $def->name, 'sort_order' => $def->sort_order])->all()],
+                ['order' => $ordered->map(fn ($def) => ['id' => $def->id, 'name' => $def->name, 'sort_order' => $def->sort_order])->all()],
+                'Reordered sharaf definitions for event '.$event->name,
+                ['event_id' => $event->id]
+            );
+        }
+
+        return $this->jsonSuccessWithData($ordered);
     }
 
     public function sharafs(string $sd_id): JsonResponse

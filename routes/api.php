@@ -96,6 +96,7 @@ Route::post('/events', [EventController::class, 'store']);
 Route::get('/events/{event_id}/sharaf-definitions', [SharafDefinitionController::class, 'index'])
     ->middleware('user.from.cookie');
 Route::post('/events/{event_id}/sharaf-definitions/copy-from', [SharafDefinitionController::class, 'copyFromEvent']);
+Route::put('/events/{event_id}/sharaf-definitions/order', [SharafDefinitionController::class, 'reorder']);
 Route::get('/events/{event_id}/color-legends', [EventColorLegendController::class, 'index']);
 Route::post('/events/{event_id}/color-legends', [EventColorLegendController::class, 'store']);
 Route::put('/color-legends/{id}', [EventColorLegendController::class, 'update']);
