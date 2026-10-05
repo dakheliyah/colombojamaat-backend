@@ -164,6 +164,7 @@ class SharafDefinitionCopyService
                 'display_name' => $position->display_name,
                 'capacity' => $position->capacity,
                 'order' => $position->order,
+                'is_optional' => $position->is_optional,
             ]);
         }
 

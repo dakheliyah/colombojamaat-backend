@@ -18,11 +18,13 @@ class SharafPosition extends Model
         'display_name',
         'capacity',
         'order',
+        'is_optional',
     ];
 
     protected $casts = [
         'capacity' => 'integer',
         'order' => 'integer',
+        'is_optional' => 'boolean',
     ];
 
     /**

@@ -18,6 +18,7 @@ class SharafPositionController extends Controller
             'display_name' => ['required', 'string', 'max:255'],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'order' => ['required', 'integer'],
+            'is_optional' => ['sometimes', 'boolean'],
         ]);
 
         if ($validator->fails()) {
@@ -48,6 +49,7 @@ class SharafPositionController extends Controller
                 'display_name' => $request->input('display_name'),
                 'capacity' => $request->input('capacity'),
                 'order' => $request->input('order'),
+                'is_optional' => $request->boolean('is_optional'),
             ]);
 
             return $this->jsonSuccessWithData($sharafPosition, 201);
@@ -81,6 +83,7 @@ class SharafPositionController extends Controller
             'display_name' => ['sometimes', 'string', 'max:255'],
             'capacity' => ['nullable', 'integer', 'min:1'],
             'order' => ['sometimes', 'integer'],
+            'is_optional' => ['sometimes', 'boolean'],
         ]);
 
         if ($validator->fails()) {
@@ -110,7 +113,7 @@ class SharafPositionController extends Controller
         }
 
         try {
-            $sharafPosition->update($request->only(['sharaf_definition_id', 'name', 'display_name', 'capacity', 'order']));
+            $sharafPosition->update($request->only(['sharaf_definition_id', 'name', 'display_name', 'capacity', 'order', 'is_optional']));
 
             return $this->jsonSuccessWithData($sharafPosition->fresh('sharafDefinition'));
         } catch (QueryException $e) {
