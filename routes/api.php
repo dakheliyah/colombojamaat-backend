@@ -35,6 +35,7 @@ Route::get('/census', [CensusController::class, 'index']);
 Route::get('/census/search', [CensusController::class, 'search']);
 Route::get('/census/family/{hof_its}', [CensusController::class, 'familyMembers']);
 Route::get('/census/{its_id}/with-relations', [CensusController::class, 'showWithRelations']);
+Route::get('/census/{its_id}/relatives', [CensusController::class, 'relatives']);
 Route::get('/census/{its_id}', [CensusController::class, 'show']);
 // Family routes
 Route::get('/families/{hof_its}/summary', [FamilySummaryController::class, 'show']);

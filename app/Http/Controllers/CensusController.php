@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Census;
+use App\Services\CensusRelativesService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class CensusController extends Controller
 {
+    public function __construct(private CensusRelativesService $relatives)
+    {
+    }
+
     /**
      * Get a census record by ITS ID.
      */
@@ -21,6 +26,19 @@ class CensusController extends Controller
         }
 
         return $this->jsonSuccessWithData($census);
+    }
+
+    /**
+     * Person, spouse, father, and mother for sharaf auto-fill.
+     */
+    public function relatives(string $its_id): JsonResponse
+    {
+        $data = $this->relatives->forIts($its_id);
+        if ($data === null) {
+            return $this->jsonError('NOT_FOUND', 'Census record not found.', 404);
+        }
+
+        return $this->jsonSuccessWithData($data);
     }
 
     /**
