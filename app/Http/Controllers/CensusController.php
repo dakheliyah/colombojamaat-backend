@@ -81,9 +81,10 @@ class CensusController extends Controller
             'jamiat' => ['nullable', 'string', 'max:255'],
             'mohalla' => ['nullable', 'string', 'max:255'],
             'area' => ['nullable', 'string', 'max:255'],
-            'gender' => ['nullable', 'string', 'in:male,female'],
+            'gender' => ['nullable', 'string', 'max:50'],
             'misaq' => ['nullable', 'string', 'max:255'],
             'marital_status' => ['nullable', 'string', 'max:255'],
+            'q' => ['nullable', 'string', 'max:255'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -114,55 +115,44 @@ class CensusController extends Controller
             $query->where('hof_id', $request->input('hof_id'));
         }
 
-        if ($request->has('city')) {
-            $query->where('city', 'like', '%' . $request->input('city') . '%');
+        foreach (['city', 'jamaat', 'jamiat', 'mohalla', 'area', 'gender', 'misaq', 'marital_status'] as $column) {
+            if ($request->filled($column)) {
+                $query->where($column, $request->input($column));
+            }
         }
 
-        if ($request->has('jamaat')) {
-            $query->where('jamaat', 'like', '%' . $request->input('jamaat') . '%');
+        if ($request->filled('q')) {
+            $term = '%' . $request->input('q') . '%';
+            $query->where(function ($q) use ($term) {
+                $q->where('name', 'like', $term)
+                    ->orWhere('arabic_name', 'like', $term)
+                    ->orWhere('its_id', 'like', $term)
+                    ->orWhere('hof_id', 'like', $term);
+            });
         }
 
-        if ($request->has('jamiat')) {
-            $query->where('jamiat', 'like', '%' . $request->input('jamiat') . '%');
+        return $this->paginatedCensus($query, $request);
+    }
+
+    /**
+     * Distinct values for census list filters.
+     */
+    public function filters(): JsonResponse
+    {
+        $columns = ['city', 'jamaat', 'jamiat', 'mohalla', 'area', 'gender', 'misaq', 'marital_status'];
+        $data = [];
+
+        foreach ($columns as $column) {
+            $data[$column] = Census::query()
+                ->whereNotNull($column)
+                ->where($column, '!=', '')
+                ->distinct()
+                ->orderBy($column)
+                ->pluck($column)
+                ->values();
         }
 
-        if ($request->has('mohalla')) {
-            $query->where('mohalla', 'like', '%' . $request->input('mohalla') . '%');
-        }
-
-        if ($request->has('area')) {
-            $query->where('area', 'like', '%' . $request->input('area') . '%');
-        }
-
-        if ($request->has('gender')) {
-            $query->where('gender', $request->input('gender'));
-        }
-
-        if ($request->has('misaq')) {
-            $query->where('misaq', $request->input('misaq'));
-        }
-
-        if ($request->has('marital_status')) {
-            $query->where('marital_status', $request->input('marital_status'));
-        }
-
-        // Pagination
-        $perPage = $request->input('per_page', 15);
-        $page = $request->input('page', 1);
-
-        $results = $query->orderBy('name')->paginate($perPage, ['*'], 'page', $page);
-
-        return $this->jsonSuccessWithData([
-            'data' => $results->items(),
-            'pagination' => [
-                'current_page' => $results->currentPage(),
-                'per_page' => $results->perPage(),
-                'total' => $results->total(),
-                'last_page' => $results->lastPage(),
-                'from' => $results->firstItem(),
-                'to' => $results->lastItem(),
-            ],
-        ]);
+        return $this->jsonSuccessWithData($data);
     }
 
     /**
@@ -183,10 +173,22 @@ class CensusController extends Controller
             );
         }
 
+        return $this->paginatedCensus(Census::query(), $request);
+    }
+
+    /**
+     * Paginate a census query. Password is omitted from list payloads.
+     */
+    private function paginatedCensus($query, Request $request): JsonResponse
+    {
         $perPage = $request->input('per_page', 15);
         $page = $request->input('page', 1);
 
-        $results = Census::orderBy('name')->paginate($perPage, ['*'], 'page', $page);
+        $results = $query
+            ->orderByRaw("name IS NULL OR name = ''")
+            ->orderBy('name')
+            ->paginate($perPage, ['*'], 'page', $page);
+        $results->getCollection()->each->makeHidden(['pwd']);
 
         return $this->jsonSuccessWithData([
             'data' => $results->items(),

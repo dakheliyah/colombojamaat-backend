@@ -33,6 +33,7 @@ Route::post('/auth/login', [AuthSessionController::class, 'login']);
 Route::post('/auth/logout', [AuthSessionController::class, 'logout']);
 // Census routes
 Route::get('/census', [CensusController::class, 'index']);
+Route::get('/census/filters', [CensusController::class, 'filters']);
 Route::get('/census/search', [CensusController::class, 'search']);
 Route::get('/census/family/{hof_its}', [CensusController::class, 'familyMembers']);
 Route::get('/census/{its_id}/with-relations', [CensusController::class, 'showWithRelations']);
@@ -95,6 +96,9 @@ Route::delete('/miqaat-check-definitions/{mcd_id}', [MiqaatCheckDefinitionContro
 // Events routes
 Route::get('/events', [EventController::class, 'index']);
 Route::post('/events', [EventController::class, 'store']);
+Route::put('/events/{id}', [EventController::class, 'update']);
+Route::patch('/events/{id}', [EventController::class, 'update']);
+Route::delete('/events/{id}', [EventController::class, 'destroy']);
 Route::get('/events/{event_id}/sharaf-definitions', [SharafDefinitionController::class, 'index'])
     ->middleware('user.from.cookie');
 Route::post('/events/{event_id}/sharaf-definitions/copy-from', [SharafDefinitionController::class, 'copyFromEvent']);

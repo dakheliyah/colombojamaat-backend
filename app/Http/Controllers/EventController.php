@@ -113,6 +113,101 @@ class EventController extends Controller
     }
 
     /**
+     * Update an existing event.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $event = Event::find($id);
+
+        if (! $event) {
+            return $this->jsonError('NOT_FOUND', 'Event not found.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'miqaat_id' => ['sometimes', 'integer', 'exists:miqaats,id'],
+            'date' => ['sometimes', 'date'],
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $miqaatId = (int) $request->input('miqaat_id', $event->miqaat_id);
+        $miqaat = Miqaat::find($miqaatId);
+        if ($miqaat && $miqaat->archived) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                'Cannot update an event on an archived miqaat.',
+                422
+            );
+        }
+
+        $dateError = $this->eventDateOutsideMiqaat($request->input('date', $event->date), $miqaat);
+        if ($dateError !== null) {
+            return $dateError;
+        }
+
+        $event->update($request->only(['miqaat_id', 'date', 'name', 'description']));
+
+        return $this->jsonSuccessWithData($event->fresh());
+    }
+
+    /**
+     * Delete an event. Related sharaf definitions cascade.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $event = Event::find($id);
+
+        if (! $event) {
+            return $this->jsonError('NOT_FOUND', 'Event not found.', 404);
+        }
+
+        $miqaat = Miqaat::find($event->miqaat_id);
+        if ($miqaat && $miqaat->archived) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                'Cannot delete an event on an archived miqaat.',
+                422
+            );
+        }
+
+        $event->delete();
+
+        return $this->jsonSuccess();
+    }
+
+    private function eventDateOutsideMiqaat(mixed $date, ?Miqaat $miqaat): ?JsonResponse
+    {
+        if ($date === null || $miqaat === null || $miqaat->start_date === null || $miqaat->end_date === null) {
+            return null;
+        }
+
+        $eventDate = $date instanceof \DateTimeInterface
+            ? $date->format('Y-m-d')
+            : (string) $date;
+
+        $start = $miqaat->start_date->toDateString();
+        $end = $miqaat->end_date->toDateString();
+
+        if ($eventDate < $start || $eventDate > $end) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                "Event date must be between {$start} and {$end}.",
+                422
+            );
+        }
+
+        return null;
+    }
+
+    /**
      * GET /api/events/{event_id}/sharaf-report-summary
      * Returns comprehensive summary statistics for sharafs in an event.
      */
