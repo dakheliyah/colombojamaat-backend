@@ -51,9 +51,13 @@ class SharafController extends Controller
             );
         }
 
+        // Census name wins. When the ITS is not in census, use the name stored on the HoF's sharaf member row.
+        $hofMemberNameSql = "(SELECT sm.name FROM sharaf_members AS sm WHERE sm.sharaf_id = sharafs.id AND sm.its_id = sharafs.hof_its AND sm.name IS NOT NULL AND sm.name <> '' ORDER BY sm.id LIMIT 1)";
+
         $query = Sharaf::query()
             ->leftJoin('census', 'sharafs.hof_its', '=', 'census.its_id')
-            ->select('sharafs.*', 'census.name as hof_name')
+            ->select('sharafs.*')
+            ->selectRaw("COALESCE(NULLIF(census.name, ''), {$hofMemberNameSql}) as hof_name")
             // List consumers use definition + payments; members/clearances are fetched per-sharaf.
             ->with(['sharafDefinition', 'sharafPayments.paymentDefinition', 'colorLegend']);
 
@@ -79,7 +83,11 @@ class SharafController extends Controller
         }
 
         if ($request->has('hof_name')) {
-            $query->where('census.name', 'like', '%' . $request->input('hof_name') . '%');
+            $like = '%' . $request->input('hof_name') . '%';
+            $query->where(function ($q) use ($like, $hofMemberNameSql) {
+                $q->where('census.name', 'like', $like)
+                    ->orWhereRaw("{$hofMemberNameSql} LIKE ?", [$like]);
+            });
         }
 
         if ($request->has('name')) {
