@@ -158,6 +158,7 @@ Route::get('/sharafs/{sharaf_id}/members', [SharafMemberController::class, 'inde
 Route::post('/sharafs/{sharaf_id}/members', [SharafMemberController::class, 'store']);
 Route::patch('/sharafs/{sharaf_id}/members/on-vms', [SharafMemberController::class, 'updateOnVmsBulk']);
 Route::patch('/sharafs/{sharaf_id}/members/{its}/on-vms', [SharafMemberController::class, 'updateOnVms']);
+Route::patch('/sharafs/{sharaf_id}/members/{its}', [SharafMemberController::class, 'update']);
 Route::delete('/sharafs/{sharaf_id}/members/{its}', [SharafMemberController::class, 'destroy']);
 // Sharaf Clearance routes
 Route::post('/sharafs/{sharaf_id}/clearances', [SharafClearanceController::class, 'store']);

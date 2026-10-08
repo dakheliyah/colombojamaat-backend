@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\DuplicateSharafAssignmentException;
+use App\Models\Sharaf;
 use App\Models\SharafMember;
+use App\Models\SharafPosition;
 use App\Services\SharafAllocationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -93,7 +95,10 @@ class SharafMemberController extends Controller
     public function update(Request $request, string $sharaf_id, string $its): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'its' => ['sometimes', 'nullable', 'numeric'],
+            'position_id' => ['sometimes', 'nullable', 'integer', 'exists:sharaf_positions,id'],
         ]);
 
         if ($validator->fails()) {
@@ -104,11 +109,71 @@ class SharafMemberController extends Controller
             );
         }
 
+        if (! $request->hasAny(['name', 'phone', 'its', 'position_id'])) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                'Provide at least one of name, phone, its, or position_id.',
+                422
+            );
+        }
+
         $member = SharafMember::where('sharaf_id', $sharaf_id)
             ->where('its_id', $its)
             ->firstOrFail();
 
-        $member->update(['name' => $request->input('name')]);
+        $updates = [];
+
+        if ($request->exists('name')) {
+            $updates['name'] = $request->input('name');
+        }
+
+        if ($request->exists('phone')) {
+            $phone = $request->input('phone');
+            $updates['phone'] = ($phone === null || $phone === '') ? null : $phone;
+        }
+
+        if ($request->filled('its')) {
+            $newIts = (string) (int) $request->input('its');
+            if ($newIts !== (string) $member->its_id) {
+                $duplicate = SharafMember::where('sharaf_id', $sharaf_id)
+                    ->where('its_id', $newIts)
+                    ->where('id', '!=', $member->id)
+                    ->exists();
+
+                if ($duplicate) {
+                    return $this->jsonError(
+                        'DUPLICATE_ASSIGNMENT',
+                        'This person is already assigned to this sharaf.',
+                        422
+                    );
+                }
+
+                $updates['its_id'] = $newIts;
+            }
+        }
+
+        if ($request->filled('position_id')) {
+            $positionId = (int) $request->input('position_id');
+            $sharaf = Sharaf::findOrFail($sharaf_id);
+            $positionBelongs = SharafPosition::where('id', $positionId)
+                ->where('sharaf_definition_id', $sharaf->sharaf_definition_id)
+                ->exists();
+
+            if (! $positionBelongs) {
+                return $this->jsonError(
+                    'VALIDATION_ERROR',
+                    'Position does not belong to this sharaf definition.',
+                    422
+                );
+            }
+
+            $updates['sharaf_position_id'] = $positionId;
+        }
+
+        if ($updates !== []) {
+            $member->update($updates);
+        }
+
         $member->load('sharafPosition');
 
         return $this->jsonSuccessWithData($member);
