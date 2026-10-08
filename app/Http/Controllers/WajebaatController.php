@@ -8,6 +8,7 @@ use App\Models\MiqaatCheckDepartment;
 use App\Models\WajCategory;
 use App\Models\Wajebaat;
 use App\Models\WajebaatGroup;
+use App\Services\ItsClearanceService;
 use App\Services\WajebaatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -1950,7 +1951,7 @@ class WajebaatController extends Controller
      *
      * Returns members with census, wajebaat (including is_isolated and category), and clearance_status for primary its_id.
      */
-    public function muminProfile(string $miqaat_id, string $its_id): JsonResponse
+    public function muminProfile(string $miqaat_id, string $its_id, ItsClearanceService $clearance): JsonResponse
     {
         $validator = Validator::make([
             'miqaat_id' => $miqaat_id,
@@ -2205,12 +2206,8 @@ class WajebaatController extends Controller
             ];
         })->values()->all();
 
-        // Clearance status should be calculated for the HoF, not the logged-in user
-        $pending = $this->pendingDepartmentChecks($miqaatId, $hofIts);
-        $clearanceStatus = [
-            'can_mark_paid' => empty($pending),
-            'pending_departments' => $pending,
-        ];
+        // Department checks follow the family HoF. Payment definitions follow this ITS.
+        $clearanceStatus = $clearance->forIts($miqaatId, (string) $its_id);
 
         $data = [
             'family' => [

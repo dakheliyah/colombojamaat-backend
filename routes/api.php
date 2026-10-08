@@ -2,6 +2,7 @@
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthSessionController;
 use App\Http\Controllers\CensusController;
+use App\Http\Controllers\ClearanceController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\CurrencyConversionController;
 use App\Http\Controllers\EventColorLegendController;
@@ -187,6 +188,7 @@ Route::get('/miqaats/{miqaat_id}/wajebaat/{its_id}', [WajebaatController::class,
 Route::get('/miqaats/{miqaat_id}/wajebaat/related-its/{its_id}', [WajebaatController::class, 'relatedIts']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/related/{its_id}', [WajebaatController::class, 'related']);
 Route::get('/miqaats/{miqaat_id}/wajebaat-categories', [WajebaatController::class, 'categories']);
+Route::get('/miqaats/{miqaat_id}/clearance/{its_id}', [ClearanceController::class, 'show']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/{its_id}/clearance', [WajebaatController::class, 'clearance']);
 Route::get('/miqaats/{miqaat_id}/wajebaat/{its_id}/aggregated-amounts', [WajebaatController::class, 'getAggregatedAmounts']);
 Route::post('/miqaats/{miqaat_id}/wajebaat/{its_id}/categorize', [WajebaatController::class, 'categorize']);
