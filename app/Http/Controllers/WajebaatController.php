@@ -643,6 +643,7 @@ class WajebaatController extends Controller
      * GET: clearance status for a member in a miqaat.
      *
      * Returns wajebaat record (if any), pending department checks, and whether the member can be marked paid.
+     * An ITS with no census row is treated as cleared: there is no HoF department check to apply.
      */
     public function clearance(string $miqaat_id, string $its_id): JsonResponse
     {
@@ -651,7 +652,7 @@ class WajebaatController extends Controller
             'its_id' => $its_id,
         ], [
             'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
-            'its_id' => ['required', 'string', 'exists:census,its_id'],
+            'its_id' => ['required', 'string'],
         ]);
 
         if ($validator->fails()) {
@@ -668,10 +669,11 @@ class WajebaatController extends Controller
         $miqaatId = (int) $miqaat_id;
         $itsId = (string) $its_id;
 
-        // Get the person's census record to find HoF
+        // Get the person's census record to find HoF.
+        // No census row means nothing blocks payment for this ITS.
         $person = Census::where('its_id', $itsId)->first();
         if (!$person) {
-            return $this->jsonError('NOT_FOUND', 'Person not found in census.', 404);
+            return $this->jsonSuccessWithData($this->clearedWithoutCensus($miqaatId, $itsId));
         }
 
         // Get HoF its_id (if person is HoF themselves, hof_id = its_id)
@@ -2337,6 +2339,33 @@ class WajebaatController extends Controller
         $data['amount_lkr'] = round($amountInLkr, 2);
 
         return $data;
+    }
+
+    /**
+     * Clearance payload when the ITS has no census row.
+     * Department checks are keyed by a census HoF, so there is nothing pending.
+     *
+     * @return array{wajebaat: ?Wajebaat, hof_its_id: string, hof_clearance_status: array<int, array{hof_its_id: string, pending_departments: array, can_mark_paid: bool}>, pending_departments: array, can_mark_paid: bool}
+     */
+    protected function clearedWithoutCensus(int $miqaatId, string $itsId): array
+    {
+        $wajebaat = Wajebaat::query()
+            ->forItsInMiqaat($itsId, $miqaatId)
+            ->first();
+
+        return [
+            'wajebaat' => $wajebaat,
+            'hof_its_id' => $itsId,
+            'hof_clearance_status' => [
+                [
+                    'hof_its_id' => $itsId,
+                    'pending_departments' => [],
+                    'can_mark_paid' => true,
+                ],
+            ],
+            'pending_departments' => [],
+            'can_mark_paid' => true,
+        ];
     }
 
     /**

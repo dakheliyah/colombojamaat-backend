@@ -17,7 +17,7 @@ return new class extends Migration
             $table->integer('rank'); // unique within sharaf_definition
             $table->string('name')->nullable();
             $table->integer('capacity'); // total max people in sharaf
-            $table->string('status')->default('pending'); // enum: pending, bs_approved, confirmed, rejected, cancelled
+            $table->string('status')->default('pending'); // enum: pending, confirmed, cancelled
             $table->string('hof_its'); // ITS number of Head of Family
             $table->boolean('lagat_paid')->default(false);
             $table->boolean('najwa_ada_paid')->default(false);

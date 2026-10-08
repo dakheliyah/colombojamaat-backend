@@ -21,7 +21,7 @@ All endpoints are prefixed with your API base URL (e.g., `/api` or `/`).
 | `rank` | integer | Yes | Rank of the sharaf (must be unique within the sharaf_definition_id, minimum: 1) |
 | `name` | string | No | Name of the sharaf (max 255 characters) |
 | `capacity` | integer | Yes | Maximum number of people in the sharaf (minimum: 1) |
-| `status` | string | No | Status of the sharaf. Options: `pending`, `bs_approved`, `confirmed`, `rejected`, `cancelled`. Default: `pending` |
+| `status` | string | No | Status of the sharaf. Options: `pending`, `confirmed`, `cancelled`. Default: `pending` |
 | `hof_its` | string | Yes | ITS number of the Head of Family |
 
 ### Request Example
@@ -202,13 +202,13 @@ All endpoints are prefixed with your API base URL (e.g., `/api` or `/`).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `status` | string | Yes | New status. Options: `pending`, `bs_approved`, `confirmed`, `rejected`, `cancelled` |
+| `status` | string | Yes | New status. Options: `pending`, `confirmed`, `cancelled` |
 
 ### Request Example
 
 ```json
 {
-  "status": "bs_approved"
+  "status": "confirmed"
 }
 ```
 
@@ -570,10 +570,8 @@ Not found errors return a 404 status code:
 ## Status Values
 
 The `status` field can have the following values:
-- `pending` - Sharaf is pending approval
-- `bs_approved` - Sharaf has been approved by BS
-- `confirmed` - Sharaf is confirmed (requires clearance and payments)
-- `rejected` - Sharaf has been rejected
+- `pending` - Sharaf is pending confirmation
+- `confirmed` - Sharaf is confirmed
 - `cancelled` - Sharaf has been cancelled
 
 ---

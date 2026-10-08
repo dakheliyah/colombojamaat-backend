@@ -130,7 +130,7 @@ class ReportingService
                 ['name' => 'sharaf_definition_id', 'type' => 'integer', 'operators' => ['equals', 'in']],
                 ['name' => 'event_id', 'type' => 'integer', 'operators' => ['equals', 'in']],
                 ['name' => 'miqaat_id', 'type' => 'integer', 'operators' => ['equals', 'in']],
-                ['name' => 'status', 'type' => 'enum', 'values' => ['pending', 'bs_approved', 'confirmed', 'rejected', 'cancelled'], 'operators' => ['equals', 'in']],
+                ['name' => 'status', 'type' => 'enum', 'values' => ['pending', 'confirmed', 'cancelled'], 'operators' => ['equals', 'in']],
                 ['name' => 'hof_its', 'type' => 'string', 'operators' => ['equals']],
                 ['name' => 'token', 'type' => 'string', 'operators' => ['like', 'equals']],
                 ['name' => 'rank_min', 'type' => 'integer', 'operators' => ['gte']],

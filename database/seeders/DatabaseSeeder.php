@@ -162,7 +162,7 @@ class DatabaseSeeder extends Seeder
             'rank' => 2,
             'name' => 'Sharaf Group 2',
             'capacity' => 6,
-            'status' => SharafStatus::BS_APPROVED,
+            'status' => SharafStatus::CONFIRMED,
             'hof_its' => 'ITS002',
         ]);
 

@@ -34,7 +34,7 @@ class SharafController extends Controller
         $validator = Validator::make($request->all(), [
             'sharaf_definition_id' => ['nullable', 'integer', 'exists:sharaf_definitions,id'],
             'miqaat_id' => ['nullable', 'integer', 'exists:miqaats,id'],
-            'status' => ['nullable', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
+            'status' => ['nullable', 'string', 'in:pending,confirmed,cancelled'],
             'hof_its' => ['nullable', 'string'],
             'member_its' => ['nullable', 'string'],
             'its_id' => ['nullable', 'string'],
@@ -112,7 +112,7 @@ class SharafController extends Controller
             'rank' => ['required', 'integer', 'min:0'],
             'name' => ['nullable', 'string', 'max:255'],
             'capacity' => ['required', 'integer', 'min:1'],
-            'status' => ['nullable', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
+            'status' => ['nullable', 'string', 'in:pending,confirmed,cancelled'],
             'hof_its' => ['required', 'string'],
             'token' => ['nullable', 'string', 'max:50', 'unique:sharafs,token'],
             'comments' => ['nullable', 'string'],
@@ -243,7 +243,7 @@ class SharafController extends Controller
             'rank' => ['nullable', 'integer', 'min:0'],
             'name' => ['nullable', 'string', 'max:255'],
             'capacity' => ['nullable', 'integer', 'min:1'],
-            'status' => ['nullable', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
+            'status' => ['nullable', 'string', 'in:pending,confirmed,cancelled'],
             'hof_its' => ['nullable', 'string'],
             'token' => ['nullable', 'string', 'max:50', 'unique:sharafs,token,' . $sharaf->id],
             'comments' => ['nullable', 'string'],
@@ -364,7 +364,7 @@ class SharafController extends Controller
     public function status(Request $request, string $sharaf_id): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'status' => ['required', 'string', 'in:pending,bs_approved,confirmed,rejected,cancelled'],
+            'status' => ['required', 'string', 'in:pending,confirmed,cancelled'],
         ]);
 
         if ($validator->fails()) {
