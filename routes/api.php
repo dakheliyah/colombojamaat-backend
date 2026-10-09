@@ -175,6 +175,7 @@ Route::put('/payment-definitions/{id}', [PaymentDefinitionController::class, 'up
 Route::patch('/payment-definitions/{id}', [PaymentDefinitionController::class, 'update']);
 Route::delete('/payment-definitions/{id}', [PaymentDefinitionController::class, 'destroy']);
 // Sharaf Payment routes
+Route::post('/sharafs/payment-receipts', [SharafPaymentController::class, 'issuePaymentReceipts']);
 Route::get('/sharaf-payments', [SharafPaymentController::class, 'index']);
 Route::post('/sharafs/{sharaf_id}/payments', [SharafPaymentController::class, 'store']);
 Route::patch('/sharafs/{sharaf_id}/payments/{payment_definition_id}', [SharafPaymentController::class, 'toggle']);

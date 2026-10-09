@@ -21,11 +21,16 @@ class Miqaat extends Model
         'archived',
     ];
 
+    protected $hidden = [
+        'last_receipt_no',
+    ];
+
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'active_status' => 'boolean',
         'archived' => 'boolean',
+        'last_receipt_no' => 'integer',
     ];
 
     /**

@@ -36,6 +36,8 @@ class Sharaf extends Model
         'rank' => 'integer',
         'capacity' => 'integer',
         'status' => SharafStatus::class,
+        'receipt_no' => 'integer',
+        'receipt_issued_at' => 'datetime',
     ];
 
     /**

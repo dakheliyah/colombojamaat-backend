@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Sharaf;
 use App\Models\SharafPayment;
 use App\Services\SharafPaymentService;
+use App\Services\SharafReceiptNumberService;
+use RuntimeException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,10 +19,42 @@ class SharafPaymentController extends Controller
 {
     protected $paymentService;
 
+    protected $receiptNumbers;
+
     public function __construct(
-        SharafPaymentService $paymentService
+        SharafPaymentService $paymentService,
+        SharafReceiptNumberService $receiptNumbers
     ) {
         $this->paymentService = $paymentService;
+        $this->receiptNumbers = $receiptNumbers;
+    }
+
+    /**
+     * Issue stable per-miqaat receipt numbers for the given sharafs.
+     * The first sharaf printed in a miqaat receives 1. Later prints of the same sharaf keep that number.
+     */
+    public function issuePaymentReceipts(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'sharaf_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'sharaf_ids.*' => ['integer', 'distinct', 'exists:sharafs,id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        try {
+            $issued = $this->receiptNumbers->issue($request->input('sharaf_ids'));
+        } catch (RuntimeException $e) {
+            return $this->jsonError('RECEIPT_NUMBER_ERROR', $e->getMessage(), 422);
+        }
+
+        return $this->jsonSuccessWithData($issued);
     }
 
     public function lagat(Request $request, string $sharaf_id): JsonResponse
