@@ -34,4 +34,14 @@ php artisan clear-compiled
 echo "✅ All caches cleared"
 echo ""
 
+# Rebuild config/route/event/view caches so production doesn't re-read them per request
+echo "⚡ Building caches..."
+php artisan optimize
+if [ $? -ne 0 ]; then
+    echo "❌ Cache build failed!"
+    exit 1
+fi
+echo "✅ Caches built"
+echo ""
+
 echo "🎉 Deployment completed successfully!"
