@@ -180,6 +180,35 @@ class ItsClearanceTest extends TestCase
             ->assertJsonPath('data.pending_payments', []);
     }
 
+    public function test_bulk_clearance_matches_single_requests(): void
+    {
+        $ids = $this->seedUnclearedMember();
+
+        DB::table('census')->insert([
+            'its_id' => '333',
+            'hof_id' => '333',
+            'name' => 'Other',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $single = $this->getJson("/miqaats/{$ids['miqaat']}/clearance/111")
+            ->assertOk()
+            ->json('data');
+
+        $bulk = $this->postJson("/api/miqaats/{$ids['miqaat']}/clearance", [
+            'its_ids' => ['111', '333', '999'],
+        ])->assertOk()->json('data');
+
+        $this->assertEquals($single, $bulk['111']);
+        $this->assertSame('333', $bulk['333']['its_id']);
+        $this->assertFalse($bulk['333']['can_mark_paid']);
+        $this->assertTrue($bulk['333']['payments_cleared']);
+        $this->assertSame('999', $bulk['999']['its_id']);
+        $this->assertTrue($bulk['999']['can_mark_paid']);
+        $this->assertSame([], $bulk['999']['pending_departments']);
+    }
+
     /**
      * @return array{miqaat: int, mcd: int, payment: int, sharaf: int}
      */

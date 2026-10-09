@@ -479,6 +479,7 @@ class SharafDefinitionController extends Controller
             [
                 'sd_id' => ['required', 'integer'],
                 'event_id' => ['nullable', 'integer', 'exists:events,id'],
+                'miqaat_id' => ['nullable', 'integer', 'exists:miqaats,id'],
             ]
         );
 
@@ -499,7 +500,7 @@ class SharafDefinitionController extends Controller
 
         // Build query for sharafs
         $query = Sharaf::where('sharafs.sharaf_definition_id', $sdId)
-            ->forMiqaat()
+            ->forMiqaat($request->filled('miqaat_id') ? (int) $request->input('miqaat_id') : null)
             ->with([
                 'sharafDefinition',
                 'colorLegend',
