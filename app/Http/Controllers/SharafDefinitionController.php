@@ -189,6 +189,79 @@ class SharafDefinitionController extends Controller
         return $this->jsonSuccessWithData($sharafs);
     }
 
+    /**
+     * PUT /api/sharaf-definitions/{sd_id}/sharafs/order
+     * Body: { ids: number[] } — every row in this definition only, in display order.
+     * Ranks for this definition become 1..N. Other definitions are not written.
+     */
+    public function reorderSharafs(Request $request, string $sd_id): JsonResponse
+    {
+        $definition = SharafDefinition::find($sd_id);
+        if (! $definition) {
+            return $this->jsonError('NOT_FOUND', 'Sharaf definition not found.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'distinct'],
+        ]);
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $ids = array_map('intval', $request->input('ids'));
+
+        try {
+            DB::transaction(function () use ($definition, $ids) {
+                $existing = Sharaf::where('sharaf_definition_id', $definition->id)
+                    ->lockForUpdate()
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                $sortedExisting = $existing;
+                $sortedIds = $ids;
+                sort($sortedExisting);
+                sort($sortedIds);
+                if ($sortedExisting !== $sortedIds) {
+                    throw new InvalidArgumentException('ids must list every sharaf for this definition exactly once.');
+                }
+
+                $offset = (int) Sharaf::where('sharaf_definition_id', $definition->id)->max('rank');
+                foreach ($ids as $index => $id) {
+                    DB::table('sharafs')
+                        ->where('sharaf_definition_id', $definition->id)
+                        ->where('id', $id)
+                        ->update([
+                            'rank' => $offset + $index + 1,
+                            'updated_at' => now(),
+                        ]);
+                }
+                foreach ($ids as $index => $id) {
+                    DB::table('sharafs')
+                        ->where('sharaf_definition_id', $definition->id)
+                        ->where('id', $id)
+                        ->update([
+                            'rank' => $index + 1,
+                            'updated_at' => now(),
+                        ]);
+                }
+            });
+        } catch (InvalidArgumentException $e) {
+            return $this->jsonError('VALIDATION_ERROR', $e->getMessage(), 422);
+        }
+
+        $ordered = Sharaf::where('sharaf_definition_id', $definition->id)
+            ->orderBy('rank')
+            ->get();
+
+        return $this->jsonSuccessWithData($ordered);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
