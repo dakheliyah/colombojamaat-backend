@@ -5,9 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Sharaf;
 use App\Models\SharafPayment;
 use App\Services\SharafPaymentService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SharafPaymentController extends Controller
 {
@@ -67,6 +71,9 @@ class SharafPaymentController extends Controller
             'paid' => ['required', 'boolean'],
             'paid_amount' => ['nullable', 'numeric', 'min:0'],
             'paid_currency' => ['nullable', 'string', 'max:3'],
+            'payment_method' => ['nullable', 'in:cash,transfer'],
+            'payment_city' => ['nullable', 'string', 'max:120'],
+            'receipt' => ['nullable', 'file', 'mimes:jpeg,jpg,png,gif,webp,pdf', 'max:5120'],
         ]);
 
         if ($validator->fails()) {
@@ -77,15 +84,54 @@ class SharafPaymentController extends Controller
             );
         }
 
+        $paid = $request->boolean('paid');
+        $paymentMethod = $request->input('payment_method');
+        $paymentMethod = is_string($paymentMethod) && $paymentMethod !== '' ? $paymentMethod : null;
+        $paymentCity = trim((string) $request->input('payment_city', ''));
+        $recordsCollection = $request->exists('paid_amount')
+            || $request->exists('payment_method')
+            || $request->exists('payment_city');
+
+        if ($paid && $recordsCollection) {
+            if (!in_array($paymentMethod, ['cash', 'transfer'], true)) {
+                return $this->jsonError('VALIDATION_ERROR', 'Payment method is required.', 422);
+            }
+            if ($paymentCity === '') {
+                return $this->jsonError('VALIDATION_ERROR', 'Payment city is required.', 422);
+            }
+        }
+        $receiptPath = null;
+        $updateReceipt = !$paid || $paymentMethod === 'cash';
+
+        if ($paid && $paymentMethod === 'transfer' && $request->hasFile('receipt')) {
+            $file = $request->file('receipt');
+            $ext = strtolower($file->getClientOriginalExtension() ?: 'bin');
+            $filename = Str::uuid().'.'.$ext;
+            $receiptPath = $file->storeAs(
+                "sharaf-payments/{$sharaf_id}/{$payment_definition_id}",
+                $filename,
+                'local'
+            );
+            $updateReceipt = true;
+        }
+
         try {
             $sharafPayment = $this->paymentService->togglePaymentByDefinitionId(
                 (int) $sharaf_id,
                 (int) $payment_definition_id,
-                (bool) $request->input('paid'),
+                $paid,
                 $request->input('paid_amount'),
-                $request->input('paid_currency')
+                $request->input('paid_currency'),
+                $paid ? $paymentMethod : null,
+                $paid && $paymentCity !== '' ? $paymentCity : null,
+                $receiptPath,
+                $updateReceipt
             );
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
+            if ($receiptPath) {
+                Storage::disk('local')->delete($receiptPath);
+            }
+
             return $this->jsonError(
                 'NOT_FOUND',
                 'Sharaf not found, or payment definition not found / not applicable for this sharaf.',
@@ -96,6 +142,52 @@ class SharafPaymentController extends Controller
         $sharafPayment->load(['sharaf', 'paymentDefinition']);
 
         return $this->jsonSuccessWithData($sharafPayment, 200);
+    }
+
+    /**
+     * GET /api/sharafs/{sharaf_id}/payments/{payment_definition_id}/receipt
+     * Serve a transfer receipt (image or PDF) for a signed-in user.
+     */
+    public function receipt(Request $request, string $sharaf_id, string $payment_definition_id): StreamedResponse|JsonResponse
+    {
+        if (!$request->user()) {
+            return $this->jsonError('UNAUTHORIZED', 'Authentication required.', 401);
+        }
+
+        $payment = SharafPayment::query()
+            ->where('sharaf_id', $sharaf_id)
+            ->where('payment_definition_id', $payment_definition_id)
+            ->first();
+
+        if (!$payment || !$payment->receipt_path) {
+            return $this->jsonError('NOT_FOUND', 'No receipt uploaded for this payment.', 404);
+        }
+
+        $fullPath = Storage::disk('local')->path($payment->receipt_path);
+        if (!is_file($fullPath)) {
+            return $this->jsonError('NOT_FOUND', 'Receipt file not found.', 404);
+        }
+
+        $mime = match (strtolower(pathinfo($payment->receipt_path, PATHINFO_EXTENSION))) {
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'pdf' => 'application/pdf',
+            default => 'image/jpeg',
+        };
+
+        return response()->streamDownload(
+            function () use ($fullPath) {
+                $stream = fopen($fullPath, 'r');
+                if ($stream) {
+                    fpassthru($stream);
+                    fclose($stream);
+                }
+            },
+            basename($payment->receipt_path),
+            ['Content-Type' => $mime],
+            'inline'
+        );
     }
 
     /**

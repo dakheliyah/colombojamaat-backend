@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PaymentDefinition;
 use App\Models\Sharaf;
 use App\Models\SharafPayment;
+use Illuminate\Support\Facades\Storage;
 
 class SharafPaymentService
 {
@@ -82,12 +83,17 @@ class SharafPaymentService
      * Find or create the sharaf_payments record and update payment_status.
      * When marking paid, paid_amount/paid_currency record what was actually received
      * (may differ from the agreed payment_amount/payment_currency).
+     * payment_method is cash or transfer. A transfer may keep a stored receipt.
      *
      * @param int $sharafId
      * @param int $paymentDefinitionId
      * @param bool $paid
      * @param float|string|null $paidAmount
      * @param string|null $paidCurrency
+     * @param string|null $paymentMethod
+     * @param string|null $paymentCity
+     * @param string|null $receiptPath
+     * @param bool $updateReceipt
      * @return SharafPayment
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
@@ -96,7 +102,11 @@ class SharafPaymentService
         int $paymentDefinitionId,
         bool $paid,
         $paidAmount = null,
-        ?string $paidCurrency = null
+        ?string $paidCurrency = null,
+        ?string $paymentMethod = null,
+        ?string $paymentCity = null,
+        ?string $receiptPath = null,
+        bool $updateReceipt = false
     ): SharafPayment {
         $sharaf = Sharaf::findOrFail($sharafId);
 
@@ -117,15 +127,33 @@ class SharafPaymentService
         }
 
         $payment->payment_status = $paid ? 1 : 0;
+        $previousReceipt = $payment->receipt_path;
 
         if ($paid) {
             $amount = $paidAmount ?? $payment->paid_amount ?? $payment->payment_amount ?? 0;
             $currency = $paidCurrency ?? $payment->paid_currency ?? $payment->payment_currency ?? 'LKR';
             $payment->paid_amount = $amount;
             $payment->paid_currency = strtoupper(substr((string) $currency, 0, 3));
+            if ($paymentMethod !== null) {
+                $payment->payment_method = $paymentMethod;
+            }
+            if ($paymentCity !== null) {
+                $payment->payment_city = $paymentCity;
+            }
+            if ($updateReceipt || $paymentMethod === 'cash') {
+                $payment->receipt_path = $paymentMethod === 'cash' ? null : $receiptPath;
+            }
+        } else {
+            $payment->payment_method = null;
+            $payment->payment_city = null;
+            $payment->receipt_path = null;
         }
 
         $payment->save();
+
+        if ($previousReceipt && $previousReceipt !== $payment->receipt_path) {
+            Storage::disk('local')->delete($previousReceipt);
+        }
 
         return $payment;
     }

@@ -19,6 +19,17 @@ class SharafPayment extends Model
         'payment_currency',
         'paid_amount',
         'paid_currency',
+        'payment_method',
+        'payment_city',
+        'receipt_path',
+    ];
+
+    protected $hidden = [
+        'receipt_path',
+    ];
+
+    protected $appends = [
+        'has_receipt',
     ];
 
     protected $casts = [
@@ -26,6 +37,11 @@ class SharafPayment extends Model
         'paid_amount' => 'decimal:2',
         'payment_status' => 'boolean',
     ];
+
+    public function getHasReceiptAttribute(): bool
+    {
+        return is_string($this->receipt_path) && $this->receipt_path !== '';
+    }
 
     /**
      * Get the sharaf that owns the payment.
