@@ -15,7 +15,7 @@ class BackupDatabase extends Command
 
     public function handle(): int
     {
-        if (! filter_var(env('DB_BACKUP_ENABLED', true), FILTER_VALIDATE_BOOLEAN)) {
+        if (! config('backup.enabled')) {
             $this->info('Database backups are disabled (DB_BACKUP_ENABLED=false).');
 
             return self::SUCCESS;
@@ -30,9 +30,9 @@ class BackupDatabase extends Command
             return self::FAILURE;
         }
 
-        $mysqldump = env('DB_BACKUP_MYSQLDUMP', 'mysqldump');
-        $directory = env('DB_BACKUP_PATH', storage_path('app/backups'));
-        $keep = max(1, (int) env('DB_BACKUP_KEEP', 3));
+        $mysqldump = config('backup.mysqldump');
+        $directory = config('backup.path');
+        $keep = max(1, (int) config('backup.keep'));
 
         File::ensureDirectoryExists($directory);
 
@@ -78,7 +78,7 @@ class BackupDatabase extends Command
             $result = Process::env([
                 'MYSQL_PWD' => (string) ($config['password'] ?? ''),
             ])
-                ->timeout((int) env('DB_BACKUP_TIMEOUT', 600))
+                ->timeout((int) config('backup.timeout'))
                 ->run($arguments);
 
             if ($result->failed()) {
