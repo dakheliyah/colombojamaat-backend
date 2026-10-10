@@ -8,6 +8,7 @@ use App\Models\MiqaatCheckDepartment;
 use App\Models\WajCategory;
 use App\Models\Wajebaat;
 use App\Models\WajebaatGroup;
+use App\Services\AuditLogService;
 use App\Services\ItsClearanceService;
 use App\Services\WajebaatService;
 use Illuminate\Http\JsonResponse;
@@ -138,11 +139,11 @@ class WajebaatController extends Controller
                 
                 // If is_isolated is being set to true, remove from any groups
                 if ($isIsolated === true) {
-                    // Remove from wajebaat_groups
-                    WajebaatGroup::query()
-                        ->where('miqaat_id', $miqaatId)
-                        ->where('its_id', $itsId)
-                        ->delete();
+                    app(AuditLogService::class)->deleteEach(
+                        WajebaatGroup::query()
+                            ->where('miqaat_id', $miqaatId)
+                            ->where('its_id', $itsId)
+                    );
                 }
 
                 // Determine wg_id based on explicit control or auto-detection
@@ -612,11 +613,11 @@ class WajebaatController extends Controller
 
         // If is_isolated is being set to true, remove from any groups
         if ($isIsolated === true) {
-            // Remove from wajebaat_groups
-            WajebaatGroup::query()
-                ->where('miqaat_id', $miqaatId)
-                ->where('its_id', $itsId)
-                ->delete();
+            app(AuditLogService::class)->deleteEach(
+                WajebaatGroup::query()
+                    ->where('miqaat_id', $miqaatId)
+                    ->where('its_id', $itsId)
+            );
         }
 
         // Update payment status and is_isolated (currency is already stored in wajebaat record)
@@ -1439,11 +1440,12 @@ class WajebaatController extends Controller
                 ]);
             }
 
-            // Update wajebaat records to link to this group
-            Wajebaat::query()
-                ->where('miqaat_id', $miqaatId)
-                ->whereIn('its_id', array_merge([$masterIts], $memberItsIds))
-                ->update(['wg_id' => $nextWgId]);
+            app(AuditLogService::class)->updateEach(
+                Wajebaat::query()
+                    ->where('miqaat_id', $miqaatId)
+                    ->whereIn('its_id', array_merge([$masterIts], $memberItsIds)),
+                ['wg_id' => $nextWgId]
+            );
         });
 
         $groupData = $this->buildGroupData($miqaatId, $nextWgId);
@@ -1561,10 +1563,9 @@ class WajebaatController extends Controller
         DB::transaction(function () use ($miqaatId, $wgId, $masterIts, $memberItsIds, $groupName, $groupType) {
             // If member_its_ids is provided, rebuild the group
             if ($memberItsIds !== null) {
-                // Remove old members (except master if master is changing)
-                WajebaatGroup::query()
-                    ->forGroup($miqaatId, $wgId)
-                    ->delete();
+                app(AuditLogService::class)->deleteEach(
+                    WajebaatGroup::query()->forGroup($miqaatId, $wgId)
+                );
 
                 // Create master record
                 WajebaatGroup::create([
@@ -1588,28 +1589,31 @@ class WajebaatController extends Controller
                     ]);
                 }
 
-                // Update wajebaat records
+                $audit = app(AuditLogService::class);
                 $allMemberIts = array_merge([$masterIts], $memberItsIds);
-                Wajebaat::query()
-                    ->where('miqaat_id', $miqaatId)
-                    ->whereIn('its_id', $allMemberIts)
-                    ->update(['wg_id' => $wgId]);
+                $audit->updateEach(
+                    Wajebaat::query()
+                        ->where('miqaat_id', $miqaatId)
+                        ->whereIn('its_id', $allMemberIts),
+                    ['wg_id' => $wgId]
+                );
 
-                // Remove wg_id from wajebaat records that are no longer in this group
-                Wajebaat::query()
-                    ->where('miqaat_id', $miqaatId)
-                    ->where('wg_id', $wgId)
-                    ->whereNotIn('its_id', $allMemberIts)
-                    ->update(['wg_id' => null]);
+                $audit->updateEach(
+                    Wajebaat::query()
+                        ->where('miqaat_id', $miqaatId)
+                        ->where('wg_id', $wgId)
+                        ->whereNotIn('its_id', $allMemberIts),
+                    ['wg_id' => null]
+                );
             } else {
-                // Just update group metadata
-                WajebaatGroup::query()
-                    ->forGroup($miqaatId, $wgId)
-                    ->update([
+                app(AuditLogService::class)->updateEach(
+                    WajebaatGroup::query()->forGroup($miqaatId, $wgId),
+                    [
                         'master_its' => $masterIts,
                         'group_name' => $groupName,
                         'group_type' => $groupType,
-                    ]);
+                    ]
+                );
             }
         });
 
@@ -1655,16 +1659,17 @@ class WajebaatController extends Controller
         }
 
         DB::transaction(function () use ($miqaatId, $wgId) {
-            // Set wajebaat.wg_id to null (cascade)
-            Wajebaat::query()
-                ->where('miqaat_id', $miqaatId)
-                ->where('wg_id', $wgId)
-                ->update(['wg_id' => null]);
+            $audit = app(AuditLogService::class);
+            $audit->updateEach(
+                Wajebaat::query()
+                    ->where('miqaat_id', $miqaatId)
+                    ->where('wg_id', $wgId),
+                ['wg_id' => null]
+            );
 
-            // Delete group membership records
-            WajebaatGroup::query()
-                ->forGroup($miqaatId, $wgId)
-                ->delete();
+            $audit->deleteEach(
+                WajebaatGroup::query()->forGroup($miqaatId, $wgId)
+            );
         });
 
         return response()->json([
@@ -2704,10 +2709,11 @@ class WajebaatController extends Controller
                     
                     // If is_isolated is being set to true, remove from any groups
                     if ($isIsolated === true) {
-                        WajebaatGroup::query()
-                            ->where('miqaat_id', $miqaatId)
-                            ->where('its_id', $itsId)
-                            ->delete();
+                        app(AuditLogService::class)->deleteEach(
+                            WajebaatGroup::query()
+                                ->where('miqaat_id', $miqaatId)
+                                ->where('its_id', $itsId)
+                        );
                     }
 
                     // Determine wg_id

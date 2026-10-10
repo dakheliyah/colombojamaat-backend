@@ -333,30 +333,38 @@ class WajebaatService
         $category = $this->findCategoryForAmount($miqaatId, 'INR', $totalAmountInInr);
         $wcId = $category?->wc_id;
 
+        $audit = app(AuditLogService::class);
+
         // Only update the master_its wajebaat record with the category
         // All other group members and their family members' records remain NULL (unless is_isolated = true)
-        Wajebaat::query()
-            ->where('miqaat_id', $miqaatId)
-            ->where('its_id', $masterItsId)
-            ->where('is_isolated', false)
-            ->update(['wc_id' => $wcId]);
+        $audit->updateEach(
+            Wajebaat::query()
+                ->where('miqaat_id', $miqaatId)
+                ->where('its_id', $masterItsId)
+                ->where('is_isolated', false),
+            ['wc_id' => $wcId]
+        );
 
         // Set all group members' wajebaat records to NULL (unless isolated)
-        Wajebaat::query()
-            ->where('miqaat_id', $miqaatId)
-            ->whereIn('its_id', $groupMemberItsIds)
-            ->where('its_id', '!=', $masterItsId)
-            ->where('is_isolated', false)
-            ->update(['wc_id' => null]);
+        $audit->updateEach(
+            Wajebaat::query()
+                ->where('miqaat_id', $miqaatId)
+                ->whereIn('its_id', $groupMemberItsIds)
+                ->where('its_id', '!=', $masterItsId)
+                ->where('is_isolated', false),
+            ['wc_id' => null]
+        );
 
         // Set all family members' wajebaat records to NULL (unless isolated)
-        Wajebaat::query()
-            ->where('miqaat_id', $miqaatId)
-            ->whereIn('its_id', $allFamilyItsIds)
-            ->where('its_id', '!=', $masterItsId)
-            ->whereNotIn('its_id', $groupMemberItsIds) // Don't update group members again
-            ->where('is_isolated', false)
-            ->update(['wc_id' => null]);
+        $audit->updateEach(
+            Wajebaat::query()
+                ->where('miqaat_id', $miqaatId)
+                ->whereIn('its_id', $allFamilyItsIds)
+                ->where('its_id', '!=', $masterItsId)
+                ->whereNotIn('its_id', $groupMemberItsIds)
+                ->where('is_isolated', false),
+            ['wc_id' => null]
+        );
     }
 
     /**
@@ -394,21 +402,27 @@ class WajebaatService
         $category = $this->findCategoryForAmount($miqaatId, 'INR', $totalAmountInInr);
         $wcId = $category?->wc_id;
 
+        $audit = app(AuditLogService::class);
+
         // Only update the hof_its wajebaat record with the category
         // All other family members' records remain NULL (unless is_isolated = true)
-        Wajebaat::query()
-            ->where('miqaat_id', $miqaatId)
-            ->where('its_id', $hofItsId)
-            ->where('is_isolated', false)
-            ->update(['wc_id' => $wcId]);
+        $audit->updateEach(
+            Wajebaat::query()
+                ->where('miqaat_id', $miqaatId)
+                ->where('its_id', $hofItsId)
+                ->where('is_isolated', false),
+            ['wc_id' => $wcId]
+        );
 
         // Set all other family members' wajebaat records to NULL (unless isolated)
-        Wajebaat::query()
-            ->where('miqaat_id', $miqaatId)
-            ->whereIn('its_id', $familyMembers)
-            ->where('its_id', '!=', $hofItsId)
-            ->where('is_isolated', false)
-            ->update(['wc_id' => null]);
+        $audit->updateEach(
+            Wajebaat::query()
+                ->where('miqaat_id', $miqaatId)
+                ->whereIn('its_id', $familyMembers)
+                ->where('its_id', '!=', $hofItsId)
+                ->where('is_isolated', false),
+            ['wc_id' => null]
+        );
     }
 }
 

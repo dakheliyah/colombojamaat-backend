@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Enums\WajebaatGroupType;
+use App\Models\Concerns\AuditsChanges;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WajebaatGroup extends Model
 {
-    use HasFactory;
+    use HasFactory, AuditsChanges;
 
     protected $table = 'wajebaat_groups';
 

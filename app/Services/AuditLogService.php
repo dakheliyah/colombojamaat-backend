@@ -7,7 +7,9 @@ use App\Models\Census;
 use App\Models\Currency;
 use App\Models\CurrencyConversion;
 use App\Models\Event;
+use App\Models\EventColorLegend;
 use App\Models\Miqaat;
+use App\Models\MiqaatCheck;
 use App\Models\MiqaatCheckDepartment;
 use App\Models\PaymentDefinition;
 use App\Models\PaymentDefinitionMapping;
@@ -20,8 +22,12 @@ use App\Models\SharafPayment;
 use App\Models\SharafPosition;
 use App\Models\SharafPositionMapping;
 use App\Models\SharafType;
+use App\Models\SilaFitraCalculation;
 use App\Models\SilaFitraConfig;
 use App\Models\User;
+use App\Models\Wajebaat;
+use App\Models\WajebaatGroup;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -48,6 +54,11 @@ class AuditLogService
         'sharaf_member' => 'Sharaf Member',
         'sharaf_payment' => 'Sharaf Payment',
         'sharaf_clearance' => 'Sharaf Clearance',
+        'event_color_legend' => 'Color Legend',
+        'sila_fitra_calculation' => 'Sila Fitra',
+        'miqaat_check' => 'Miqaat Check',
+        'wajebaat' => 'Wajebaat',
+        'wajebaat_group' => 'Wajebaat Group',
     ];
 
     private const CLASS_TO_ENTITY = [
@@ -69,6 +80,11 @@ class AuditLogService
         SharafMember::class => 'sharaf_member',
         SharafPayment::class => 'sharaf_payment',
         SharafClearance::class => 'sharaf_clearance',
+        EventColorLegend::class => 'event_color_legend',
+        SilaFitraCalculation::class => 'sila_fitra_calculation',
+        MiqaatCheck::class => 'miqaat_check',
+        Wajebaat::class => 'wajebaat',
+        WajebaatGroup::class => 'wajebaat_group',
     ];
 
     private const REDACTED_FIELDS = ['password', 'remember_token'];
@@ -158,7 +174,9 @@ class AuditLogService
         ?array $oldValues,
         ?array $newValues,
         ?string $summary = null,
-        array $metadata = []
+        array $metadata = [],
+        ?string $actorIts = null,
+        ?string $actorName = null,
     ): void {
         $entity = $this->entityFor($model);
         if ($entity === null) {
@@ -173,8 +191,48 @@ class AuditLogService
             $newValues !== null ? $this->serializeAttributes($model, $newValues) : null,
             $summary ?? $this->summary($entity, $action, $model, $newValues, $oldValues),
             $this->parentFor($model),
-            $metadata
+            $metadata,
+            $actorIts,
+            $actorName,
         );
+    }
+
+    /**
+     * Apply an update row by row so Eloquent events write an audit entry.
+     * A query-builder update() does not fire those events.
+     *
+     * @param  Builder<Model>  $query
+     * @param  array<string, mixed>  $attributes
+     */
+    public function updateEach(Builder $query, array $attributes): int
+    {
+        $updated = 0;
+        foreach ($query->get() as $model) {
+            $model->fill($attributes);
+            if (! $model->isDirty()) {
+                continue;
+            }
+            $model->save();
+            $updated++;
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Delete row by row so Eloquent events write an audit entry.
+     *
+     * @param  Builder<Model>  $query
+     */
+    public function deleteEach(Builder $query): int
+    {
+        $deleted = 0;
+        foreach ($query->get() as $model) {
+            $model->delete();
+            $deleted++;
+        }
+
+        return $deleted;
     }
 
     /**
@@ -191,10 +249,14 @@ class AuditLogService
         ?array $newValues,
         string $summary,
         ?array $parent,
-        array $metadata = []
+        array $metadata = [],
+        ?string $actorIts = null,
+        ?string $actorName = null,
     ): void {
         try {
-            [$actorIts, $actorName] = $this->resolveActor();
+            if ($actorIts === null) {
+                [$actorIts, $actorName] = $this->resolveActor();
+            }
 
             AuditLog::create([
                 'entity' => $entity,
@@ -261,10 +323,25 @@ class AuditLogService
             return $id > 0 ? ['entity' => 'sharaf_definition_mapping', 'id' => $id] : null;
         }
 
-        if ($model instanceof MiqaatCheckDepartment) {
+        if ($model instanceof MiqaatCheckDepartment || $model instanceof SilaFitraCalculation
+            || $model instanceof Wajebaat || $model instanceof WajebaatGroup) {
             $id = (int) $model->getAttribute('miqaat_id');
 
             return $id > 0 ? ['entity' => 'miqaat', 'id' => $id] : null;
+        }
+
+        if ($model instanceof EventColorLegend) {
+            $id = (int) $model->getAttribute('event_id');
+
+            return $id > 0 ? ['entity' => 'event', 'id' => $id] : null;
+        }
+
+        if ($model instanceof MiqaatCheck) {
+            $miqaatId = (int) MiqaatCheckDepartment::query()
+                ->where('mcd_id', $model->getAttribute('mcd_id'))
+                ->value('miqaat_id');
+
+            return $miqaatId > 0 ? ['entity' => 'miqaat', 'id' => $miqaatId] : null;
         }
 
         return null;
@@ -373,12 +450,72 @@ class AuditLogService
             };
         }
 
+        if ($entity === 'wajebaat') {
+            $its = $model->getAttribute('its_id') ?? ($newValues['its_id'] ?? $oldValues['its_id'] ?? '');
+
+            return match ($action) {
+                'created' => "Saved wajebaat for {$its}",
+                'deleted' => "Deleted wajebaat for {$its}",
+                default => "Updated wajebaat for {$its}: ".$this->changedFields($newValues),
+            };
+        }
+
+        if ($entity === 'wajebaat_group') {
+            $its = $model->getAttribute('its_id') ?? ($newValues['its_id'] ?? $oldValues['its_id'] ?? '');
+            $wgId = $model->getAttribute('wg_id') ?? ($newValues['wg_id'] ?? $oldValues['wg_id'] ?? '');
+
+            return match ($action) {
+                'created' => "Added {$its} to wajebaat group #{$wgId}",
+                'deleted' => "Removed {$its} from wajebaat group #{$wgId}",
+                default => "Updated wajebaat group #{$wgId} for {$its}: ".$this->changedFields($newValues),
+            };
+        }
+
+        if ($entity === 'miqaat_check') {
+            $its = $model->getAttribute('its_id') ?? ($newValues['its_id'] ?? $oldValues['its_id'] ?? '');
+            if ($action === 'deleted') {
+                return "Deleted miqaat check for {$its}";
+            }
+            if (is_array($newValues) && array_key_exists('is_cleared', $newValues)) {
+                $state = filter_var($newValues['is_cleared'], FILTER_VALIDATE_BOOLEAN) ? 'cleared' : 'not cleared';
+
+                return "Marked miqaat check for {$its} as {$state}";
+            }
+
+            return "Updated miqaat check for {$its}: ".$this->changedFields($newValues);
+        }
+
+        if ($entity === 'sila_fitra_calculation') {
+            $hof = $model->getAttribute('hof_its') ?? ($newValues['hof_its'] ?? $oldValues['hof_its'] ?? '');
+            if ($action === 'created') {
+                return "Saved sila fitra for household {$hof}";
+            }
+            if ($action === 'deleted') {
+                return "Deleted sila fitra for household {$hof}";
+            }
+            if (is_array($newValues) && array_key_exists('receipt_path', $newValues)
+                && array_diff(array_keys($newValues), ['receipt_path']) === []) {
+                return "Uploaded sila fitra receipt for household {$hof}";
+            }
+            if (is_array($newValues) && array_key_exists('payment_verified', $newValues)) {
+                $verified = filter_var($newValues['payment_verified'], FILTER_VALIDATE_BOOLEAN);
+
+                return $verified
+                    ? "Verified sila fitra payment for household {$hof}"
+                    : "Cleared sila fitra verification for household {$hof}";
+            }
+
+            return "Updated sila fitra for household {$hof}: ".$this->changedFields($newValues);
+        }
+
         $named = $name !== '' ? " \"{$name}\"" : '';
 
         return match ($action) {
             'created' => "Created {$label}{$named}",
             'deleted' => "Deleted {$label}{$named}",
             'copied' => "Copied {$label}{$named}",
+            'login' => "Logged in{$named}",
+            'logout' => "Logged out{$named}",
             default => "Updated {$label}{$named}: ".$this->changedFields($newValues),
         };
     }
@@ -388,7 +525,7 @@ class AuditLogService
      */
     private function displayName(Model $model, array $values): string
     {
-        foreach (['name', 'display_name', 'its_no', 'its_id', 'hof_its', 'token'] as $field) {
+        foreach (['name', 'label', 'display_name', 'its_no', 'its_id', 'hof_its', 'token'] as $field) {
             $value = $model->getAttribute($field) ?? ($values[$field] ?? null);
             if (is_string($value) && $value !== '') {
                 return $value;

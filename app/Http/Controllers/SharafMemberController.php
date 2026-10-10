@@ -197,10 +197,20 @@ class SharafMemberController extends Controller
 
         $itsIds = array_map(fn ($v) => (string) (int) $v, $request->input('its_ids'));
         $itsIds = array_values(array_unique(array_filter($itsIds)));
+        $onVms = $request->boolean('on_vms');
 
-        $updatedCount = SharafMember::where('sharaf_id', $sharaf_id)
+        $membersToUpdate = SharafMember::where('sharaf_id', $sharaf_id)
             ->whereIn('its_id', $itsIds)
-            ->update(['on_vms' => $request->boolean('on_vms')]);
+            ->get();
+
+        $updatedCount = 0;
+        foreach ($membersToUpdate as $member) {
+            if ((bool) $member->on_vms === $onVms) {
+                continue;
+            }
+            $member->update(['on_vms' => $onVms]);
+            $updatedCount++;
+        }
 
         $members = SharafMember::where('sharaf_id', $sharaf_id)
             ->whereIn('its_id', $itsIds)

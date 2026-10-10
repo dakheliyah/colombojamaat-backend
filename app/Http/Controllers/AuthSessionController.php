@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -71,6 +72,17 @@ class AuthSessionController extends Controller
         // Load user with relationships for response
         $user = User::with(['roles', 'sharafTypes'])->find($userData->id);
 
+        app(AuditLogService::class)->recordManual(
+            $user,
+            'login',
+            null,
+            ['its_no' => $user->its_no],
+            'Logged in '.trim($user->name.' ('.$user->its_no.')'),
+            [],
+            (string) $user->its_no,
+            $user->name,
+        );
+
         $cookie = cookie(
             name: 'user',
             value: $itsNo,
@@ -123,6 +135,24 @@ class AuthSessionController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
+        $raw = $request->cookie('user');
+        $its = is_string($raw) ? trim($raw) : '';
+        if ($this->isValidItsNo($its)) {
+            $user = User::where('its_no', $its)->first();
+            if ($user) {
+                app(AuditLogService::class)->recordManual(
+                    $user,
+                    'logout',
+                    null,
+                    ['its_no' => $user->its_no],
+                    'Logged out '.trim($user->name.' ('.$user->its_no.')'),
+                    [],
+                    (string) $user->its_no,
+                    $user->name,
+                );
+            }
+        }
+
         $cookie = Cookie::forget('user', '/');
 
         return response()

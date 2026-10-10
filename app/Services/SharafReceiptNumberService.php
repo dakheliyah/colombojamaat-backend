@@ -43,6 +43,7 @@ class SharafReceiptNumberService
             }
 
             $nextByMiqaat = [];
+            $miqaats = [];
             $issuedAt = now();
 
             foreach ($orderedIds as $id) {
@@ -58,6 +59,7 @@ class SharafReceiptNumberService
                     if ($miqaat === null) {
                         throw new RuntimeException('Sharaf is not linked to a miqaat.');
                     }
+                    $miqaats[$miqaatId] = $miqaat;
                     $nextByMiqaat[$miqaatId] = (int) $miqaat->last_receipt_no;
                 }
 
@@ -68,9 +70,9 @@ class SharafReceiptNumberService
             }
 
             foreach ($nextByMiqaat as $miqaatId => $lastNo) {
-                DB::table('miqaats')->where('id', $miqaatId)->update([
-                    'last_receipt_no' => $lastNo,
-                ]);
+                $miqaat = $miqaats[$miqaatId];
+                $miqaat->last_receipt_no = $lastNo;
+                $miqaat->save();
             }
 
             return $locked

@@ -214,6 +214,10 @@ class SharafDefinitionController extends Controller
         }
 
         $ids = array_map('intval', $request->input('ids'));
+        $previous = Sharaf::where('sharaf_definition_id', $definition->id)
+            ->orderBy('rank')
+            ->orderBy('id')
+            ->get(['id', 'name', 'rank', 'hof_its']);
 
         try {
             DB::transaction(function () use ($definition, $ids) {
@@ -258,6 +262,24 @@ class SharafDefinitionController extends Controller
         $ordered = Sharaf::where('sharaf_definition_id', $definition->id)
             ->orderBy('rank')
             ->get();
+
+        app(AuditLogService::class)->recordManual(
+            $definition,
+            'reordered',
+            ['order' => $previous->map(fn ($row) => [
+                'id' => $row->id,
+                'name' => $row->name,
+                'rank' => $row->rank,
+                'hof_its' => $row->hof_its,
+            ])->all()],
+            ['order' => $ordered->map(fn ($row) => [
+                'id' => $row->id,
+                'name' => $row->name,
+                'rank' => $row->rank,
+                'hof_its' => $row->hof_its,
+            ])->all()],
+            'Reordered sharafs for '.$definition->name,
+        );
 
         return $this->jsonSuccessWithData($ordered);
     }

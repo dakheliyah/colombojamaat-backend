@@ -7,6 +7,7 @@ use App\Models\Sharaf;
 use App\Models\SharafClearance;
 use App\Models\SharafMember;
 use App\Models\User;
+use App\Services\AuditLogPresenter;
 use App\Services\AuditLogService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -227,7 +228,7 @@ class AuditLogController extends Controller
         $query->where(function (Builder $outer) use ($its, $like, $sharafIds, $memberIds, $clearanceIds, $userIds) {
             $outer->where('summary', 'like', $like);
 
-            foreach (['hof_its', 'its_id', 'its_no'] as $field) {
+            foreach (['hof_its', 'its_id', 'its_no', 'master_its'] as $field) {
                 $outer->orWhere('old_values->'.$field, $its)
                     ->orWhere('new_values->'.$field, $its);
             }
@@ -265,14 +266,6 @@ class AuditLogController extends Controller
      */
     private function presentLogs(Collection $logs): array
     {
-        return $logs->map(function (AuditLog $log) {
-            $arr = $log->toArray();
-            $arr['entity_label'] = AuditLogService::ENTITY_LABELS[$log->entity] ?? $log->entity;
-            $arr['parent_entity_label'] = $log->parent_entity
-                ? (AuditLogService::ENTITY_LABELS[$log->parent_entity] ?? $log->parent_entity)
-                : null;
-
-            return $arr;
-        })->values()->all();
+        return app(AuditLogPresenter::class)->present($logs);
     }
 }
