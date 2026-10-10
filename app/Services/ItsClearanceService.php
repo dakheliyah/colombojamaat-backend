@@ -14,6 +14,7 @@ class ItsClearanceService
     /**
      * Clearance for one ITS.
      * Miqaat check definitions are evaluated for the family Head of Family (and wajebaat-group HoFs).
+     * An ITS with no census row is checked against its own miqaat checks.
      * Payment definitions are evaluated for sharafs in this miqaat where the given ITS is Head of Family.
      * can_mark_paid stays department-only so wajebaat mark-paid matches the existing guard.
      * is_cleared is true only when both department checks and those payments are clear.
@@ -98,6 +99,7 @@ class ItsClearanceService
         foreach ($itsIds as $itsId) {
             $person = $people->get($itsId);
             if (! $person) {
+                $allHofsToCheck[] = $itsId;
                 continue;
             }
             $hofItsId = (string) ($person->hof_id ?? $itsId);
@@ -429,18 +431,19 @@ class ItsClearanceService
         array $payments
     ): array {
         if (! $person) {
+            $pending = $pendingByHof[$itsId] ?? [];
             $data = [
                 'wajebaat' => $wajebaat,
                 'hof_its_id' => $itsId,
                 'hof_clearance_status' => [
                     [
                         'hof_its_id' => $itsId,
-                        'pending_departments' => [],
-                        'can_mark_paid' => true,
+                        'pending_departments' => $pending,
+                        'can_mark_paid' => $pending === [],
                     ],
                 ],
-                'pending_departments' => [],
-                'can_mark_paid' => true,
+                'pending_departments' => $pending,
+                'can_mark_paid' => $pending === [],
             ];
         } else {
             $allPending = [];

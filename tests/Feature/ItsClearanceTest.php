@@ -205,8 +205,30 @@ class ItsClearanceTest extends TestCase
         $this->assertFalse($bulk['333']['can_mark_paid']);
         $this->assertTrue($bulk['333']['payments_cleared']);
         $this->assertSame('999', $bulk['999']['its_id']);
-        $this->assertTrue($bulk['999']['can_mark_paid']);
-        $this->assertSame([], $bulk['999']['pending_departments']);
+        $this->assertFalse($bulk['999']['can_mark_paid']);
+        $this->assertFalse($bulk['999']['is_cleared']);
+        $this->assertSame($ids['mcd'], $bulk['999']['pending_departments'][0]['mcd_id']);
+        $this->assertSame('Anjuman Clearance', $bulk['999']['pending_departments'][0]['name']);
+    }
+
+    public function test_missing_census_uses_checks_stored_on_that_its(): void
+    {
+        $ids = $this->seedUnclearedMember();
+
+        DB::table('miqaat_checks')->insert([
+            'its_id' => '999',
+            'mcd_id' => $ids['mcd'],
+            'is_cleared' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->getJson("/miqaats/{$ids['miqaat']}/clearance/999")
+            ->assertOk()
+            ->assertJsonPath('data.hof_its_id', '999')
+            ->assertJsonPath('data.can_mark_paid', true)
+            ->assertJsonPath('data.pending_departments', [])
+            ->assertJsonPath('data.is_cleared', true);
     }
 
     /**
