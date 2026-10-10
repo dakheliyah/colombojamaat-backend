@@ -4,9 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Sharaf;
+use App\Models\SharafClearance;
+use App\Models\SharafMember;
+use App\Models\User;
 use App\Services\AuditLogService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 
 class AuditLogController extends Controller
@@ -16,21 +21,14 @@ class AuditLogController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), array_merge([
             'entity' => ['nullable', 'string', 'max:64'],
             'auditable_id' => ['nullable', 'integer'],
             'parent_entity' => ['nullable', 'string', 'max:64'],
             'parent_id' => ['nullable', 'integer'],
             'include_children' => ['nullable', 'boolean'],
             'sharaf_id' => ['nullable', 'integer'],
-            'action' => ['nullable', 'string', 'max:32'],
-            'actor_its' => ['nullable', 'string', 'max:255'],
-            'q' => ['nullable', 'string', 'max:255'],
-            'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
-        ]);
+        ], $this->sharedFilterRules()));
 
         if ($validator->fails()) {
             return $this->jsonError(
@@ -50,16 +48,9 @@ class AuditLogController extends Controller
     {
         $validator = Validator::make(
             array_merge($request->all(), ['sharaf_id' => $sharaf_id]),
-            [
+            array_merge([
                 'sharaf_id' => ['required', 'integer'],
-                'action' => ['nullable', 'string', 'max:32'],
-                'actor_its' => ['nullable', 'string', 'max:255'],
-                'q' => ['nullable', 'string', 'max:255'],
-                'from' => ['nullable', 'date'],
-                'to' => ['nullable', 'date'],
-                'page' => ['nullable', 'integer', 'min:1'],
-                'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
-            ]
+            ], $this->sharedFilterRules())
         );
 
         if ($validator->fails()) {
@@ -154,23 +145,36 @@ class AuditLogController extends Controller
         if ($request->filled('to')) {
             $query->where('created_at', '<=', $request->input('to').' 23:59:59');
         }
+        if ($request->filled('subject_its')) {
+            $this->applySubjectIts($query, (string) $request->input('subject_its'));
+        }
+
+        if ($request->boolean('all')) {
+            $cap = 5000;
+            $total = (clone $query)->count();
+            $models = $query->limit($cap)->get();
+            $count = $models->count();
+
+            return [
+                'data' => $this->presentLogs($models),
+                'pagination' => [
+                    'current_page' => 1,
+                    'per_page' => $count,
+                    'total' => $total,
+                    'last_page' => 1,
+                    'from' => $count > 0 ? 1 : null,
+                    'to' => $count > 0 ? $count : null,
+                ],
+                'entities' => AuditLogService::ENTITY_LABELS,
+            ];
+        }
 
         $perPage = (int) $request->input('per_page', 25);
         $page = (int) $request->input('page', 1);
         $results = $query->paginate($perPage, ['*'], 'page', $page);
 
-        $items = collect($results->items())->map(function (AuditLog $log) {
-            $arr = $log->toArray();
-            $arr['entity_label'] = AuditLogService::ENTITY_LABELS[$log->entity] ?? $log->entity;
-            $arr['parent_entity_label'] = $log->parent_entity
-                ? (AuditLogService::ENTITY_LABELS[$log->parent_entity] ?? $log->parent_entity)
-                : null;
-
-            return $arr;
-        })->values()->all();
-
         return [
-            'data' => $items,
+            'data' => $this->presentLogs(collect($results->items())),
             'pagination' => [
                 'current_page' => $results->currentPage(),
                 'per_page' => $results->perPage(),
@@ -181,5 +185,94 @@ class AuditLogController extends Controller
             ],
             'entities' => AuditLogService::ENTITY_LABELS,
         ];
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function sharedFilterRules(): array
+    {
+        return [
+            'action' => ['nullable', 'string', 'max:32'],
+            'actor_its' => ['nullable', 'string', 'max:255'],
+            'subject_its' => ['nullable', 'string', 'max:32'],
+            'q' => ['nullable', 'string', 'max:255'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'all' => ['nullable', 'boolean'],
+        ];
+    }
+
+    /**
+     * Match the person the change is about: sharaf HOF, member, clearance, or user.
+     * Live rows cover later edits that do not repeat the ITS. JSON and summary cover deleted rows.
+     *
+     * @param  Builder<AuditLog>  $query
+     */
+    private function applySubjectIts(Builder $query, string $its): void
+    {
+        $its = str_replace(['%', '_'], '', trim($its));
+        if ($its === '') {
+            return;
+        }
+
+        $sharafIds = Sharaf::query()->where('hof_its', $its)->pluck('id');
+        $memberIds = SharafMember::query()->where('its_id', $its)->pluck('id');
+        $clearanceIds = SharafClearance::query()->where('hof_its', $its)->pluck('id');
+        $userIds = User::query()->where('its_no', $its)->pluck('id');
+        $like = '%'.$its.'%';
+
+        $query->where(function (Builder $outer) use ($its, $like, $sharafIds, $memberIds, $clearanceIds, $userIds) {
+            $outer->where('summary', 'like', $like);
+
+            foreach (['hof_its', 'its_id', 'its_no'] as $field) {
+                $outer->orWhere('old_values->'.$field, $its)
+                    ->orWhere('new_values->'.$field, $its);
+            }
+
+            $this->orWhereEntityIds($outer, 'sharaf', $sharafIds);
+            if ($sharafIds->isNotEmpty()) {
+                $outer->orWhere(function (Builder $inner) use ($sharafIds) {
+                    $inner->where('parent_entity', 'sharaf')->whereIn('parent_id', $sharafIds);
+                });
+            }
+            $this->orWhereEntityIds($outer, 'sharaf_member', $memberIds);
+            $this->orWhereEntityIds($outer, 'sharaf_clearance', $clearanceIds);
+            $this->orWhereEntityIds($outer, 'user', $userIds);
+        });
+    }
+
+    /**
+     * @param  Builder<AuditLog>  $query
+     * @param  Collection<int, mixed>  $ids
+     */
+    private function orWhereEntityIds(Builder $query, string $entity, Collection $ids): void
+    {
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $query->orWhere(function (Builder $inner) use ($entity, $ids) {
+            $inner->where('entity', $entity)->whereIn('auditable_id', $ids);
+        });
+    }
+
+    /**
+     * @param  Collection<int, AuditLog>  $logs
+     * @return array<int, array<string, mixed>>
+     */
+    private function presentLogs(Collection $logs): array
+    {
+        return $logs->map(function (AuditLog $log) {
+            $arr = $log->toArray();
+            $arr['entity_label'] = AuditLogService::ENTITY_LABELS[$log->entity] ?? $log->entity;
+            $arr['parent_entity_label'] = $log->parent_entity
+                ? (AuditLogService::ENTITY_LABELS[$log->parent_entity] ?? $log->parent_entity)
+                : null;
+
+            return $arr;
+        })->values()->all();
     }
 }
