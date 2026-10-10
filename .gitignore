@@ -23,3 +23,7 @@ graphify-out/
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Off-server backup private key and decrypted restores (never commit)
+/.backup-keys/
+/restore/
