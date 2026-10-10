@@ -11,6 +11,7 @@ use App\Http\Controllers\FamilySummaryController;
 use App\Http\Controllers\MiqaatCheckController;
 use App\Http\Controllers\MiqaatCheckDefinitionController;
 use App\Http\Controllers\MiqaatController;
+use App\Http\Controllers\SharafBulkImportController;
 use App\Http\Controllers\SharafController;
 use App\Http\Controllers\SharafClearanceController;
 use App\Http\Controllers\SharafDefinitionController;
@@ -148,7 +149,11 @@ Route::get('/sharaf-definition-mappings/{id}/audit-logs', [SharafDefinitionMappi
 Route::post('/sharaf-positions', [SharafPositionController::class, 'store']);
 Route::put('/sharaf-positions/{id}', [SharafPositionController::class, 'update']);
 Route::patch('/sharaf-positions/{id}', [SharafPositionController::class, 'update']);
-// Sharaf routes
+// Sharaf routes. Import paths stay above /sharafs/{sharaf_id}.
+Route::get('/sharafs/import/columns', [SharafBulkImportController::class, 'columns']);
+Route::get('/sharafs/import/template', [SharafBulkImportController::class, 'template']);
+Route::post('/sharafs/import/validate', [SharafBulkImportController::class, 'validateUpload']);
+Route::post('/sharafs/import', [SharafBulkImportController::class, 'import']);
 Route::get('/sharafs', [SharafController::class, 'index']);
 Route::post('/sharafs', [SharafController::class, 'store']);
 Route::get('/sharafs/{sharaf_id}/audit-logs', [AuditLogController::class, 'forSharaf']);
