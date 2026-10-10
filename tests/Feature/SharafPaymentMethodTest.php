@@ -214,6 +214,33 @@ class SharafPaymentMethodTest extends TestCase
         Storage::disk('local')->assertMissing($path);
     }
 
+    public function test_other_payment_records_method_and_clears_a_receipt(): void
+    {
+        $this->post('/sharafs/4/payments/7', [
+            'paid' => '1',
+            'paid_amount' => '10',
+            'paid_currency' => 'LKR',
+            'payment_method' => 'transfer',
+            'payment_city' => 'Colombo',
+            'receipt' => UploadedFile::fake()->create('slip.pdf', 20, 'application/pdf'),
+        ])->assertOk();
+
+        $path = SharafPayment::first()->receipt_path;
+
+        $this->patchJson('/sharafs/4/payments/7', [
+            'paid' => true,
+            'paid_amount' => 75,
+            'paid_currency' => 'LKR',
+            'payment_method' => 'other',
+            'payment_city' => 'Colombo',
+        ])->assertOk()
+            ->assertJsonPath('data.payment_method', 'other')
+            ->assertJsonPath('data.payment_city', 'Colombo')
+            ->assertJsonPath('data.has_receipt', false);
+
+        Storage::disk('local')->assertMissing($path);
+    }
+
     public function test_switching_to_cash_deletes_an_existing_receipt(): void
     {
         $this->post('/sharafs/4/payments/7', [

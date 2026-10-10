@@ -105,7 +105,7 @@ class SharafPaymentController extends Controller
             'paid' => ['required', 'boolean'],
             'paid_amount' => ['nullable', 'numeric', 'min:0'],
             'paid_currency' => ['nullable', 'string', 'max:3'],
-            'payment_method' => ['nullable', 'in:cash,transfer'],
+            'payment_method' => ['nullable', 'in:cash,transfer,other'],
             'payment_city' => ['nullable', 'string', 'max:120'],
             'receipt' => ['nullable', 'file', 'mimes:jpeg,jpg,png,gif,webp,pdf', 'max:5120'],
         ]);
@@ -127,7 +127,7 @@ class SharafPaymentController extends Controller
             || $request->exists('payment_city');
 
         if ($paid && $recordsCollection) {
-            if (!in_array($paymentMethod, ['cash', 'transfer'], true)) {
+            if (!in_array($paymentMethod, ['cash', 'transfer', 'other'], true)) {
                 return $this->jsonError('VALIDATION_ERROR', 'Payment method is required.', 422);
             }
             if ($paymentCity === '') {
@@ -135,7 +135,8 @@ class SharafPaymentController extends Controller
             }
         }
         $receiptPath = null;
-        $updateReceipt = !$paid || $paymentMethod === 'cash';
+        $clearsReceipt = in_array($paymentMethod, ['cash', 'other'], true);
+        $updateReceipt = !$paid || $clearsReceipt;
 
         if ($paid && $paymentMethod === 'transfer' && $request->hasFile('receipt')) {
             $file = $request->file('receipt');
@@ -180,7 +181,7 @@ class SharafPaymentController extends Controller
 
     /**
      * GET /api/sharafs/{sharaf_id}/payments/{payment_definition_id}/receipt
-     * Serve a transfer receipt (image or PDF) for a signed-in user.
+     * Serve a DEH receipt (image or PDF) for a signed-in user.
      */
     public function receipt(Request $request, string $sharaf_id, string $payment_definition_id): StreamedResponse|JsonResponse
     {

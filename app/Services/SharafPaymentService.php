@@ -83,7 +83,8 @@ class SharafPaymentService
      * Find or create the sharaf_payments record and update payment_status.
      * When marking paid, paid_amount/paid_currency record what was actually received
      * (may differ from the agreed payment_amount/payment_currency).
-     * payment_method is cash or transfer. A transfer may keep a stored receipt.
+     * payment_method is cash, transfer (DEH Receipt), or other.
+     * A transfer may keep a stored receipt. Cash and other clear it.
      *
      * @param int $sharafId
      * @param int $paymentDefinitionId
@@ -140,8 +141,9 @@ class SharafPaymentService
             if ($paymentCity !== null) {
                 $payment->payment_city = $paymentCity;
             }
-            if ($updateReceipt || $paymentMethod === 'cash') {
-                $payment->receipt_path = $paymentMethod === 'cash' ? null : $receiptPath;
+            $clearsReceipt = in_array($paymentMethod, ['cash', 'other'], true);
+            if ($updateReceipt || $clearsReceipt) {
+                $payment->receipt_path = $clearsReceipt ? null : $receiptPath;
             }
         } else {
             $payment->payment_method = null;
