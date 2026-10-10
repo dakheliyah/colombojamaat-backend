@@ -60,7 +60,7 @@ class ReportingService
             'sharaf-payments' => [
                 'id', 'sharaf_id', 'payment_definition_id', 'payment_amount',
                 'payment_status', 'payment_currency', 'paid_amount', 'paid_currency',
-                'payment_method', 'payment_city',
+                'payment_method', 'payment_method_detail', 'payment_city',
                 'created_at', 'updated_at',
             ],
             'events' => [

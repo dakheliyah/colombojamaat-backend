@@ -84,6 +84,7 @@ class SharafPaymentService
      * When marking paid, paid_amount/paid_currency record what was actually received
      * (may differ from the agreed payment_amount/payment_currency).
      * payment_method is cash, transfer (DEH Receipt), or other.
+     * Other requires payment_method_detail. Cash and transfer clear it.
      * A transfer may keep a stored receipt. Cash and other clear it.
      *
      * @param int $sharafId
@@ -93,6 +94,7 @@ class SharafPaymentService
      * @param string|null $paidCurrency
      * @param string|null $paymentMethod
      * @param string|null $paymentCity
+     * @param string|null $paymentMethodDetail
      * @param string|null $receiptPath
      * @param bool $updateReceipt
      * @return SharafPayment
@@ -106,6 +108,7 @@ class SharafPaymentService
         ?string $paidCurrency = null,
         ?string $paymentMethod = null,
         ?string $paymentCity = null,
+        ?string $paymentMethodDetail = null,
         ?string $receiptPath = null,
         bool $updateReceipt = false
     ): SharafPayment {
@@ -137,6 +140,9 @@ class SharafPaymentService
             $payment->paid_currency = strtoupper(substr((string) $currency, 0, 3));
             if ($paymentMethod !== null) {
                 $payment->payment_method = $paymentMethod;
+                $payment->payment_method_detail = $paymentMethod === 'other'
+                    ? ($paymentMethodDetail !== null && $paymentMethodDetail !== '' ? $paymentMethodDetail : null)
+                    : null;
             }
             if ($paymentCity !== null) {
                 $payment->payment_city = $paymentCity;
@@ -147,6 +153,7 @@ class SharafPaymentService
             }
         } else {
             $payment->payment_method = null;
+            $payment->payment_method_detail = null;
             $payment->payment_city = null;
             $payment->receipt_path = null;
         }

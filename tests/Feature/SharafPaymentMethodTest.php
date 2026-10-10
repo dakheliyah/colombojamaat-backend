@@ -92,6 +92,7 @@ class SharafPaymentMethodTest extends TestCase
             $table->decimal('paid_amount', 10, 2)->nullable();
             $table->string('paid_currency', 3)->nullable();
             $table->string('payment_method', 16)->nullable();
+            $table->string('payment_method_detail', 255)->nullable();
             $table->string('payment_city', 120)->nullable();
             $table->string('receipt_path', 500)->nullable();
             $table->timestamps();
@@ -232,9 +233,11 @@ class SharafPaymentMethodTest extends TestCase
             'paid_amount' => 75,
             'paid_currency' => 'LKR',
             'payment_method' => 'other',
+            'payment_method_detail' => 'Cheque',
             'payment_city' => 'Colombo',
         ])->assertOk()
             ->assertJsonPath('data.payment_method', 'other')
+            ->assertJsonPath('data.payment_method_detail', 'Cheque')
             ->assertJsonPath('data.payment_city', 'Colombo')
             ->assertJsonPath('data.has_receipt', false);
 
@@ -309,5 +312,35 @@ class SharafPaymentMethodTest extends TestCase
             'payment_city' => '   ',
         ])->assertStatus(422)
             ->assertJsonPath('message', 'Payment city is required.');
+    }
+
+    public function test_other_requires_details_and_another_method_clears_them(): void
+    {
+        $this->patchJson('/sharafs/4/payments/7', [
+            'paid' => true,
+            'paid_amount' => 100,
+            'payment_method' => 'other',
+            'payment_city' => 'Colombo',
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'Describe the other payment method.');
+
+        $this->patchJson('/sharafs/4/payments/7', [
+            'paid' => true,
+            'paid_amount' => 100,
+            'payment_method' => 'other',
+            'payment_method_detail' => '  Cheque  ',
+            'payment_city' => 'Colombo',
+        ])->assertOk()
+            ->assertJsonPath('data.payment_method', 'other')
+            ->assertJsonPath('data.payment_method_detail', 'Cheque');
+
+        $this->patchJson('/sharafs/4/payments/7', [
+            'paid' => true,
+            'paid_amount' => 100,
+            'payment_method' => 'cash',
+            'payment_city' => 'Colombo',
+        ])->assertOk()
+            ->assertJsonPath('data.payment_method', 'cash')
+            ->assertJsonPath('data.payment_method_detail', null);
     }
 }

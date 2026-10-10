@@ -20,6 +20,7 @@ class SharafPayment extends Model
         'paid_amount',
         'paid_currency',
         'payment_method',
+        'payment_method_detail',
         'payment_city',
         'receipt_path',
     ];

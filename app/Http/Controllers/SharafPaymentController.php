@@ -106,6 +106,7 @@ class SharafPaymentController extends Controller
             'paid_amount' => ['nullable', 'numeric', 'min:0'],
             'paid_currency' => ['nullable', 'string', 'max:3'],
             'payment_method' => ['nullable', 'in:cash,transfer,other'],
+            'payment_method_detail' => ['nullable', 'string', 'max:255'],
             'payment_city' => ['nullable', 'string', 'max:120'],
             'receipt' => ['nullable', 'file', 'mimes:jpeg,jpg,png,gif,webp,pdf', 'max:5120'],
         ]);
@@ -121,6 +122,7 @@ class SharafPaymentController extends Controller
         $paid = $request->boolean('paid');
         $paymentMethod = $request->input('payment_method');
         $paymentMethod = is_string($paymentMethod) && $paymentMethod !== '' ? $paymentMethod : null;
+        $paymentMethodDetail = trim((string) $request->input('payment_method_detail', ''));
         $paymentCity = trim((string) $request->input('payment_city', ''));
         $recordsCollection = $request->exists('paid_amount')
             || $request->exists('payment_method')
@@ -132,6 +134,9 @@ class SharafPaymentController extends Controller
             }
             if ($paymentCity === '') {
                 return $this->jsonError('VALIDATION_ERROR', 'Payment city is required.', 422);
+            }
+            if ($paymentMethod === 'other' && $paymentMethodDetail === '') {
+                return $this->jsonError('VALIDATION_ERROR', 'Describe the other payment method.', 422);
             }
         }
         $receiptPath = null;
@@ -159,6 +164,7 @@ class SharafPaymentController extends Controller
                 $request->input('paid_currency'),
                 $paid ? $paymentMethod : null,
                 $paid && $paymentCity !== '' ? $paymentCity : null,
+                $paid && $paymentMethod === 'other' ? $paymentMethodDetail : null,
                 $receiptPath,
                 $updateReceipt
             );
