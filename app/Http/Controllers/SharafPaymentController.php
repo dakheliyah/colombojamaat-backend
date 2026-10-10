@@ -304,18 +304,18 @@ class SharafPaymentController extends Controller
             return $this->jsonError('NOT_FOUND', 'Sharaf not found.', 404);
         }
 
-        // Create or update the payment (payment_status is always false)
-        $sharafPayment = SharafPayment::updateOrCreate(
-            [
-                'sharaf_id' => $sharaf_id,
-                'payment_definition_id' => $request->input('payment_definition_id'),
-            ],
-            [
-                'payment_amount' => $request->input('payment_amount'),
-                'payment_status' => false, // Always false as per requirement
-                'payment_currency' => $request->input('payment_currency', 'LKR'),
-            ]
-        );
+        // Amount and currency can be revised. An existing paid mark stays as it is.
+        $sharafPayment = SharafPayment::firstOrNew([
+            'sharaf_id' => $sharaf_id,
+            'payment_definition_id' => $request->input('payment_definition_id'),
+        ]);
+
+        $sharafPayment->payment_amount = $request->input('payment_amount');
+        $sharafPayment->payment_currency = $request->input('payment_currency', 'LKR');
+        if (! $sharafPayment->exists) {
+            $sharafPayment->payment_status = false;
+        }
+        $sharafPayment->save();
 
         // Load relationships for response
         $sharafPayment->load(['sharaf', 'paymentDefinition']);
