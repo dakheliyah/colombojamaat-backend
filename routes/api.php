@@ -22,6 +22,7 @@ use App\Http\Controllers\SharafPositionController;
 use App\Http\Controllers\SharafDefinitionMappingController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SharafTypeController;
+use App\Http\Controllers\TanzeemOverviewController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WajebaatController;
 use App\Http\Controllers\ReportController;
@@ -73,6 +74,8 @@ Route::patch('/miqaats/{id}', [MiqaatController::class, 'update']);
 Route::put('/miqaats/{id}', [MiqaatController::class, 'update']);
 Route::get('/miqaats/{miqaat_id}/events', [EventController::class, 'byMiqaatId']);
 Route::get('/miqaats/{miqaat_id}/sharaf-report-summary-cross-events', [EventController::class, 'sharafReportSummaryCrossEvents']);
+Route::get('/miqaats/{miqaat_id}/tanzeem-overview', [TanzeemOverviewController::class, 'show'])
+    ->middleware('user.from.cookie');
 Route::get('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'index']);
 Route::put('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
 Route::post('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);

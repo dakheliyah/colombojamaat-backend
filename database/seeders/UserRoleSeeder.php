@@ -20,6 +20,7 @@ class UserRoleSeeder extends Seeder
             'Anjuman Supervisor',
             'Help Desk',
             'Follow Up',
+            'Tanzeem BGI',
         ];
 
         foreach ($roles as $name) {
