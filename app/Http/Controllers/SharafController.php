@@ -58,6 +58,7 @@ class SharafController extends Controller
             ->leftJoin('census', 'sharafs.hof_its', '=', 'census.its_id')
             ->select('sharafs.*')
             ->selectRaw("COALESCE(NULLIF(census.name, ''), {$hofMemberNameSql}) as hof_name")
+            ->selectRaw('census.jamaat as hof_jamaat')
             // List consumers use definition + payments; members/clearances are fetched per-sharaf.
             ->with(['sharafDefinition', 'sharafPayments.paymentDefinition', 'colorLegend']);
 

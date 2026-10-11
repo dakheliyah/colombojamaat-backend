@@ -37,6 +37,7 @@ class SharafHofNameFallbackTest extends TestCase
             $table->id();
             $table->string('its_id')->unique();
             $table->string('name')->nullable();
+            $table->string('jamaat')->nullable();
             $table->timestamps();
         });
 
@@ -129,13 +130,15 @@ class SharafHofNameFallbackTest extends TestCase
         DB::table('census')->insert([
             'its_id' => '30304640',
             'name' => 'Census Name',
+            'jamaat' => 'Colombo',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $this->getJson("/sharafs?miqaat_id={$ids['miqaat']}")
             ->assertOk()
-            ->assertJsonPath('data.0.hof_name', 'Census Name');
+            ->assertJsonPath('data.0.hof_name', 'Census Name')
+            ->assertJsonPath('data.0.hof_jamaat', 'Colombo');
     }
 
     /**
