@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\SharafStatus;
+use App\Models\Census;
 use App\Models\EventColorLegend;
 use App\Models\Sharaf;
 use App\Models\SharafDefinition;
@@ -37,6 +38,7 @@ class SharafController extends Controller
             'status' => ['nullable', 'string', 'in:pending,confirmed,cancelled'],
             'hof_its' => ['nullable', 'string'],
             'member_its' => ['nullable', 'string'],
+            'family_its' => ['nullable', 'string'],
             'its_id' => ['nullable', 'string'],
             'token' => ['nullable', 'string'],
             'hof_name' => ['nullable', 'string'],
@@ -93,6 +95,20 @@ class SharafController extends Controller
 
         if ($request->has('name')) {
             $query->where('sharafs.name', 'like', '%' . $request->input('name') . '%');
+        }
+
+        // Sharafs where anyone in this ITS's census household is HOF or a member.
+        if ($request->filled('family_its')) {
+            $familyIds = $this->familyItsIds((string) $request->input('family_its'));
+            $query->where(function ($q) use ($familyIds) {
+                $q->whereIn('sharafs.hof_its', $familyIds)
+                    ->orWhereExists(function ($sub) use ($familyIds) {
+                        $sub->select(DB::raw(1))
+                            ->from('sharaf_members')
+                            ->whereColumn('sharaf_members.sharaf_id', 'sharafs.id')
+                            ->whereIn('sharaf_members.its_id', $familyIds);
+                    });
+            });
         }
 
         // Filter by person: sharafs where the given ITS ID is HOF or a member (member_its / its_id are aliases)
@@ -418,5 +434,30 @@ class SharafController extends Controller
         }
         
         return $api;
+    }
+
+    /**
+     * Census ITS numbers in the same household as $itsId.
+     *
+     * @return array<int, string>
+     */
+    private function familyItsIds(string $itsId): array
+    {
+        $person = Census::query()->where('its_id', $itsId)->first(['its_id', 'hof_id']);
+        $hofIts = $person ? (string) ($person->hof_id ?: $person->its_id) : $itsId;
+        $ids = Census::query()
+            ->where('hof_id', $hofIts)
+            ->pluck('its_id')
+            ->map(static fn ($id): string => (string) $id)
+            ->all();
+
+        if (! in_array($hofIts, $ids, true)) {
+            $ids[] = $hofIts;
+        }
+        if (! in_array($itsId, $ids, true)) {
+            $ids[] = $itsId;
+        }
+
+        return array_values(array_unique($ids));
     }
 }
