@@ -459,6 +459,22 @@ class SharafDefinitionController extends Controller
         return $this->jsonSuccessWithData($sharafDefinition->fresh(['event', 'sharafType']));
     }
 
+    /**
+     * Delete a sharaf definition. Positions, payment definitions, and sharafs cascade.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $sharafDefinition = SharafDefinition::find($id);
+
+        if (! $sharafDefinition) {
+            return $this->jsonError('NOT_FOUND', 'Sharaf definition not found.', 404);
+        }
+
+        $sharafDefinition->delete();
+
+        return $this->jsonSuccess();
+    }
+
     public function positions(string $id): JsonResponse
     {
         $sharafDefinition = SharafDefinition::find($id);
