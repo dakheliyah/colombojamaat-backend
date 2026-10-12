@@ -74,6 +74,7 @@ Route::get('/miqaats/active', [MiqaatController::class, 'active']);
 Route::post('/miqaats', [MiqaatController::class, 'store']);
 Route::patch('/miqaats/{id}', [MiqaatController::class, 'update']);
 Route::put('/miqaats/{id}', [MiqaatController::class, 'update']);
+Route::delete('/miqaats/{id}', [MiqaatController::class, 'destroy']);
 Route::get('/miqaats/{miqaat_id}/events', [EventController::class, 'byMiqaatId']);
 Route::get('/miqaats/{miqaat_id}/sharaf-report-summary-cross-events', [EventController::class, 'sharafReportSummaryCrossEvents']);
 Route::get('/miqaats/{miqaat_id}/tanzeem-overview', [TanzeemOverviewController::class, 'show'])
@@ -131,6 +132,7 @@ Route::post('/sharaf-definitions', [SharafDefinitionController::class, 'store'])
 Route::post('/sharaf-definitions/{id}/copy', [SharafDefinitionController::class, 'copy']);
 Route::put('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'update']);
 Route::patch('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'update']);
+Route::delete('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'destroy']);
 Route::get('/sharaf-definitions/{id}/positions', [SharafDefinitionController::class, 'positions']);
 Route::get('/sharaf-definitions/{id}/payment-definitions', [SharafDefinitionController::class, 'paymentDefinitions']);
 Route::get('/sharaf-definitions/{id}/check-definitions', [SharafDefinitionController::class, 'checkDefinitions']);
@@ -155,6 +157,7 @@ Route::get('/sharaf-definition-mappings/{id}/audit-logs', [SharafDefinitionMappi
 Route::post('/sharaf-positions', [SharafPositionController::class, 'store']);
 Route::put('/sharaf-positions/{id}', [SharafPositionController::class, 'update']);
 Route::patch('/sharaf-positions/{id}', [SharafPositionController::class, 'update']);
+Route::delete('/sharaf-positions/{id}', [SharafPositionController::class, 'destroy']);
 // Sharaf routes. Import paths stay above /sharafs/{sharaf_id}.
 Route::get('/sharafs/import/columns', [SharafBulkImportController::class, 'columns']);
 Route::get('/sharafs/import/template', [SharafBulkImportController::class, 'template']);

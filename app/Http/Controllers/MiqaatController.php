@@ -126,4 +126,19 @@ class MiqaatController extends Controller
 
         return $this->jsonSuccessWithData($miqaat->fresh());
     }
+
+    /**
+     * Delete a miqaat. Related events, sharafs, wajebaat, and Sila Fitra rows cascade.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $miqaat = Miqaat::find($id);
+        if ($miqaat === null) {
+            return $this->jsonError('NOT_FOUND', 'Miqaat not found.', 404);
+        }
+
+        $miqaat->delete();
+
+        return $this->jsonSuccess();
+    }
 }

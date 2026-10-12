@@ -127,4 +127,20 @@ class SharafPositionController extends Controller
             throw $e;
         }
     }
+
+    /**
+     * Delete a sharaf position. Members on this position cascade.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $sharafPosition = SharafPosition::find($id);
+
+        if (! $sharafPosition) {
+            return $this->jsonError('NOT_FOUND', 'Sharaf position not found.', 404);
+        }
+
+        $sharafPosition->delete();
+
+        return $this->jsonSuccess();
+    }
 }

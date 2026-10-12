@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PaymentDefinition;
 use App\Models\SharafPayment;
+use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -160,7 +161,7 @@ class PaymentDefinitionController extends Controller
     }
 
     /**
-     * Delete a payment definition that has no recorded sharaf payments.
+     * Delete a payment definition and the sharaf payments recorded against it.
      */
     public function destroy(int $id): JsonResponse
     {
@@ -170,30 +171,15 @@ class PaymentDefinitionController extends Controller
             return $this->jsonError('NOT_FOUND', 'Payment definition not found.', 404);
         }
 
-        $blocked = false;
-
-        DB::transaction(function () use ($paymentDefinition, &$blocked) {
-            $hasPayments = SharafPayment::query()
-                ->where('payment_definition_id', $paymentDefinition->id)
-                ->lockForUpdate()
-                ->exists();
-
-            if ($hasPayments) {
-                $blocked = true;
-
-                return;
-            }
+        DB::transaction(function () use ($paymentDefinition) {
+            app(AuditLogService::class)->deleteEach(
+                SharafPayment::query()
+                    ->where('payment_definition_id', $paymentDefinition->id)
+                    ->lockForUpdate()
+            );
 
             $paymentDefinition->delete();
         });
-
-        if ($blocked) {
-            return $this->jsonError(
-                'PAYMENTS_EXIST',
-                'Cannot delete this payment definition because payments have already been recorded for it.',
-                409
-            );
-        }
 
         return $this->jsonSuccess(200);
     }
