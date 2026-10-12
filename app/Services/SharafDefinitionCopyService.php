@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Event;
 use App\Models\PaymentDefinition;
+use App\Models\SharafCheckDefinition;
 use App\Models\SharafDefinition;
 use App\Models\SharafPosition;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ class SharafDefinitionCopyService
         $source = SharafDefinition::with([
             'sharafPositions' => fn ($q) => $q->orderBy('order'),
             'paymentDefinitions' => fn ($q) => $q->orderBy('name'),
+            'checkDefinitions' => fn ($q) => $q->orderBy('name'),
         ])->find($sourceId);
         if (! $source) {
             throw new InvalidArgumentException('Sharaf definition not found.');
@@ -73,6 +75,7 @@ class SharafDefinitionCopyService
                 'sharafType',
                 'sharafPositions' => fn ($q) => $q->orderBy('order'),
                 'paymentDefinitions' => fn ($q) => $q->orderBy('name'),
+            'checkDefinitions' => fn ($q) => $q->orderBy('name'),
             ]);
         });
     }
@@ -103,6 +106,7 @@ class SharafDefinitionCopyService
             ->with([
                 'sharafPositions' => fn ($q) => $q->orderBy('order'),
                 'paymentDefinitions' => fn ($q) => $q->orderBy('name'),
+            'checkDefinitions' => fn ($q) => $q->orderBy('name'),
             ])
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -135,6 +139,7 @@ class SharafDefinitionCopyService
                     'sharafType',
                     'sharafPositions' => fn ($q) => $q->orderBy('order'),
                     'paymentDefinitions' => fn ($q) => $q->orderBy('name'),
+            'checkDefinitions' => fn ($q) => $q->orderBy('name'),
                 ]);
             }
         });
@@ -176,6 +181,17 @@ class SharafDefinitionCopyService
                 'user_type' => $paymentDefinition->user_type,
                 'default_amount' => $paymentDefinition->default_amount,
                 'default_currency' => $paymentDefinition->default_currency,
+            ]);
+        }
+
+        foreach ($source->checkDefinitions as $checkDefinition) {
+            SharafCheckDefinition::create([
+                'sharaf_definition_id' => $copy->id,
+                'name' => $checkDefinition->name,
+                'description' => $checkDefinition->description,
+                'user_type' => $checkDefinition->user_type,
+                'status_api_url' => $checkDefinition->status_api_url,
+                'webhook_url' => $checkDefinition->webhook_url,
             ]);
         }
     }

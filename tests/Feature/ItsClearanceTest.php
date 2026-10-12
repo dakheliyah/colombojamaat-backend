@@ -13,6 +13,8 @@ class ItsClearanceTest extends TestCase
     {
         parent::setUp();
 
+        Schema::dropIfExists('sharaf_checks');
+        Schema::dropIfExists('sharaf_check_definitions');
         Schema::dropIfExists('sharaf_payments');
         Schema::dropIfExists('payment_definitions');
         Schema::dropIfExists('sharafs');
@@ -116,10 +118,28 @@ class ItsClearanceTest extends TestCase
             $table->boolean('payment_status')->default(false);
             $table->timestamps();
         });
+
+        Schema::create('sharaf_check_definitions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('sharaf_definition_id');
+            $table->string('name');
+            $table->string('user_type')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('sharaf_checks', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('sharaf_id');
+            $table->unsignedBigInteger('sharaf_check_definition_id');
+            $table->boolean('is_done')->default(false);
+            $table->timestamps();
+        });
     }
 
     protected function tearDown(): void
     {
+        Schema::dropIfExists('sharaf_checks');
+        Schema::dropIfExists('sharaf_check_definitions');
         Schema::dropIfExists('sharaf_payments');
         Schema::dropIfExists('payment_definitions');
         Schema::dropIfExists('sharafs');
@@ -138,7 +158,7 @@ class ItsClearanceTest extends TestCase
     {
         $ids = $this->seedUnclearedMember();
 
-        $this->getJson("/miqaats/{$ids['miqaat']}/clearance/111")
+        $this->getJson("/api/miqaats/{$ids['miqaat']}/clearance/111")
             ->assertOk()
             ->assertJsonPath('data.hof_its_id', '222')
             ->assertJsonPath('data.its_id', '111')
@@ -171,13 +191,64 @@ class ItsClearanceTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->getJson("/miqaats/{$ids['miqaat']}/clearance/111")
+        $this->getJson("/api/miqaats/{$ids['miqaat']}/clearance/111")
             ->assertOk()
             ->assertJsonPath('data.can_mark_paid', true)
             ->assertJsonPath('data.payments_cleared', true)
             ->assertJsonPath('data.is_cleared', true)
             ->assertJsonPath('data.pending_departments', [])
-            ->assertJsonPath('data.pending_payments', []);
+            ->assertJsonPath('data.pending_payments', [])
+            ->assertJsonPath('data.checks_cleared', true)
+            ->assertJsonPath('data.pending_checks', []);
+    }
+
+    public function test_clearance_stays_pending_until_boolean_check_is_done(): void
+    {
+        $ids = $this->seedUnclearedMember();
+
+        DB::table('miqaat_checks')->insert([
+            'its_id' => '222',
+            'mcd_id' => $ids['mcd'],
+            'is_cleared' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('sharaf_payments')->insert([
+            'sharaf_id' => $ids['sharaf'],
+            'payment_definition_id' => $ids['payment'],
+            'payment_status' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $checkId = DB::table('sharaf_check_definitions')->insertGetId([
+            'sharaf_definition_id' => DB::table('sharafs')->where('id', $ids['sharaf'])->value('sharaf_definition_id'),
+            'name' => 'Documents',
+            'user_type' => 'Anjuman',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->getJson("/api/miqaats/{$ids['miqaat']}/clearance/111")
+            ->assertOk()
+            ->assertJsonPath('data.payments_cleared', true)
+            ->assertJsonPath('data.checks_cleared', false)
+            ->assertJsonPath('data.is_cleared', false)
+            ->assertJsonPath('data.pending_checks.0.sharaf_check_definition_id', $checkId)
+            ->assertJsonPath('data.pending_checks.0.name', 'Documents');
+
+        DB::table('sharaf_checks')->insert([
+            'sharaf_id' => $ids['sharaf'],
+            'sharaf_check_definition_id' => $checkId,
+            'is_done' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->getJson("/api/miqaats/{$ids['miqaat']}/clearance/111")
+            ->assertOk()
+            ->assertJsonPath('data.checks_cleared', true)
+            ->assertJsonPath('data.is_cleared', true)
+            ->assertJsonPath('data.pending_checks', []);
     }
 
     public function test_bulk_clearance_matches_single_requests(): void
@@ -192,7 +263,7 @@ class ItsClearanceTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $single = $this->getJson("/miqaats/{$ids['miqaat']}/clearance/111")
+        $single = $this->getJson("/api/miqaats/{$ids['miqaat']}/clearance/111")
             ->assertOk()
             ->json('data');
 
@@ -223,7 +294,7 @@ class ItsClearanceTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->getJson("/miqaats/{$ids['miqaat']}/clearance/999")
+        $this->getJson("/api/miqaats/{$ids['miqaat']}/clearance/999")
             ->assertOk()
             ->assertJsonPath('data.hof_its_id', '999')
             ->assertJsonPath('data.can_mark_paid', true)

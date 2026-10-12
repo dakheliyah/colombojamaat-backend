@@ -13,6 +13,8 @@ class SharafHofNameFallbackTest extends TestCase
     {
         parent::setUp();
 
+        Schema::dropIfExists('sharaf_checks');
+        Schema::dropIfExists('sharaf_check_definitions');
         Schema::dropIfExists('sharaf_payments');
         Schema::dropIfExists('sharaf_members');
         Schema::dropIfExists('sharafs');
@@ -97,10 +99,27 @@ class SharafHofNameFallbackTest extends TestCase
             $table->boolean('payment_status')->default(false);
             $table->timestamps();
         });
+
+        Schema::create('sharaf_check_definitions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('sharaf_definition_id');
+            $table->string('name');
+            $table->timestamps();
+        });
+
+        Schema::create('sharaf_checks', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('sharaf_id');
+            $table->unsignedBigInteger('sharaf_check_definition_id');
+            $table->boolean('is_done')->default(false);
+            $table->timestamps();
+        });
     }
 
     protected function tearDown(): void
     {
+        Schema::dropIfExists('sharaf_checks');
+        Schema::dropIfExists('sharaf_check_definitions');
         Schema::dropIfExists('sharaf_payments');
         Schema::dropIfExists('sharaf_members');
         Schema::dropIfExists('sharafs');
@@ -117,7 +136,7 @@ class SharafHofNameFallbackTest extends TestCase
     {
         $ids = $this->seedSharaf('30304640', 'Member From Sharaf');
 
-        $this->getJson("/sharafs?miqaat_id={$ids['miqaat']}")
+        $this->getJson("/api/sharafs?miqaat_id={$ids['miqaat']}")
             ->assertOk()
             ->assertJsonPath('data.0.hof_its', '30304640')
             ->assertJsonPath('data.0.hof_name', 'Member From Sharaf');
@@ -135,7 +154,7 @@ class SharafHofNameFallbackTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->getJson("/sharafs?miqaat_id={$ids['miqaat']}")
+        $this->getJson("/api/sharafs?miqaat_id={$ids['miqaat']}")
             ->assertOk()
             ->assertJsonPath('data.0.hof_name', 'Census Name')
             ->assertJsonPath('data.0.hof_jamaat', 'Colombo');

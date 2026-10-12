@@ -85,6 +85,14 @@ class SharafDefinition extends Model
     }
 
     /**
+     * Boolean checks required for sharafs of this definition.
+     */
+    public function checkDefinitions(): HasMany
+    {
+        return $this->hasMany(SharafCheckDefinition::class);
+    }
+
+    /**
      * Get the mappings where this definition is the source.
      */
     public function mappingsAsSource(): HasMany

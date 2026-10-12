@@ -15,9 +15,9 @@ class ItsClearanceService
      * Clearance for one ITS.
      * Miqaat check definitions are evaluated for the family Head of Family (and wajebaat-group HoFs).
      * An ITS with no census row is checked against its own miqaat checks.
-     * Payment definitions are evaluated for sharafs in this miqaat where the given ITS is Head of Family.
+     * Payment definitions and boolean checks are evaluated for sharafs in this miqaat where the given ITS is Head of Family.
      * can_mark_paid stays department-only so wajebaat mark-paid matches the existing guard.
-     * is_cleared is true only when both department checks and those payments are clear.
+     * is_cleared is true only when department checks, those payments, and those boolean checks are clear.
      *
      * @return array<string, mixed>
      */
@@ -164,7 +164,7 @@ class ItsClearanceService
         $sharafsByHof = Sharaf::query()
             ->forMiqaat($miqaatId)
             ->whereIn('sharafs.hof_its', $itsIds)
-            ->with(['sharafDefinition.paymentDefinitions', 'sharafPayments'])
+            ->with(['sharafDefinition.paymentDefinitions', 'sharafDefinition.checkDefinitions', 'sharafPayments', 'sharafChecks'])
             ->get()
             ->groupBy(fn (Sharaf $sharaf) => (string) $sharaf->hof_its);
 
@@ -172,13 +172,15 @@ class ItsClearanceService
         foreach ($itsIds as $itsId) {
             $person = $people->get($itsId);
             $payments = $this->paymentRowsFrom($sharafsByHof->get($itsId, collect()));
+            $checks = $this->checkRowsFrom($sharafsByHof->get($itsId, collect()));
             $result[$itsId] = $this->assembleClearance(
                 $itsId,
                 $person,
                 $wajebaatByIts[$itsId] ?? null,
                 $person ? ($hofsToCheckByIts[$itsId] ?? [(string) ($person->hof_id ?? $itsId)]) : [],
                 $pendingByHof,
-                $payments
+                $payments,
+                $checks
             );
         }
 
@@ -279,7 +281,7 @@ class ItsClearanceService
         $sharafs = Sharaf::query()
             ->forMiqaat($miqaatId)
             ->where('sharafs.hof_its', $itsId)
-            ->with(['sharafDefinition.paymentDefinitions', 'sharafPayments'])
+            ->with(['sharafDefinition.paymentDefinitions', 'sharafDefinition.checkDefinitions', 'sharafPayments', 'sharafChecks'])
             ->get();
 
         $payments = [];
@@ -417,9 +419,37 @@ class ItsClearanceService
     }
 
     /**
+     * @param  \Illuminate\Support\Collection<int, Sharaf>  $sharafs
+     * @return array<int, array<string, mixed>>
+     */
+    protected function checkRowsFrom($sharafs): array
+    {
+        $checks = [];
+        foreach ($sharafs as $sharaf) {
+            $definitions = $sharaf->sharafDefinition?->checkDefinitions ?? collect();
+            $doneByDefinition = $sharaf->sharafChecks->keyBy('sharaf_check_definition_id');
+            foreach ($definitions as $definition) {
+                $check = $doneByDefinition->get($definition->id);
+                $checks[] = [
+                    'sharaf_check_definition_id' => (int) $definition->id,
+                    'name' => (string) $definition->name,
+                    'user_type' => $definition->user_type,
+                    'sharaf_id' => (int) $sharaf->id,
+                    'sharaf_definition_id' => (int) $sharaf->sharaf_definition_id,
+                    'sharaf_definition_name' => $sharaf->sharafDefinition?->name,
+                    'is_done' => $check !== null && (bool) $check->is_done,
+                ];
+            }
+        }
+
+        return $checks;
+    }
+
+    /**
      * @param  array<int, string>  $hofsToCheck
      * @param  array<string, array<int, array<string, mixed>>>  $pendingByHof
      * @param  array<int, array<string, mixed>>  $payments
+     * @param  array<int, array<string, mixed>>  $checks
      * @return array<string, mixed>
      */
     protected function assembleClearance(
@@ -428,7 +458,8 @@ class ItsClearanceService
         mixed $wajebaat,
         array $hofsToCheck,
         array $pendingByHof,
-        array $payments
+        array $payments,
+        array $checks = []
     ): array {
         if (! $person) {
             $pending = $pendingByHof[$itsId] ?? [];
@@ -482,11 +513,20 @@ class ItsClearanceService
             $payments,
             static fn (array $payment): bool => $payment['is_paid'] !== true
         ));
+        $pendingChecks = array_values(array_filter(
+            $checks,
+            static fn (array $check): bool => $check['is_done'] !== true
+        ));
         $data['its_id'] = $itsId;
         $data['payments'] = $payments;
         $data['pending_payments'] = $pendingPayments;
         $data['payments_cleared'] = $pendingPayments === [];
-        $data['is_cleared'] = ($data['can_mark_paid'] ?? false) === true && $pendingPayments === [];
+        $data['checks'] = $checks;
+        $data['pending_checks'] = $pendingChecks;
+        $data['checks_cleared'] = $pendingChecks === [];
+        $data['is_cleared'] = ($data['can_mark_paid'] ?? false) === true
+            && $pendingPayments === []
+            && $pendingChecks === [];
 
         return $data;
     }

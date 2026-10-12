@@ -102,6 +102,14 @@ class Sharaf extends Model
     }
 
     /**
+     * Boolean checks recorded for this sharaf.
+     */
+    public function sharafChecks(): HasMany
+    {
+        return $this->hasMany(SharafCheck::class);
+    }
+
+    /**
      * Get the Head of Family from census.
      */
     public function hof(): BelongsTo
@@ -171,10 +179,27 @@ class Sharaf extends Model
     }
 
     /**
+     * Check if a named boolean check is done.
+     */
+    public function hasCheckDone(string $checkName): bool
+    {
+        $check = $this->sharafChecks()
+            ->whereHas('checkDefinition', function ($query) use ($checkName) {
+                $query->where('name', $checkName)
+                    ->where('sharaf_definition_id', $this->sharaf_definition_id);
+            })
+            ->where('is_done', true)
+            ->first();
+
+        return $check !== null;
+    }
+
+    /**
      * Check if the sharaf can be confirmed.
      * A sharaf becomes confirmed only when ALL are true:
      * - Clearance for that sharaf's HOF is complete
      * - All required payments for the sharaf definition are paid
+     * - All boolean checks for the sharaf definition are done
      */
     public function canBeConfirmed(): bool
     {
@@ -186,20 +211,26 @@ class Sharaf extends Model
 
         // Get all payment definitions for this sharaf's definition
         $paymentDefinitions = PaymentDefinition::where('sharaf_definition_id', $this->sharaf_definition_id)->get();
-        
-        if ($paymentDefinitions->isEmpty()) {
-            // If no payment definitions exist, only clearance is required
-            return true;
-        }
 
-        // Check that all payment definitions have corresponding paid records
         foreach ($paymentDefinitions as $paymentDef) {
             $payment = $this->sharafPayments()
                 ->where('payment_definition_id', $paymentDef->id)
                 ->where('payment_status', true)
                 ->first();
-            
+
             if (!$payment) {
+                return false;
+            }
+        }
+
+        $checkDefinitions = SharafCheckDefinition::where('sharaf_definition_id', $this->sharaf_definition_id)->get();
+        foreach ($checkDefinitions as $checkDef) {
+            $check = $this->sharafChecks()
+                ->where('sharaf_check_definition_id', $checkDef->id)
+                ->where('is_done', true)
+                ->first();
+
+            if (!$check) {
                 return false;
             }
         }

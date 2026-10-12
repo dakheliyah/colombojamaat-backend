@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\PaymentDefinition;
+use App\Models\SharafCheckDefinition;
 use App\Models\Sharaf;
 use App\Models\SharafDefinition;
 use App\Models\SharafPosition;
@@ -52,7 +53,7 @@ class SharafDefinitionController extends Controller
         }
 
         $includeRaw = $request->query('include', '');
-        $allowedIncludes = ['positions', 'payment-definitions'];
+        $allowedIncludes = ['positions', 'payment-definitions', 'check-definitions'];
         $includeList = array_map('trim', array_filter(explode(',', $includeRaw)));
         foreach ($includeList as $value) {
             if (! in_array($value, $allowedIncludes, true)) {
@@ -66,6 +67,7 @@ class SharafDefinitionController extends Controller
 
         $includePositions = in_array('positions', $includeList, true);
         $includePaymentDefinitions = in_array('payment-definitions', $includeList, true);
+        $includeCheckDefinitions = in_array('check-definitions', $includeList, true);
 
         $allowedSharafTypeIds = $user->sharafTypes()->pluck('id')->all();
         $query = SharafDefinition::where('event_id', $eventId)->with('sharafType');
@@ -74,7 +76,7 @@ class SharafDefinitionController extends Controller
         } else {
             $query->whereRaw('0 = 1');
         }
-        if ($includePositions || $includePaymentDefinitions) {
+        if ($includePositions || $includePaymentDefinitions || $includeCheckDefinitions) {
             $with = ['sharafType'];
             if ($includePositions) {
                 $with['sharafPositions'] = fn ($q) => $q->orderBy('order');
@@ -82,16 +84,19 @@ class SharafDefinitionController extends Controller
             if ($includePaymentDefinitions) {
                 $with['paymentDefinitions'] = fn ($q) => $q->orderBy('name');
             }
+            if ($includeCheckDefinitions) {
+                $with['checkDefinitions'] = fn ($q) => $q->orderBy('name');
+            }
             $query->with($with);
         }
 
         $definitions = $query->get();
 
-        if (! $includePositions && ! $includePaymentDefinitions) {
+        if (! $includePositions && ! $includePaymentDefinitions && ! $includeCheckDefinitions) {
             return $this->jsonSuccessWithData($definitions);
         }
 
-        $data = $definitions->map(function (SharafDefinition $def) use ($includePositions, $includePaymentDefinitions) {
+        $data = $definitions->map(function (SharafDefinition $def) use ($includePositions, $includePaymentDefinitions, $includeCheckDefinitions) {
             $arr = $def->toArray();
             if ($includePositions) {
                 $arr['positions'] = $def->sharafPositions->map(fn (SharafPosition $p) => $p->toArray())->values()->all();
@@ -99,6 +104,9 @@ class SharafDefinitionController extends Controller
             }
             if ($includePaymentDefinitions) {
                 $arr['payment_definitions'] = $def->paymentDefinitions->map(fn (PaymentDefinition $pd) => $pd->toArray())->values()->all();
+            }
+            if ($includeCheckDefinitions) {
+                $arr['check_definitions'] = $def->checkDefinitions->map(fn (SharafCheckDefinition $cd) => $cd->toArray())->values()->all();
             }
             return $arr;
         })->all();
@@ -183,7 +191,7 @@ class SharafDefinitionController extends Controller
     public function sharafs(string $sd_id): JsonResponse
     {
         $sharafs = Sharaf::where('sharaf_definition_id', $sd_id)
-            ->with(['sharafDefinition', 'sharafMembers', 'sharafClearances', 'sharafPayments.paymentDefinition', 'colorLegend'])
+            ->with(['sharafDefinition', 'sharafMembers', 'sharafClearances', 'sharafPayments.paymentDefinition', 'sharafChecks.checkDefinition', 'colorLegend'])
             ->get();
 
         return $this->jsonSuccessWithData($sharafs);
@@ -422,6 +430,10 @@ class SharafDefinitionController extends Controller
             ->map(fn (PaymentDefinition $pd) => $pd->toArray())
             ->values()
             ->all();
+        $arr['check_definitions'] = $def->checkDefinitions
+            ->map(fn (SharafCheckDefinition $cd) => $cd->toArray())
+            ->values()
+            ->all();
 
         return $arr;
     }
@@ -487,6 +499,24 @@ class SharafDefinitionController extends Controller
             ->get();
 
         return $this->jsonSuccessWithData($paymentDefinitions);
+    }
+
+    /**
+     * GET /api/sharaf-definitions/{id}/check-definitions
+     */
+    public function checkDefinitions(string $id): JsonResponse
+    {
+        $sharafDefinition = SharafDefinition::find($id);
+
+        if (! $sharafDefinition) {
+            return $this->jsonError('NOT_FOUND', 'Sharaf definition not found.', 404);
+        }
+
+        $checkDefinitions = SharafCheckDefinition::where('sharaf_definition_id', $id)
+            ->orderBy('name')
+            ->get();
+
+        return $this->jsonSuccessWithData($checkDefinitions);
     }
 
     /**

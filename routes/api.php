@@ -17,6 +17,8 @@ use App\Http\Controllers\SharafClearanceController;
 use App\Http\Controllers\SharafDefinitionController;
 use App\Http\Controllers\SharafMemberController;
 use App\Http\Controllers\PaymentDefinitionController;
+use App\Http\Controllers\SharafCheckController;
+use App\Http\Controllers\SharafCheckDefinitionController;
 use App\Http\Controllers\SharafPaymentController;
 use App\Http\Controllers\SharafPositionController;
 use App\Http\Controllers\SharafDefinitionMappingController;
@@ -131,6 +133,7 @@ Route::put('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'upda
 Route::patch('/sharaf-definitions/{id}', [SharafDefinitionController::class, 'update']);
 Route::get('/sharaf-definitions/{id}/positions', [SharafDefinitionController::class, 'positions']);
 Route::get('/sharaf-definitions/{id}/payment-definitions', [SharafDefinitionController::class, 'paymentDefinitions']);
+Route::get('/sharaf-definitions/{id}/check-definitions', [SharafDefinitionController::class, 'checkDefinitions']);
 // Sharaf Definition Mapping routes
 Route::get('/sharaf-definition-mappings', [SharafDefinitionMappingController::class, 'index']);
 Route::post('/sharaf-definition-mappings', [SharafDefinitionMappingController::class, 'store']);
@@ -182,6 +185,16 @@ Route::post('/payment-definitions', [PaymentDefinitionController::class, 'store'
 Route::put('/payment-definitions/{id}', [PaymentDefinitionController::class, 'update']);
 Route::patch('/payment-definitions/{id}', [PaymentDefinitionController::class, 'update']);
 Route::delete('/payment-definitions/{id}', [PaymentDefinitionController::class, 'destroy']);
+// Sharaf check definition routes (boolean checks, same shape as payment definitions)
+Route::get('/sharaf-check-definitions', [SharafCheckDefinitionController::class, 'index']);
+Route::post('/sharaf-check-definitions', [SharafCheckDefinitionController::class, 'store']);
+Route::put('/sharaf-check-definitions/{id}', [SharafCheckDefinitionController::class, 'update']);
+Route::patch('/sharaf-check-definitions/{id}', [SharafCheckDefinitionController::class, 'update']);
+Route::delete('/sharaf-check-definitions/{id}', [SharafCheckDefinitionController::class, 'destroy']);
+Route::get('/sharaf-checks', [SharafCheckController::class, 'index']);
+Route::patch('/sharafs/{sharaf_id}/checks/{check_definition_id}', [SharafCheckController::class, 'toggle']);
+Route::post('/sharafs/{sharaf_id}/checks/{check_definition_id}/refresh', [SharafCheckController::class, 'refresh']);
+Route::post('/sharafs/{sharaf_id}/checks/{check_definition_id}', [SharafCheckController::class, 'toggle']);
 // Sharaf Payment routes
 Route::post('/sharafs/payment-receipts', [SharafPaymentController::class, 'issuePaymentReceipts']);
 Route::get('/sharaf-payments', [SharafPaymentController::class, 'index']);

@@ -14,6 +14,8 @@ use App\Models\MiqaatCheckDepartment;
 use App\Models\PaymentDefinition;
 use App\Models\PaymentDefinitionMapping;
 use App\Models\Sharaf;
+use App\Models\SharafCheck;
+use App\Models\SharafCheckDefinition;
 use App\Models\SharafClearance;
 use App\Models\SharafDefinition;
 use App\Models\SharafDefinitionMapping;
@@ -41,6 +43,7 @@ class AuditLogService
         'sharaf_definition' => 'Sharaf Definition',
         'sharaf_position' => 'Sharaf Position',
         'payment_definition' => 'Payment Definition',
+        'sharaf_check_definition' => 'Sharaf Check',
         'currency' => 'Currency',
         'currency_conversion' => 'Currency Conversion',
         'sharaf_type' => 'Sharaf Type',
@@ -53,6 +56,7 @@ class AuditLogService
         'sharaf' => 'Sharaf',
         'sharaf_member' => 'Sharaf Member',
         'sharaf_payment' => 'Sharaf Payment',
+        'sharaf_check' => 'Sharaf Check',
         'sharaf_clearance' => 'Sharaf Clearance',
         'event_color_legend' => 'Color Legend',
         'sila_fitra_calculation' => 'Sila Fitra',
@@ -67,6 +71,7 @@ class AuditLogService
         SharafDefinition::class => 'sharaf_definition',
         SharafPosition::class => 'sharaf_position',
         PaymentDefinition::class => 'payment_definition',
+        SharafCheckDefinition::class => 'sharaf_check_definition',
         Currency::class => 'currency',
         CurrencyConversion::class => 'currency_conversion',
         SharafType::class => 'sharaf_type',
@@ -79,6 +84,7 @@ class AuditLogService
         Sharaf::class => 'sharaf',
         SharafMember::class => 'sharaf_member',
         SharafPayment::class => 'sharaf_payment',
+        SharafCheck::class => 'sharaf_check',
         SharafClearance::class => 'sharaf_clearance',
         EventColorLegend::class => 'event_color_legend',
         SilaFitraCalculation::class => 'sila_fitra_calculation',
@@ -292,13 +298,13 @@ class AuditLogService
      */
     private function parentFor(Model $model): ?array
     {
-        if ($model instanceof SharafMember || $model instanceof SharafPayment || $model instanceof SharafClearance) {
+        if ($model instanceof SharafMember || $model instanceof SharafPayment || $model instanceof SharafCheck || $model instanceof SharafClearance) {
             $id = (int) $model->getAttribute('sharaf_id');
 
             return $id > 0 ? ['entity' => 'sharaf', 'id' => $id] : null;
         }
 
-        if ($model instanceof SharafPosition || $model instanceof PaymentDefinition || $model instanceof Sharaf) {
+        if ($model instanceof SharafPosition || $model instanceof PaymentDefinition || $model instanceof SharafCheckDefinition || $model instanceof Sharaf) {
             $id = (int) $model->getAttribute('sharaf_definition_id');
 
             return $id > 0 ? ['entity' => 'sharaf_definition', 'id' => $id] : null;
@@ -447,6 +453,16 @@ class AuditLogService
                 'created' => "Set payment on sharaf #{$sharafId}",
                 'deleted' => "Removed payment on sharaf #{$sharafId}",
                 default => "Updated payment on sharaf #{$sharafId}: ".$this->changedFields($newValues),
+            };
+        }
+
+        if ($entity === 'sharaf_check') {
+            $sharafId = $model->getAttribute('sharaf_id');
+
+            return match ($action) {
+                'created' => "Set check on sharaf #{$sharafId}",
+                'deleted' => "Removed check on sharaf #{$sharafId}",
+                default => "Updated check on sharaf #{$sharafId}: ".$this->changedFields($newValues),
             };
         }
 

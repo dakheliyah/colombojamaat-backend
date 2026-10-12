@@ -62,7 +62,7 @@ class SharafController extends Controller
             ->selectRaw("COALESCE(NULLIF(census.name, ''), {$hofMemberNameSql}) as hof_name")
             ->selectRaw('census.jamaat as hof_jamaat')
             // List consumers use definition + payments; members/clearances are fetched per-sharaf.
-            ->with(['sharafDefinition', 'sharafPayments.paymentDefinition', 'colorLegend']);
+            ->with(['sharafDefinition', 'sharafPayments.paymentDefinition', 'sharafChecks.checkDefinition', 'colorLegend']);
 
         $query->forMiqaat(
             $request->filled('miqaat_id') ? (int) $request->input('miqaat_id') : null
@@ -244,7 +244,7 @@ class SharafController extends Controller
             'comments' => $request->input('comments'),
         ]);
 
-        $sharaf->load(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition']);
+        $sharaf->load(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition', 'sharafChecks.checkDefinition']);
 
         // If there are warnings, return them with the created sharaf
         if (!empty($warnings)) {
@@ -365,14 +365,14 @@ class SharafController extends Controller
         }
 
         $sharaf->refresh();
-        $sharaf->load(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition', 'colorLegend']);
+        $sharaf->load(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition', 'sharafChecks.checkDefinition', 'colorLegend']);
 
         return $this->jsonSuccessWithData($sharaf);
     }
 
     public function show(string $sharaf_id): JsonResponse
     {
-        $sharaf = Sharaf::with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition', 'hof', 'colorLegend'])
+        $sharaf = Sharaf::with(['sharafDefinition', 'sharafMembers.sharafPosition', 'sharafClearances', 'sharafPayments.paymentDefinition', 'sharafChecks.checkDefinition', 'hof', 'colorLegend'])
             ->findOrFail($sharaf_id);
 
         return $this->jsonSuccessWithData($sharaf);
