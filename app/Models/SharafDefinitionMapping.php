@@ -60,6 +60,11 @@ class SharafDefinitionMapping extends Model
         return $this->hasMany(PaymentDefinitionMapping::class);
     }
 
+    public function checkDefinitionMappings(): HasMany
+    {
+        return $this->hasMany(SharafCheckDefinitionMapping::class);
+    }
+
     /**
      * Get the audit logs for this definition mapping.
      */

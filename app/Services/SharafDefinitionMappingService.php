@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Models\PaymentDefinition;
 use App\Models\PaymentDefinitionMapping;
 use App\Models\Sharaf;
+use App\Models\SharafCheck;
+use App\Models\SharafCheckDefinition;
+use App\Models\SharafCheckDefinitionMapping;
 use App\Models\SharafDefinition;
 use App\Models\SharafDefinitionMapping;
 use App\Models\SharafMember;
@@ -67,7 +70,7 @@ class SharafDefinitionMappingService
      */
     public function getMappings(?int $definitionId = null): Collection
     {
-        $query = SharafDefinitionMapping::with(['sourceDefinition.event', 'targetDefinition.event', 'positionMappings', 'paymentDefinitionMappings']);
+        $query = SharafDefinitionMapping::with(['sourceDefinition.event', 'targetDefinition.event', 'positionMappings', 'paymentDefinitionMappings', 'checkDefinitionMappings']);
 
         if ($definitionId !== null) {
             $query->forDefinition($definitionId);
@@ -192,6 +195,55 @@ class SharafDefinitionMappingService
     }
 
     /**
+     * Add a check definition mapping.
+     */
+    public function addCheckDefinitionMapping(int $mappingId, int $sourceCheckDefId, int $targetCheckDefId): SharafCheckDefinitionMapping
+    {
+        $mapping = SharafDefinitionMapping::findOrFail($mappingId);
+
+        $sourceCheckDef = SharafCheckDefinition::findOrFail($sourceCheckDefId);
+        $targetCheckDef = SharafCheckDefinition::findOrFail($targetCheckDefId);
+
+        if ($sourceCheckDef->sharaf_definition_id !== $mapping->source_sharaf_definition_id) {
+            throw new \InvalidArgumentException('Source check definition does not belong to the source sharaf definition.');
+        }
+
+        if ($targetCheckDef->sharaf_definition_id !== $mapping->target_sharaf_definition_id) {
+            throw new \InvalidArgumentException('Target check definition does not belong to the target sharaf definition.');
+        }
+
+        if ($sourceCheckDefId === $targetCheckDefId) {
+            throw new \InvalidArgumentException('Source and target check definitions cannot be the same.');
+        }
+
+        $existing = SharafCheckDefinitionMapping::where('sharaf_definition_mapping_id', $mappingId)
+            ->where(function ($query) use ($sourceCheckDefId, $targetCheckDefId) {
+                $query->where('source_sharaf_check_definition_id', $sourceCheckDefId)
+                    ->orWhere('target_sharaf_check_definition_id', $targetCheckDefId);
+            })
+            ->first();
+
+        if ($existing) {
+            throw new \InvalidArgumentException('A check definition mapping already exists for this check definition.');
+        }
+
+        return SharafCheckDefinitionMapping::create([
+            'sharaf_definition_mapping_id' => $mappingId,
+            'source_sharaf_check_definition_id' => $sourceCheckDefId,
+            'target_sharaf_check_definition_id' => $targetCheckDefId,
+        ]);
+    }
+
+    /**
+     * Remove a check definition mapping.
+     */
+    public function removeCheckDefinitionMapping(int $checkMappingId): void
+    {
+        $checkMapping = SharafCheckDefinitionMapping::findOrFail($checkMappingId);
+        $checkMapping->delete();
+    }
+
+    /**
      * Validate that all required mappings exist.
      * 
      * @param int $mappingId
@@ -201,10 +253,11 @@ class SharafDefinitionMappingService
      */
     public function validateMappingComplete(int $mappingId, ?array $sharafIds = null, bool $reverseDirection = false): array
     {
-        $mapping = SharafDefinitionMapping::with(['sourceDefinition.sharafs.sharafMembers', 'sourceDefinition.sharafs.sharafPayments', 'targetDefinition.sharafs.sharafMembers', 'targetDefinition.sharafs.sharafPayments'])->findOrFail($mappingId);
+        $mapping = SharafDefinitionMapping::with(['sourceDefinition.sharafs.sharafMembers', 'sourceDefinition.sharafs.sharafPayments', 'sourceDefinition.sharafs.sharafChecks', 'targetDefinition.sharafs.sharafMembers', 'targetDefinition.sharafs.sharafPayments', 'targetDefinition.sharafs.sharafChecks'])->findOrFail($mappingId);
 
         $missingPositionMappings = [];
         $missingPaymentMappings = [];
+        $missingCheckMappings = [];
 
         // Determine which definition to check based on direction
         $sourceDefinitionId = $reverseDirection ? $mapping->target_sharaf_definition_id : $mapping->source_sharaf_definition_id;
@@ -231,6 +284,15 @@ class SharafDefinitionMappingService
             } else {
                 // Normal: source -> target
                 $paymentMappings[$payMapping->source_payment_definition_id] = $payMapping->target_payment_definition_id;
+            }
+        }
+
+        $checkMappings = [];
+        foreach ($mapping->checkDefinitionMappings as $checkMapping) {
+            if ($reverseDirection) {
+                $checkMappings[$checkMapping->target_sharaf_check_definition_id] = $checkMapping->source_sharaf_check_definition_id;
+            } else {
+                $checkMappings[$checkMapping->source_sharaf_check_definition_id] = $checkMapping->target_sharaf_check_definition_id;
             }
         }
 
@@ -272,10 +334,29 @@ class SharafDefinitionMappingService
             }
         }
 
+        $usedCheckDefinitionsQuery = SharafCheck::whereHas('sharaf', function ($query) use ($sourceDefinitionId, $sharafIds) {
+            $query->where('sharaf_definition_id', $sourceDefinitionId);
+            if ($sharafIds !== null && !empty($sharafIds)) {
+                $query->whereIn('id', $sharafIds);
+            }
+        });
+        $usedCheckDefinitions = $usedCheckDefinitionsQuery->distinct()->pluck('sharaf_check_definition_id')->toArray();
+
+        foreach ($usedCheckDefinitions as $checkDefId) {
+            if (!isset($checkMappings[$checkDefId])) {
+                $checkDef = SharafCheckDefinition::find($checkDefId);
+                $missingCheckMappings[] = [
+                    'sharaf_check_definition_id' => $checkDefId,
+                    'sharaf_check_definition_name' => $checkDef ? $checkDef->name : 'Unknown',
+                ];
+            }
+        }
+
         return [
-            'is_complete' => empty($missingPositionMappings) && empty($missingPaymentMappings),
+            'is_complete' => empty($missingPositionMappings) && empty($missingPaymentMappings) && empty($missingCheckMappings),
             'missing_position_mappings' => $missingPositionMappings,
             'missing_payment_mappings' => $missingPaymentMappings,
+            'missing_check_mappings' => $missingCheckMappings,
         ];
     }
 
@@ -290,7 +371,7 @@ class SharafDefinitionMappingService
      */
     public function shiftSharafs(int $mappingId, ?string $shiftedByIts = null, ?array $sharafIds = null, bool $reverseDirection = false): array
     {
-        $mapping = SharafDefinitionMapping::with(['sourceDefinition', 'targetDefinition', 'positionMappings', 'paymentDefinitionMappings'])->findOrFail($mappingId);
+        $mapping = SharafDefinitionMapping::with(['sourceDefinition', 'targetDefinition', 'positionMappings', 'paymentDefinitionMappings', 'checkDefinitionMappings'])->findOrFail($mappingId);
 
         // Validate mapping is active
         if (!$mapping->is_active) {
@@ -316,7 +397,7 @@ class SharafDefinitionMappingService
         // Validate all required mappings exist (only for selected sharafs if provided)
         $validation = $this->validateMappingComplete($mappingId, $sharafIds, $reverseDirection);
         if (!$validation['is_complete']) {
-            throw new \InvalidArgumentException('Mapping is incomplete. Missing position or payment definition mappings.');
+            throw new \InvalidArgumentException('Mapping is incomplete. Missing position, payment, or check definition mappings.');
         }
 
         return DB::transaction(function () use ($mapping, $shiftedByIts, $validation, $sharafIds, $reverseDirection, $actualSourceDefinitionId, $actualTargetDefinitionId) {
@@ -329,7 +410,7 @@ class SharafDefinitionMappingService
             
             $sourceSharafs = $sourceSharafsQuery
                 ->orderBy('rank')
-                ->with(['sharafMembers', 'sharafPayments'])
+                ->with(['sharafMembers', 'sharafPayments', 'sharafChecks'])
                 ->get();
 
             if ($sourceSharafs->isEmpty()) {
@@ -338,10 +419,12 @@ class SharafDefinitionMappingService
                     'members_shifted' => 0,
                     'clearances_shifted' => 0,
                     'payments_shifted' => 0,
+                    'checks_shifted' => 0,
                     'sharaf_ids' => [],
                     'rank_changes' => [],
                     'position_mappings_used' => [],
                     'payment_mappings_used' => [],
+                    'check_mappings_used' => [],
                     'audit_log_id' => null,
                 ];
             }
@@ -380,12 +463,23 @@ class SharafDefinitionMappingService
                 }
             }
 
+            $checkMappingLookup = [];
+            foreach ($mapping->checkDefinitionMappings as $checkMapping) {
+                if ($reverseDirection) {
+                    $checkMappingLookup[$checkMapping->target_sharaf_check_definition_id] = $checkMapping->source_sharaf_check_definition_id;
+                } else {
+                    $checkMappingLookup[$checkMapping->source_sharaf_check_definition_id] = $checkMapping->target_sharaf_check_definition_id;
+                }
+            }
+
             $shiftedSharafIds = [];
             $rankChanges = [];
             $positionMappingsUsed = [];
             $paymentMappingsUsed = [];
+            $checkMappingsUsed = [];
             $totalMembers = 0;
             $totalPayments = 0;
+            $totalChecks = 0;
 
             // Shift each sharaf
             foreach ($sourceSharafs as $sharaf) {
@@ -437,6 +531,21 @@ class SharafDefinitionMappingService
                     }
                     $totalPayments++;
                 }
+
+                foreach ($sharaf->sharafChecks as $check) {
+                    $oldCheckDefId = $check->sharaf_check_definition_id;
+                    if (isset($checkMappingLookup[$oldCheckDefId])) {
+                        $newCheckDefId = $checkMappingLookup[$oldCheckDefId];
+                        $check->sharaf_check_definition_id = $newCheckDefId;
+                        $check->save();
+
+                        $mappingKey = $oldCheckDefId . '->' . $newCheckDefId;
+                        if (!in_array($mappingKey, $checkMappingsUsed)) {
+                            $checkMappingsUsed[] = $mappingKey;
+                        }
+                    }
+                    $totalChecks++;
+                }
             }
 
             // Get count of clearances (they move automatically with sharaf_id)
@@ -467,11 +576,13 @@ class SharafDefinitionMappingService
                     'members_count' => $totalMembers,
                     'clearances_count' => $totalClearances,
                     'payments_count' => $totalPayments,
+                    'checks_count' => $totalChecks,
                     'reverse_direction' => $reverseDirection,
                 ],
                 'sharaf_ids' => $shiftedSharafIds,
                 'position_mappings_used' => array_values(array_unique($positionMappingsUsed)),
                 'payment_mappings_used' => array_values(array_unique($paymentMappingsUsed)),
+                'check_mappings_used' => array_values(array_unique($checkMappingsUsed)),
                 'rank_changes' => $rankChanges,
                 'shifted_at' => now(),
             ]);
@@ -481,10 +592,12 @@ class SharafDefinitionMappingService
                 'members_shifted' => $totalMembers,
                 'clearances_shifted' => $totalClearances,
                 'payments_shifted' => $totalPayments,
+                'checks_shifted' => $totalChecks,
                 'sharaf_ids' => $shiftedSharafIds,
                 'rank_changes' => $rankChanges,
                 'position_mappings_used' => array_values(array_unique($positionMappingsUsed)),
                 'payment_mappings_used' => array_values(array_unique($paymentMappingsUsed)),
+                'check_mappings_used' => array_values(array_unique($checkMappingsUsed)),
                 'audit_log_id' => $auditLog->id,
             ];
         });

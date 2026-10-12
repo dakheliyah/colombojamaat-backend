@@ -16,6 +16,7 @@ use App\Models\PaymentDefinitionMapping;
 use App\Models\Sharaf;
 use App\Models\SharafCheck;
 use App\Models\SharafCheckDefinition;
+use App\Models\SharafCheckDefinitionMapping;
 use App\Models\SharafClearance;
 use App\Models\SharafDefinition;
 use App\Models\SharafDefinitionMapping;
@@ -52,6 +53,7 @@ class AuditLogService
         'sharaf_definition_mapping' => 'Sharaf Definition Mapping',
         'sharaf_position_mapping' => 'Position Mapping',
         'payment_definition_mapping' => 'Payment Definition Mapping',
+        'sharaf_check_definition_mapping' => 'Check Definition Mapping',
         'sila_fitra_config' => 'Sila Fitra Config',
         'sharaf' => 'Sharaf',
         'sharaf_member' => 'Sharaf Member',
@@ -80,6 +82,7 @@ class AuditLogService
         SharafDefinitionMapping::class => 'sharaf_definition_mapping',
         SharafPositionMapping::class => 'sharaf_position_mapping',
         PaymentDefinitionMapping::class => 'payment_definition_mapping',
+        SharafCheckDefinitionMapping::class => 'sharaf_check_definition_mapping',
         SilaFitraConfig::class => 'sila_fitra_config',
         Sharaf::class => 'sharaf',
         SharafMember::class => 'sharaf_member',
@@ -323,7 +326,7 @@ class AuditLogService
             return $id > 0 ? ['entity' => 'miqaat', 'id' => $id] : null;
         }
 
-        if ($model instanceof SharafPositionMapping || $model instanceof PaymentDefinitionMapping) {
+        if ($model instanceof SharafPositionMapping || $model instanceof PaymentDefinitionMapping || $model instanceof SharafCheckDefinitionMapping) {
             $id = (int) $model->getAttribute('sharaf_definition_mapping_id');
 
             return $id > 0 ? ['entity' => 'sharaf_definition_mapping', 'id' => $id] : null;

@@ -17,6 +17,7 @@ class SharafShiftAuditLog extends Model
         'sharaf_ids',
         'position_mappings_used',
         'payment_mappings_used',
+        'check_mappings_used',
         'rank_changes',
         'shifted_at',
     ];
@@ -26,6 +27,7 @@ class SharafShiftAuditLog extends Model
         'sharaf_ids' => 'array',
         'position_mappings_used' => 'array',
         'payment_mappings_used' => 'array',
+        'check_mappings_used' => 'array',
         'rank_changes' => 'array',
         'shifted_at' => 'datetime',
     ];

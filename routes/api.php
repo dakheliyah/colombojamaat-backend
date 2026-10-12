@@ -149,6 +149,9 @@ Route::delete('/sharaf-definition-mappings/{id}/position-mappings/{positionMappi
 // Payment definition mapping routes
 Route::post('/sharaf-definition-mappings/{id}/payment-definition-mappings', [SharafDefinitionMappingController::class, 'addPaymentDefinitionMapping']);
 Route::delete('/sharaf-definition-mappings/{id}/payment-definition-mappings/{paymentMappingId}', [SharafDefinitionMappingController::class, 'removePaymentDefinitionMapping']);
+// Check definition mapping routes
+Route::post('/sharaf-definition-mappings/{id}/check-definition-mappings', [SharafDefinitionMappingController::class, 'addCheckDefinitionMapping']);
+Route::delete('/sharaf-definition-mappings/{id}/check-definition-mappings/{checkMappingId}', [SharafDefinitionMappingController::class, 'removeCheckDefinitionMapping']);
 // Validation and shift routes
 Route::get('/sharaf-definition-mappings/{id}/validate', [SharafDefinitionMappingController::class, 'validateMapping']);
 Route::post('/sharaf-definition-mappings/{id}/shift', [SharafDefinitionMappingController::class, 'shift']);

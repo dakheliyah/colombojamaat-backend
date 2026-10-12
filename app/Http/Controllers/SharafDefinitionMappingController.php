@@ -104,6 +104,8 @@ class SharafDefinitionMappingController extends Controller
             'positionMappings.targetPosition',
             'paymentDefinitionMappings.sourcePaymentDefinition',
             'paymentDefinitionMappings.targetPaymentDefinition',
+            'checkDefinitionMappings.sourceCheckDefinition',
+            'checkDefinitionMappings.targetCheckDefinition',
         ])->find($id);
 
         if (!$mapping) {
@@ -315,6 +317,72 @@ class SharafDefinitionMappingController extends Controller
             return $this->jsonError('NOT_FOUND', 'Payment definition mapping not found.', 404);
         } catch (\Exception $e) {
             return $this->jsonError('SERVER_ERROR', 'Failed to delete payment definition mapping.', 500);
+        }
+    }
+
+    /**
+     * POST /api/sharaf-definition-mappings/{id}/check-definition-mappings
+     * Add a check definition mapping
+     */
+    public function addCheckDefinitionMapping(Request $request, string $id): JsonResponse
+    {
+        $validator = Validator::make(array_merge($request->all(), ['id' => $id]), [
+            'id' => ['required', 'integer'],
+            'source_sharaf_check_definition_id' => ['required', 'integer', 'exists:sharaf_check_definitions,id'],
+            'target_sharaf_check_definition_id' => ['required', 'integer', 'exists:sharaf_check_definitions,id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        try {
+            $checkMapping = $this->mappingService->addCheckDefinitionMapping(
+                (int) $id,
+                $request->input('source_sharaf_check_definition_id'),
+                $request->input('target_sharaf_check_definition_id')
+            );
+
+            $checkMapping->load(['sourceCheckDefinition', 'targetCheckDefinition']);
+
+            return $this->jsonSuccessWithData($checkMapping, 201);
+        } catch (\InvalidArgumentException $e) {
+            return $this->jsonError('VALIDATION_ERROR', $e->getMessage(), 422);
+        } catch (\Exception $e) {
+            return $this->jsonError('SERVER_ERROR', 'Failed to create check definition mapping.', 500);
+        }
+    }
+
+    /**
+     * DELETE /api/sharaf-definition-mappings/{id}/check-definition-mappings/{checkMappingId}
+     * Remove a check definition mapping
+     */
+    public function removeCheckDefinitionMapping(string $id, string $checkMappingId): JsonResponse
+    {
+        $validator = Validator::make(['id' => $id, 'check_mapping_id' => $checkMappingId], [
+            'id' => ['required', 'integer'],
+            'check_mapping_id' => ['required', 'integer'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Invalid ID.',
+                422
+            );
+        }
+
+        try {
+            $this->mappingService->removeCheckDefinitionMapping((int) $checkMappingId);
+            return $this->jsonSuccess(['message' => 'Check definition mapping deleted successfully.']);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->jsonError('NOT_FOUND', 'Check definition mapping not found.', 404);
+        } catch (\Exception $e) {
+            return $this->jsonError('SERVER_ERROR', 'Failed to delete check definition mapping.', 500);
         }
     }
 
