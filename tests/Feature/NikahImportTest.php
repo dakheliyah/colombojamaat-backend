@@ -308,7 +308,7 @@ class NikahImportTest extends TestCase
         $this->assertSame('30359451', DB::table('sharaf_members')->value('its_id'));
     }
 
-    public function test_date_mismatch_blocks_sharafs_and_still_updates_census(): void
+    public function test_date_mismatch_warns_and_still_applies_sharafs_and_census(): void
     {
         $definitionId = $this->seedDefinition('2026-10-17', 'Nikah Morning');
         $file = $this->workbook([
@@ -321,16 +321,18 @@ class NikahImportTest extends TestCase
         ], ['Accept' => 'application/json'])
             ->assertOk()
             ->assertJsonPath('data.can_apply_census', true)
-            ->assertJsonPath('data.can_apply_sharafs', false);
+            ->assertJsonPath('data.can_apply_sharafs', true)
+            ->assertJsonPath('data.definition_errors', [])
+            ->assertJsonPath('data.warnings.0', 'Bethak date 2026-10-16 does not match the event date 2026-10-17.');
 
         $this->post('/api/nikah-import/sharafs', [
             'sharaf_definition_id' => $definitionId,
             'file' => $this->workbook([
                 $this->person('480652', '30359451', 'Taha bhai', 'Dulha', '+94766466484', '23', 'M'),
             ]),
-        ], ['Accept' => 'application/json'])->assertStatus(422);
+        ], ['Accept' => 'application/json'])->assertCreated()->assertJsonPath('data.created', 1);
 
-        $this->assertSame(0, DB::table('sharafs')->count());
+        $this->assertSame(1, DB::table('sharafs')->count());
 
         $this->post('/api/nikah-import/census', [
             'sharaf_definition_id' => $definitionId,

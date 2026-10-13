@@ -318,9 +318,12 @@ class NikahImportService
 
         $bethak = (string) array_key_first($bethakDates);
         $definitionErrors = [];
-        $dateError = $this->bethakError($bethak, $definition);
-        if ($dateError !== null) {
-            $definitionErrors[] = $dateError;
+        $bethakCheck = $this->bethakCheck($bethak, $definition);
+        if ($bethakCheck['error'] !== null) {
+            $definitionErrors[] = $bethakCheck['error'];
+        }
+        if ($bethakCheck['warning'] !== null) {
+            $warnings[] = $bethakCheck['warning'];
         }
 
         $roleCounts = [];
@@ -1134,33 +1137,43 @@ class NikahImportService
             ->all();
     }
 
-    private function bethakError(string $bethak, SharafDefinition $definition): ?string
+    /**
+     * A date that differs from the event is a warning. An unreadable date, a missing event date, or a session that is not in the event name still blocks sharaf apply.
+     *
+     * @return array{error: ?string, warning: ?string}
+     */
+    private function bethakCheck(string $bethak, SharafDefinition $definition): array
     {
         if (!preg_match('/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\s*-\s*(.+)$/', trim($bethak), $match)) {
-            return 'Bethak_Date must look like "16 Oct 2026 - Morning".';
+            return ['error' => 'Bethak_Date must look like "16 Oct 2026 - Morning".', 'warning' => null];
         }
 
         try {
             $parsed = Carbon::parse($match[1].' '.$match[2].' '.$match[3])->toDateString();
         } catch (\Throwable) {
-            return "Bethak_Date \"{$bethak}\" is not a date this import understands.";
+            return ['error' => "Bethak_Date \"{$bethak}\" is not a date this import understands.", 'warning' => null];
         }
 
         $event = $definition->event;
         if ($event === null || $event->date === null) {
-            return 'The selected event has no date.';
+            return ['error' => 'The selected event has no date.', 'warning' => null];
         }
+
+        $warning = null;
         $eventDate = $event->date->toDateString();
         if ($parsed !== $eventDate) {
-            return "Bethak date {$parsed} does not match the event date {$eventDate}.";
+            $warning = "Bethak date {$parsed} does not match the event date {$eventDate}.";
         }
 
         $session = trim($match[4]);
         if (!str_contains(mb_strtolower((string) $event->name), mb_strtolower($session))) {
-            return "Bethak session \"{$session}\" is not part of the event name \"{$event->name}\".";
+            return [
+                'error' => "Bethak session \"{$session}\" is not part of the event name \"{$event->name}\".",
+                'warning' => $warning,
+            ];
         }
 
-        return null;
+        return ['error' => null, 'warning' => $warning];
     }
 
     /**
