@@ -11,6 +11,7 @@ use App\Http\Controllers\FamilySummaryController;
 use App\Http\Controllers\MiqaatCheckController;
 use App\Http\Controllers\MiqaatCheckDefinitionController;
 use App\Http\Controllers\MiqaatController;
+use App\Http\Controllers\NikahImportController;
 use App\Http\Controllers\SharafBulkImportController;
 use App\Http\Controllers\SharafController;
 use App\Http\Controllers\SharafClearanceController;
@@ -166,6 +167,9 @@ Route::get('/sharafs/import/columns', [SharafBulkImportController::class, 'colum
 Route::get('/sharafs/import/template', [SharafBulkImportController::class, 'template']);
 Route::post('/sharafs/import/validate', [SharafBulkImportController::class, 'validateUpload']);
 Route::post('/sharafs/import', [SharafBulkImportController::class, 'import']);
+Route::post('/nikah-import/preview', [NikahImportController::class, 'preview']);
+Route::post('/nikah-import/census', [NikahImportController::class, 'applyCensus']);
+Route::post('/nikah-import/sharafs', [NikahImportController::class, 'applySharafs']);
 Route::get('/sharafs', [SharafController::class, 'index']);
 Route::post('/sharafs', [SharafController::class, 'store']);
 Route::get('/sharafs/{sharaf_id}/audit-logs', [AuditLogController::class, 'forSharaf']);
