@@ -38,6 +38,8 @@ class NikahImportTest extends TestCase
             $table->unsignedInteger('age')->nullable();
             $table->string('gender')->nullable();
             $table->string('mobile')->nullable();
+            $table->string('email')->nullable();
+            $table->string('arabic_name')->nullable();
             $table->string('jamaat')->nullable();
             $table->string('jamiat')->nullable();
             $table->timestamps();
@@ -391,6 +393,59 @@ class NikahImportTest extends TestCase
         $this->assertSame($guestId, (int) DB::table('sharaf_members')->where('its_id', '60474915')->value('sharaf_position_id'));
     }
 
+    public function test_misaq_sheet_groups_by_incharge_and_maps_members(): void
+    {
+        $definitionId = $this->seedDefinition('2026-10-16', 'Nikah Morning');
+        $inchargePosition = (int) DB::table('sharaf_positions')->where('sharaf_definition_id', $definitionId)->where('name', 'Dulha')->value('id');
+        $memberPosition = (int) DB::table('sharaf_positions')->where('sharaf_definition_id', $definitionId)->where('name', 'Extra Member')->value('id');
+        $rows = [
+            ['16 Oct 2026 - Morning', '30114302', '30114302', 'Insiyah bai', '+923322555153', '13', 'F', 'COLOMBO', 'Pakistan', 'insi@example.com', 'انسية'],
+            ['16 Oct 2026 - Morning', '30114302', '40454323', 'Maryam bai', '+923322555153', '45', 'F', 'COLOMBO', 'Pakistan', 'insi@example.com', 'مريم'],
+        ];
+        $file = $this->misaqWorkbook($rows);
+        $roleMap = json_encode([
+            'Group incharge' => $inchargePosition,
+            'Member' => $memberPosition,
+        ]);
+
+        $preview = $this->post('/api/nikah-import/preview', [
+            'sharaf_definition_id' => $definitionId,
+            'module' => 'misaq',
+            'file' => $file,
+            'role_map' => $roleMap,
+        ], ['Accept' => 'application/json']);
+
+        $preview->assertOk()
+            ->assertJsonPath('data.can_apply_census', true)
+            ->assertJsonPath('data.can_apply_sharafs', true)
+            ->assertJsonPath('data.party_count', 1)
+            ->assertJsonPath('data.parties.0.token', '30114302')
+            ->assertJsonPath('data.parties.0.people.0.role', 'Group incharge')
+            ->assertJsonPath('data.parties.0.people.1.role', 'Member');
+
+        $creates = collect($preview->json('data.census.creates'))->keyBy('its');
+        $this->assertSame('+923322555153', $creates['30114302']['fields']['mobile']);
+        $this->assertSame('insi@example.com', $creates['30114302']['fields']['email']);
+        $this->assertSame('انسية', $creates['30114302']['fields']['arabic_name']);
+        $this->assertNull($creates['40454323']['fields']['mobile']);
+        $this->assertNull($creates['40454323']['fields']['email']);
+        $this->assertSame('مريم', $creates['40454323']['fields']['arabic_name']);
+
+        $this->post('/api/nikah-import/sharafs', [
+            'sharaf_definition_id' => $definitionId,
+            'module' => 'misaq',
+            'file' => $this->misaqWorkbook($rows),
+            'role_map' => $roleMap,
+        ], ['Accept' => 'application/json'])->assertCreated();
+
+        $this->assertSame('30114302', DB::table('sharafs')->value('token'));
+        $this->assertSame('30114302', DB::table('sharafs')->value('hof_its'));
+        $this->assertSame($inchargePosition, (int) DB::table('sharaf_members')->where('its_id', '30114302')->value('sharaf_position_id'));
+        $this->assertSame($memberPosition, (int) DB::table('sharaf_members')->where('its_id', '40454323')->value('sharaf_position_id'));
+        $this->assertSame('+923322555153', DB::table('sharaf_members')->where('its_id', '30114302')->value('phone'));
+        $this->assertNull(DB::table('sharaf_members')->where('its_id', '40454323')->value('phone'));
+    }
+
     public function test_deselected_party_is_left_unchanged(): void
     {
         $definitionId = $this->seedDefinition('2026-10-16', 'Nikah Morning');
@@ -613,6 +668,53 @@ class NikahImportTest extends TestCase
         $zip->close();
 
         return new UploadedFile($xlsx, 'nikah.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+    }
+
+    /**
+     * @param  list<list<string>>  $rows
+     */
+    private function misaqWorkbook(array $rows): UploadedFile
+    {
+        $headers = ['Bethak_Date', 'Group_ID', 'Mumin_ID', 'FullName', 'Mobile_No', 'Age', 'Gender', 'Jamaat', 'Jamiaat', 'Email', 'Arabic_FullName'];
+        $sheetRows = $this->xmlRow(1, $headers);
+        $line = 1;
+        foreach ($rows as $row) {
+            $line++;
+            $sheetRows .= $this->xmlRow($line, $row);
+        }
+
+        $sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+            .$sheetRows
+            .'</sheetData></worksheet>';
+
+        $path = tempnam(sys_get_temp_dir(), 'misaq');
+        $xlsx = $path.'.xlsx';
+        rename($path, $xlsx);
+        $zip = new ZipArchive();
+        $zip->open($xlsx, ZipArchive::CREATE);
+        $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            .'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            .'<Default Extension="xml" ContentType="application/xml"/>'
+            .'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            .'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            .'</Types>');
+        $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            .'</Relationships>');
+        $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            .'<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>');
+        $zip->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            .'</Relationships>');
+        $zip->addFromString('xl/worksheets/sheet1.xml', $sheet);
+        $zip->close();
+
+        return new UploadedFile($xlsx, 'misaq.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
     }
 
     /**
