@@ -412,6 +412,50 @@ class NikahImportTest extends TestCase
         $this->assertSame($guestId, (int) DB::table('sharaf_members')->where('its_id', '60474915')->value('sharaf_position_id'));
     }
 
+    public function test_misaq_uses_order_when_position_names_differ(): void
+    {
+        $definitionId = $this->seedDefinition('2026-10-16', 'Misaq Morning');
+        DB::table('sharaf_positions')->where('sharaf_definition_id', $definitionId)->delete();
+        $now = now();
+        $farzand = (int) DB::table('sharaf_positions')->insertGetId([
+            'sharaf_definition_id' => $definitionId,
+            'name' => 'Farzand',
+            'display_name' => 'Farzand',
+            'capacity' => 1,
+            'order' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $deedar = (int) DB::table('sharaf_positions')->insertGetId([
+            'sharaf_definition_id' => $definitionId,
+            'name' => 'Deedar',
+            'display_name' => 'Deedar',
+            'capacity' => 2,
+            'order' => 2,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $rows = [
+            ['16 Oct 2026 - Morning', '30114310', '30114310', 'Burhanuddin bhai', '+94770000000', '30', 'M', 'COLOMBO', 'Far East'],
+            ['16 Oct 2026 - Morning', '30114310', '40454323', 'Member One', '+94770000000', '20', 'M', 'COLOMBO', 'Far East'],
+            ['16 Oct 2026 - Morning', '30114310', '40454324', 'Member Two', '+94770000000', '18', 'M', 'COLOMBO', 'Far East'],
+        ];
+
+        $this->post('/api/nikah-import/preview', [
+            'sharaf_definition_id' => $definitionId,
+            'module' => 'misaq',
+            'file' => $this->misaqWorkbook($rows),
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.definition_errors', [])
+            ->assertJsonPath('data.can_apply_sharafs', true)
+            ->assertJsonPath('data.parties.0.errors', [])
+            ->assertJsonPath('data.parties.0.people.0.position', 'Farzand')
+            ->assertJsonPath('data.parties.0.people.1.position', 'Deedar')
+            ->assertJsonPath('data.roles.0.position_id', $farzand)
+            ->assertJsonPath('data.roles.1.position_id', $deedar);
+    }
+
     public function test_misaq_sheet_groups_by_incharge_and_maps_members(): void
     {
         $definitionId = $this->seedDefinition('2026-10-16', 'Nikah Morning');

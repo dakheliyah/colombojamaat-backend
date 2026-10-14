@@ -1259,6 +1259,9 @@ class NikahImportService
 
                     return strcasecmp($display, $role) === 0 || strcasecmp(trim((string) $position->name), $role) === 0;
                 });
+                if ($match === null && $module === 'misaq') {
+                    $match = $this->misaqPositionByOrder($definition, $role);
+                }
                 if ($match === null) {
                     $errors[] = "Add a position named \"{$role}\" to this sharaf definition, or map \"{$role}\" to a position.";
                     continue;
@@ -1346,6 +1349,27 @@ class NikahImportService
         return ['error' => null, 'warning' => null];
     }
 
+    private function misaqPositionByOrder(SharafDefinition $definition, string $role): ?SharafPosition
+    {
+        $positions = $definition->sharafPositions;
+        if ($role === 'Group incharge') {
+            $heads = $positions->filter(fn (SharafPosition $position) => (int) $position->order === 1)->values();
+
+            return $heads->count() === 1 ? $heads->first() : null;
+        }
+
+        $others = $positions
+            ->filter(fn (SharafPosition $position) => (int) $position->order !== 1)
+            ->sortBy(fn (SharafPosition $position) => (int) $position->order)
+            ->values();
+        if ($others->count() === 1) {
+            return $others->first();
+        }
+        $second = $others->filter(fn (SharafPosition $position) => (int) $position->order === 2)->values();
+
+        return $second->count() === 1 ? $second->first() : null;
+    }
+
     /**
      * @param  list<array<string, mixed>>  $people
      * @param  array<string, SharafPosition>  $positions
@@ -1366,7 +1390,7 @@ class NikahImportService
         foreach ($people as $person) {
             $role = (string) $person['role'];
             $position = $positions[$role] ?? null;
-            if ($position === null && !$explicit && !isset(self::ROLES[$role])) {
+            if ($position === null && !$explicit && !isset(self::ROLES[$role]) && !isset(self::MISAQ_ROLES[$role])) {
                 $errors[] = "Row {$person['line']}: unknown role \"{$role}\".";
             }
             $counts[$role] = ($counts[$role] ?? 0) + 1;
