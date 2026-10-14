@@ -160,7 +160,20 @@ class NikahImportService
         string $module = 'nikah',
     ): array {
         $analyzed = $this->analyze($definition, $path, $roleMap, $censusMap, $skipIts, $module);
-        if (!$analyzed['public']['can_apply_sharafs']) {
+        $skipLookup = [];
+        foreach ($skipTokens as $token) {
+            $skipLookup[trim((string) $token)] = true;
+        }
+        $blocking = [];
+        foreach ($analyzed['public']['parties'] as $party) {
+            if ($party['errors'] === [] || isset($skipLookup[(string) $party['token']])) {
+                continue;
+            }
+            foreach ($party['errors'] as $message) {
+                $blocking[] = $message;
+            }
+        }
+        if ($analyzed['public']['file_errors'] !== [] || $analyzed['public']['definition_errors'] !== [] || $blocking !== []) {
             return [
                 'ok' => false,
                 'message' => 'The file has errors and sharafs were not changed.',
@@ -171,13 +184,20 @@ class NikahImportService
 
         $confirmRemovals = array_fill_keys($confirmRemovals, true);
         $confirmHofChanges = array_fill_keys($confirmHofChanges, true);
-        $skipTokens = array_fill_keys(array_map(fn ($token) => trim((string) $token), $skipTokens), true);
+        $skipTokens = $skipLookup;
         $result = $this->emptySharafResult();
 
         try {
             DB::transaction(function () use ($definition, $analyzed, $confirmRemovals, $confirmHofChanges, $skipTokens, &$result) {
                 SharafDefinition::query()->whereKey($definition->id)->lockForUpdate()->first();
                 $rank = (int) Sharaf::query()->where('sharaf_definition_id', $definition->id)->max('rank');
+
+                foreach ($analyzed['public']['parties'] as $party) {
+                    $token = (string) $party['token'];
+                    if ($party['errors'] !== [] && isset($skipTokens[$token])) {
+                        $result['skipped_parties'][] = $token;
+                    }
+                }
 
                 foreach ($analyzed['parties'] as $party) {
                     $token = (string) $party['token'];

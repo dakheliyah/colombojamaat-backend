@@ -606,6 +606,36 @@ class NikahImportTest extends TestCase
         $this->assertNull(DB::table('sharaf_members')->where('its_id', '70000001')->first());
     }
 
+    public function test_deselected_error_party_does_not_block_the_rest(): void
+    {
+        $definitionId = $this->seedDefinition('2026-10-16', 'Nikah Morning');
+        $rows = [
+            $this->person('111', '30359451', 'Taha bhai', 'Dulha', '+94766466484', '23', 'M'),
+            $this->person('222', '30359639', 'Other bhai', 'Dulha', '+94700000000', '24', 'M'),
+        ];
+        for ($i = 0; $i < 6; $i++) {
+            $rows[] = $this->person('222', (string) (70000001 + $i), 'Extra '.$i, 'Extra Member', '+94700000000', '30', 'M', '30359639');
+        }
+
+        $this->post('/api/nikah-import/sharafs', [
+            'sharaf_definition_id' => $definitionId,
+            'file' => $this->workbook($rows),
+        ], ['Accept' => 'application/json'])->assertStatus(422);
+        $this->assertSame(0, DB::table('sharafs')->count());
+
+        $this->post('/api/nikah-import/sharafs', [
+            'sharaf_definition_id' => $definitionId,
+            'file' => $this->workbook($rows),
+            'skip_tokens' => json_encode(['222']),
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.created', 1)
+            ->assertJsonPath('data.skipped_parties.0', '222');
+
+        $this->assertSame(1, DB::table('sharafs')->count());
+        $this->assertSame('111', DB::table('sharafs')->value('token'));
+    }
+
     public function test_same_census_field_can_be_mapped_from_two_columns(): void
     {
         $definitionId = $this->seedDefinition('2026-10-16', 'Nikah Morning');
