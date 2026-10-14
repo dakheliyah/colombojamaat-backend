@@ -199,6 +199,7 @@ Route::delete('/payment-definitions/{id}', [PaymentDefinitionController::class, 
 // Sharaf check definition routes (boolean checks, same shape as payment definitions)
 Route::get('/sharaf-check-definitions', [SharafCheckDefinitionController::class, 'index']);
 Route::post('/sharaf-check-definitions', [SharafCheckDefinitionController::class, 'store']);
+Route::get('/sharaf-check-definitions/{id}/deletion-impact', [SharafCheckDefinitionController::class, 'deletionImpact']);
 Route::put('/sharaf-check-definitions/{id}', [SharafCheckDefinitionController::class, 'update']);
 Route::patch('/sharaf-check-definitions/{id}', [SharafCheckDefinitionController::class, 'update']);
 Route::delete('/sharaf-check-definitions/{id}', [SharafCheckDefinitionController::class, 'destroy']);

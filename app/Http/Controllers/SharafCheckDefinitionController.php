@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\SharafCheck;
 use App\Models\SharafCheckDefinition;
+use App\Models\SharafCheckDefinitionMapping;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class SharafCheckDefinitionController extends Controller
@@ -175,6 +175,67 @@ class SharafCheckDefinitionController extends Controller
         return $this->jsonSuccessWithData($definition->fresh('sharafDefinition'));
     }
 
+    /**
+     * Preview rows that will cascade-delete with this check definition.
+     */
+    public function deletionImpact(int $id): JsonResponse
+    {
+        $definition = SharafCheckDefinition::find($id);
+
+        if (! $definition) {
+            return $this->jsonError('NOT_FOUND', 'Check definition not found.', 404);
+        }
+
+        $checks = SharafCheck::query()
+            ->with(['sharaf'])
+            ->where('sharaf_check_definition_id', $definition->id)
+            ->orderBy('id')
+            ->get()
+            ->map(fn (SharafCheck $check) => [
+                'id' => $check->id,
+                'sharaf_id' => $check->sharaf_id,
+                'hof_its' => $check->sharaf?->hof_its,
+                'hof_name' => $check->sharaf?->hof_name,
+                'sharaf_name' => $check->sharaf?->name,
+                'is_done' => (bool) $check->is_done,
+                'checked_by_its' => $check->checked_by_its,
+                'checked_at' => $check->checked_at,
+            ])
+            ->values();
+
+        $mappings = SharafCheckDefinitionMapping::query()
+            ->with(['sourceCheckDefinition', 'targetCheckDefinition'])
+            ->where(function ($query) use ($definition) {
+                $query->where('source_sharaf_check_definition_id', $definition->id)
+                    ->orWhere('target_sharaf_check_definition_id', $definition->id);
+            })
+            ->orderBy('id')
+            ->get()
+            ->map(function (SharafCheckDefinitionMapping $mapping) use ($definition) {
+                $isSource = (int) $mapping->source_sharaf_check_definition_id === (int) $definition->id;
+                $other = $isSource ? $mapping->targetCheckDefinition : $mapping->sourceCheckDefinition;
+
+                return [
+                    'id' => $mapping->id,
+                    'sharaf_definition_mapping_id' => $mapping->sharaf_definition_mapping_id,
+                    'role' => $isSource ? 'source' : 'target',
+                    'other_check_definition_id' => $other?->id,
+                    'other_check_definition_name' => $other?->name,
+                ];
+            })
+            ->values();
+
+        return $this->jsonSuccessWithData([
+            'checks' => $checks,
+            'checks_count' => $checks->count(),
+            'mappings' => $mappings,
+            'mappings_count' => $mappings->count(),
+        ]);
+    }
+
+    /**
+     * Delete a check definition. Recorded checks and definition mappings cascade.
+     */
     public function destroy(int $id): JsonResponse
     {
         $definition = SharafCheckDefinition::find($id);
@@ -183,30 +244,7 @@ class SharafCheckDefinitionController extends Controller
             return $this->jsonError('NOT_FOUND', 'Check definition not found.', 404);
         }
 
-        $blocked = false;
-
-        DB::transaction(function () use ($definition, &$blocked) {
-            $hasChecks = SharafCheck::query()
-                ->where('sharaf_check_definition_id', $definition->id)
-                ->lockForUpdate()
-                ->exists();
-
-            if ($hasChecks) {
-                $blocked = true;
-
-                return;
-            }
-
-            $definition->delete();
-        });
-
-        if ($blocked) {
-            return $this->jsonError(
-                'CHECKS_EXIST',
-                'Cannot delete this check definition because checks have already been recorded for it.',
-                409
-            );
-        }
+        $definition->delete();
 
         return $this->jsonSuccess(200);
     }
