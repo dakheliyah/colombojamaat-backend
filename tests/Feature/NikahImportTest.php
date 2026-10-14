@@ -21,6 +21,7 @@ class NikahImportTest extends TestCase
         Schema::dropIfExists('sharaf_positions');
         Schema::dropIfExists('sharaf_definitions');
         Schema::dropIfExists('events');
+        Schema::dropIfExists('foreign_census');
         Schema::dropIfExists('census');
         Schema::dropIfExists('miqaats');
 
@@ -105,6 +106,7 @@ class NikahImportTest extends TestCase
         Schema::dropIfExists('sharaf_positions');
         Schema::dropIfExists('sharaf_definitions');
         Schema::dropIfExists('events');
+        Schema::dropIfExists('foreign_census');
         Schema::dropIfExists('census');
         Schema::dropIfExists('miqaats');
 
@@ -687,6 +689,76 @@ class NikahImportTest extends TestCase
         ]), ['Accept' => 'application/json'])->assertOk();
 
         $this->assertSame('+94766466484', DB::table('census')->where('its_id', '30359451')->value('mobile'));
+    }
+
+    public function test_anjuman_census_members_are_left_and_others_go_to_foreign_census(): void
+    {
+        Schema::table('census', function (Blueprint $table) {
+            $table->string('source')->nullable();
+        });
+        Schema::create('foreign_census', function (Blueprint $table) {
+            $table->id();
+            $table->string('its_id')->unique();
+            $table->string('hof_id');
+            $table->string('name')->nullable();
+            $table->string('arabic_name')->nullable();
+            $table->unsignedInteger('age')->nullable();
+            $table->string('gender')->nullable();
+            $table->string('mobile')->nullable();
+            $table->string('email')->nullable();
+            $table->string('jamaat')->nullable();
+            $table->string('jamiat')->nullable();
+        });
+        $definitionId = $this->seedDefinition('2026-10-16', 'Nikah Morning');
+        $now = now();
+        DB::table('census')->insert([
+            [
+                'its_id' => '30359451',
+                'hof_id' => '30359451',
+                'name' => 'Local Name',
+                'source' => 'census',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'its_id' => '60474915',
+                'hof_id' => '30359451',
+                'name' => 'Foreign Name',
+                'source' => 'foreign_census',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        ]);
+        DB::table('foreign_census')->insert([
+            'its_id' => '60474915',
+            'hof_id' => '30359451',
+            'name' => 'Foreign Name',
+        ]);
+
+        $rows = [
+            $this->person('480652', '30359451', 'Local Changed', 'Dulha', '+94111111111', '23', 'M'),
+            $this->person('480652', '60474915', 'Foreign Changed', 'Dulhan', '+94111111111', '22', 'F', '30359451'),
+            $this->person('480652', '70000001', 'New Person', 'Extra Member', '+94111111111', '30', 'M', '30359451'),
+        ];
+
+        $this->post('/api/nikah-import/preview', [
+            'sharaf_definition_id' => $definitionId,
+            'file' => $this->workbook($rows),
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.census.local', 1)
+            ->assertJsonPath('data.census.creates.0.its', '70000001');
+
+        $this->post('/api/nikah-import/census', [
+            'sharaf_definition_id' => $definitionId,
+            'file' => $this->workbook($rows),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $this->assertSame('Local Name', DB::table('census')->where('its_id', '30359451')->value('name'));
+        $this->assertNull(DB::table('foreign_census')->where('its_id', '30359451')->first());
+        $this->assertSame('Foreign Changed', DB::table('foreign_census')->where('its_id', '60474915')->value('name'));
+        $this->assertSame('New Person', DB::table('foreign_census')->where('its_id', '70000001')->value('name'));
+        $this->assertSame('70000001', DB::table('foreign_census')->where('its_id', '70000001')->value('hof_id'));
     }
 
     /**

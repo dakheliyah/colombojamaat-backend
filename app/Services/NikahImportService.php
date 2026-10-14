@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\SharafStatus;
 use App\Exceptions\DuplicateSharafAssignmentException;
 use App\Models\Census;
+use App\Models\ForeignCensus;
 use App\Models\Sharaf;
 use App\Models\SharafDefinition;
 use App\Models\SharafMember;
@@ -109,13 +110,10 @@ class NikahImportService
         $sharafCounts = ['sharaf_names' => 0, 'member_names' => 0, 'member_phones' => 0];
         DB::transaction(function () use ($definition, $analyzed, &$created, &$updated, &$sharafCounts) {
             foreach ($analyzed['census'] as $person) {
+                $this->writeCensusPerson($person);
                 if ($person['action'] === 'create') {
-                    Census::query()->create($person['attributes']);
                     $created++;
-                    continue;
-                }
-                if ($person['action'] === 'update') {
-                    $person['model']->fill($person['attributes'])->save();
+                } elseif ($person['action'] === 'update') {
                     $updated++;
                 }
             }
@@ -580,7 +578,7 @@ class NikahImportService
                 'positions' => [],
                 'census_columns' => [],
                 'census_errors' => [],
-                'census' => ['creates' => [], 'updates' => [], 'unchanged' => 0, 'skipped' => 0],
+                'census' => ['creates' => [], 'updates' => [], 'unchanged' => 0, 'skipped' => 0, 'local' => 0],
                 'parties' => [],
                 'missing_from_sheet' => [],
             ],
@@ -604,16 +602,19 @@ class NikahImportService
         }
 
         $existing = Census::query()->whereIn('its_id', array_keys($byIts))->get()->keyBy('its_id');
+        $localSet = $this->localCensusIts(array_keys($byIts));
         $creates = [];
         $updates = [];
         $internal = [];
         $errors = [];
         $unchanged = 0;
         $skipped = 0;
+        $local = 0;
 
         if (isset($fieldMap['age'])) {
             foreach ($rows as $row) {
-                if (isset($skipSet[(string) $row['its']])) {
+                $its = (string) $row['its'];
+                if (isset($skipSet[$its]) || isset($localSet[$its])) {
                     continue;
                 }
                 [$raw, $column] = $this->firstColumnValue($row['columns'] ?? [], $fieldMap['age']);
@@ -627,6 +628,10 @@ class NikahImportService
             $its = (string) $its;
             if (isset($skipSet[$its])) {
                 $skipped++;
+                continue;
+            }
+            if (isset($localSet[$its])) {
+                $local++;
                 continue;
             }
             $target = $this->censusAttributes($row, $useWords, $hofRole, $fieldMap);
@@ -694,6 +699,7 @@ class NikahImportService
                 'updates' => $updates,
                 'unchanged' => $unchanged,
                 'skipped' => $skipped,
+                'local' => $local,
             ],
             'rows' => $internal,
             'errors' => $errors,
@@ -728,6 +734,142 @@ class NikahImportService
         }
 
         return $attributes;
+    }
+
+    /**
+     * People in anjuman.census, or marked source=census, stay as they are.
+     *
+     * @param  list<int|string>  $itsIds
+     * @return array<string, true>
+     */
+    private function localCensusIts(array $itsIds): array
+    {
+        $ids = [];
+        foreach ($itsIds as $its) {
+            $its = (string) $its;
+            if ($its !== '') {
+                $ids[$its] = $its;
+            }
+        }
+        if ($ids === []) {
+            return [];
+        }
+
+        $local = [];
+        if (Schema::hasColumn('census', 'source')) {
+            $found = Census::query()->whereIn('its_id', array_values($ids))->where('source', 'census')->pluck('its_id');
+            foreach ($found as $its) {
+                $local[(string) $its] = true;
+            }
+        }
+        foreach ($this->anjumanCensusIts(array_values($ids)) as $its) {
+            $local[$its] = true;
+        }
+
+        return $local;
+    }
+
+    /**
+     * @param  list<string>  $itsIds
+     * @return list<string>
+     */
+    private function anjumanCensusIts(array $itsIds): array
+    {
+        if ($itsIds === [] || Schema::getConnection()->getDriverName() === 'sqlite') {
+            return [];
+        }
+
+        try {
+            $columns = DB::select(
+                'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?',
+                ['anjuman', 'census']
+            );
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $itsColumn = null;
+        foreach ($columns as $column) {
+            if (in_array(strtolower((string) $column->COLUMN_NAME), ['its_id', 'its'], true)) {
+                $itsColumn = (string) $column->COLUMN_NAME;
+                break;
+            }
+        }
+        if ($itsColumn === null) {
+            return [];
+        }
+
+        $found = DB::table('anjuman.census')->whereIn($itsColumn, $itsIds)->pluck($itsColumn);
+        $local = [];
+        foreach ($found as $its) {
+            $local[] = (string) $its;
+        }
+
+        return $local;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function censusTablesToWrite(): array
+    {
+        $tables = [];
+        if (Schema::hasTable('foreign_census')) {
+            $tables[] = 'foreign_census';
+        }
+        if (Schema::getConnection()->getDriverName() === 'sqlite' || !$this->censusIsView()) {
+            $tables[] = 'census';
+        }
+
+        return $tables === [] ? ['census'] : $tables;
+    }
+
+    private function censusIsView(): bool
+    {
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return false;
+        }
+
+        try {
+            $row = DB::selectOne(
+                'SELECT TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+                ['census']
+            );
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return $row !== null && strtoupper((string) $row->TABLE_TYPE) === 'VIEW';
+    }
+
+    /**
+     * @param  array{action: string, attributes: array<string, mixed>, model: ?Census}  $person
+     */
+    private function writeCensusPerson(array $person): void
+    {
+        $attributes = $person['attributes'];
+        $its = (string) ($attributes['its_id'] ?? $person['model']?->its_id ?? '');
+        foreach ($this->censusTablesToWrite() as $table) {
+            $model = $table === 'foreign_census'
+                ? ForeignCensus::query()->firstOrNew(['its_id' => $its])
+                : ($person['model'] instanceof Census ? $person['model'] : Census::query()->firstOrNew(['its_id' => $its]));
+            if (!$model->exists) {
+                $model->its_id = $its;
+                $model->hof_id = $attributes['hof_id'] ?? $its;
+                if ($table === 'census' && Schema::hasColumn('census', 'source')) {
+                    $model->source = 'foreign_census';
+                }
+            }
+            if ($table === 'census' && !Schema::hasColumn('census', 'id')) {
+                $model->primaryKey = 'its_id';
+                $model->incrementing = false;
+            }
+            if (!Schema::hasColumn($table, 'updated_at')) {
+                $model->timestamps = false;
+            }
+            $model->fill($attributes);
+            $model->save();
+        }
     }
 
     /**
