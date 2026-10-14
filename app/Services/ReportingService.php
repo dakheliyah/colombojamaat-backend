@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Census;
 use App\Models\Event;
+use App\Models\Miqaat;
 use App\Models\MiqaatCheck;
 use App\Models\Sharaf;
 use App\Models\SharafMember;
@@ -631,5 +632,122 @@ class ReportingService
         }
 
         return $query;
+    }
+
+    /**
+     * Census fields exported for the "without sharaf" report.
+     */
+    public function censusWithoutSharafFields(): array
+    {
+        return [
+            'its_id', 'name', 'arabic_name', 'hof_id', 'gender', 'age',
+            'mobile', 'email', 'city', 'jamaat', 'jamiat', 'mohalla', 'area',
+            'misaq', 'marital_status', 'address',
+        ];
+    }
+
+    /**
+     * Mumineen in census who are not allocated to any non-cancelled sharaf
+     * for the given miqaat (defaults to the active miqaat).
+     */
+    public function buildCensusWithoutSharafQuery(array $filters): Builder
+    {
+        $miqaatId = isset($filters['miqaat_id']) && $filters['miqaat_id'] !== ''
+            ? (int) $filters['miqaat_id']
+            : Miqaat::getActiveId();
+
+        if ($miqaatId === null) {
+            throw new \InvalidArgumentException('No active miqaat. Pass miqaat_id.');
+        }
+
+        $query = Census::query();
+
+        $query->whereNotExists(function ($sub) use ($miqaatId) {
+            $sub->selectRaw('1')
+                ->from('sharaf_members')
+                ->join('sharafs', 'sharafs.id', '=', 'sharaf_members.sharaf_id')
+                ->whereColumn('sharaf_members.its_id', 'census.its_id')
+                ->where('sharafs.status', '!=', 'cancelled')
+                ->whereIn('sharafs.sharaf_definition_id', function ($def) use ($miqaatId) {
+                    $def->select('sharaf_definitions.id')
+                        ->from('sharaf_definitions')
+                        ->join('events', 'events.id', '=', 'sharaf_definitions.event_id')
+                        ->where('events.miqaat_id', $miqaatId);
+                });
+        });
+
+        // Reuse standard census filters (ignore miqaat_id here).
+        $censusFilters = $filters;
+        unset($censusFilters['miqaat_id'], $censusFilters['format'], $censusFilters['page'], $censusFilters['per_page']);
+
+        if (isset($censusFilters['q']) && $censusFilters['q'] !== '') {
+            $term = '%' . $censusFilters['q'] . '%';
+            $query->where(function ($q) use ($term) {
+                $q->where('name', 'like', $term)
+                    ->orWhere('arabic_name', 'like', $term)
+                    ->orWhere('its_id', 'like', $term)
+                    ->orWhere('hof_id', 'like', $term);
+            });
+            unset($censusFilters['q']);
+        }
+
+        foreach (['city', 'jamaat', 'jamiat', 'mohalla', 'area', 'gender', 'misaq', 'marital_status'] as $column) {
+            if (!empty($censusFilters[$column])) {
+                $query->where($column, $censusFilters[$column]);
+            }
+        }
+
+        if (!empty($censusFilters['its_id'])) {
+            $query->where('its_id', $censusFilters['its_id']);
+        }
+
+        if (!empty($censusFilters['hof_id'])) {
+            $query->where('hof_id', $censusFilters['hof_id']);
+        }
+
+        if (isset($censusFilters['name']) && $censusFilters['name'] !== '') {
+            $query->where(function ($q) use ($censusFilters) {
+                $q->where('name', 'like', '%' . $censusFilters['name'] . '%')
+                    ->orWhere('arabic_name', 'like', '%' . $censusFilters['name'] . '%');
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Stream CSV of census records with no sharaf for a miqaat.
+     */
+    public function exportCensusWithoutSharafToCsv(array $filters): StreamedResponse
+    {
+        $filename = 'census_without_sharaf_' . date('Y-m-d_His') . '.csv';
+        $fields = $this->censusWithoutSharafFields();
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($filters, $fields) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fputcsv($file, $fields);
+
+            $this->buildCensusWithoutSharafQuery($filters)
+                ->orderByRaw("name IS NULL OR name = ''")
+                ->orderBy('name')
+                ->cursor()
+                ->each(function ($row) use ($file, $fields) {
+                    $csvRow = [];
+                    foreach ($fields as $field) {
+                        $csvRow[] = $this->getFieldValue($row, $field);
+                    }
+                    fputcsv($file, $csvRow);
+                });
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

@@ -32,6 +32,79 @@ class ReportController extends Controller
     }
 
     /**
+     * GET: Census mumineen with no sharaf allocation for a miqaat.
+     * Query params: miqaat_id (optional, defaults to active), q, city, jamaat, gender, etc.,
+     * format=json|csv, page, per_page.
+     */
+    public function censusWithoutSharaf(Request $request): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'miqaat_id' => ['nullable', 'integer', 'min:1'],
+            'format' => ['nullable', 'string', 'in:json,csv'],
+            'q' => ['nullable', 'string', 'max:255'],
+            'its_id' => ['nullable', 'string'],
+            'hof_id' => ['nullable', 'string'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'jamaat' => ['nullable', 'string', 'max:255'],
+            'jamiat' => ['nullable', 'string', 'max:255'],
+            'mohalla' => ['nullable', 'string', 'max:255'],
+            'area' => ['nullable', 'string', 'max:255'],
+            'gender' => ['nullable', 'string', 'max:50'],
+            'misaq' => ['nullable', 'string', 'max:255'],
+            'marital_status' => ['nullable', 'string', 'max:255'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        try {
+            $filters = $request->all();
+
+            if ($request->input('format') === 'csv') {
+                return $this->reportingService->exportCensusWithoutSharafToCsv($filters);
+            }
+
+            $perPage = (int) $request->input('per_page', 50);
+            $page = (int) $request->input('page', 1);
+
+            $results = $this->reportingService
+                ->buildCensusWithoutSharafQuery($filters)
+                ->orderByRaw("name IS NULL OR name = ''")
+                ->orderBy('name')
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            $results->getCollection()->each->makeHidden(['pwd']);
+
+            return $this->jsonSuccessWithData([
+                'data' => $results->items(),
+                'pagination' => [
+                    'current_page' => $results->currentPage(),
+                    'per_page' => $results->perPage(),
+                    'total' => $results->total(),
+                    'last_page' => $results->lastPage(),
+                    'from' => $results->firstItem(),
+                    'to' => $results->lastItem(),
+                ],
+                'miqaat_id' => isset($filters['miqaat_id']) && $filters['miqaat_id'] !== ''
+                    ? (int) $filters['miqaat_id']
+                    : \App\Models\Miqaat::getActiveId(),
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return $this->jsonError('VALIDATION_ERROR', $e->getMessage(), 422);
+        } catch (\Exception $e) {
+            return $this->jsonError('SERVER_ERROR', 'Failed to generate report: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * GET: Get available fields for an entity type.
      */
     public function fields(Request $request, string $entity_type): JsonResponse
