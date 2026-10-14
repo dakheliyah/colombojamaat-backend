@@ -170,7 +170,7 @@ class TanzeemOverviewTest extends TestCase
 
         $this->insertUser('10000001', 'Admin');
 
-        $response = $this->asUser('10000001')->getJson("/miqaats/{$miqaatId}/tanzeem-overview");
+        $response = $this->asUser('10000001')->getJson("/api/miqaats/{$miqaatId}/tanzeem-overview");
 
         $response->assertOk()
             ->assertJsonPath('success', true)
@@ -203,6 +203,7 @@ class TanzeemOverviewTest extends TestCase
         $gateSharafs = $events[0]['definitions'][0]['sharafs'];
         $this->assertCount(3, $gateSharafs);
         $this->assertSame('Gate A', $gateSharafs[0]['name']);
+        $this->assertSame(1, $gateSharafs[0]['rank']);
         $this->assertSame('confirmed', $gateSharafs[0]['status']);
         $this->assertSame('Ahmed', $gateSharafs[0]['members'][0]['name']);
         $this->assertSame('male', $gateSharafs[0]['members'][0]['gender']);
@@ -230,7 +231,7 @@ class TanzeemOverviewTest extends TestCase
     {
         $this->insertUser('10000001', 'Admin');
 
-        $this->asUser('10000001')->getJson('/miqaats/999/tanzeem-overview')
+        $this->asUser('10000001')->getJson('/api/miqaats/999/tanzeem-overview')
             ->assertNotFound()
             ->assertJsonPath('success', false);
     }
@@ -239,7 +240,7 @@ class TanzeemOverviewTest extends TestCase
     {
         $miqaatId = $this->insertMiqaat('Ashara');
 
-        $this->getJson("/miqaats/{$miqaatId}/tanzeem-overview")
+        $this->getJson("/api/miqaats/{$miqaatId}/tanzeem-overview")
             ->assertUnauthorized();
     }
 
@@ -263,7 +264,7 @@ class TanzeemOverviewTest extends TestCase
 
         $this->insertUser('20000002', 'Tanzeem BGI', [$securityId]);
 
-        $response = $this->asUser('20000002')->getJson("/miqaats/{$miqaatId}/tanzeem-overview");
+        $response = $this->asUser('20000002')->getJson("/api/miqaats/{$miqaatId}/tanzeem-overview");
 
         $response->assertOk()
             ->assertJsonPath('data.scoped_to_sharaf_types', true)
@@ -274,7 +275,7 @@ class TanzeemOverviewTest extends TestCase
 
         $this->insertUser('20000003', 'Tanzeem BGI');
 
-        $this->asUser('20000003')->getJson("/miqaats/{$miqaatId}/tanzeem-overview")
+        $this->asUser('20000003')->getJson("/api/miqaats/{$miqaatId}/tanzeem-overview")
             ->assertOk()
             ->assertJsonPath('data.scoped_to_sharaf_types', true)
             ->assertJsonPath('data.sharaf_types', [])
