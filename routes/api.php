@@ -128,6 +128,7 @@ Route::delete('/sharaf-types/{id}', [SharafTypeController::class, 'destroy']);
 // Sharaf Definition routes
 Route::get('/sharaf-definitions/{sd_id}/sharafs', [SharafDefinitionController::class, 'sharafs']);
 Route::put('/sharaf-definitions/{sd_id}/sharafs/order', [SharafDefinitionController::class, 'reorderSharafs']);
+Route::put('/sharaf-definitions/{sd_id}/sharafs/ranks', [SharafDefinitionController::class, 'assignSharafRanks']);
 Route::get('/sharaf-definitions/{sd_id}/sharafs-with-members', [SharafDefinitionController::class, 'sharafsWithMembers']);
 Route::post('/sharaf-definitions', [SharafDefinitionController::class, 'store']);
 Route::post('/sharaf-definitions/{id}/copy', [SharafDefinitionController::class, 'copy']);

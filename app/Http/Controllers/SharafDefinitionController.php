@@ -11,6 +11,7 @@ use App\Models\SharafPosition;
 use App\Models\Census;
 use App\Services\AuditLogService;
 use App\Services\SharafDefinitionCopyService;
+use App\Services\SharafRankBulkUpdateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,8 +20,10 @@ use InvalidArgumentException;
 
 class SharafDefinitionController extends Controller
 {
-    public function __construct(private SharafDefinitionCopyService $copyService)
-    {
+    public function __construct(
+        private SharafDefinitionCopyService $copyService,
+        private SharafRankBulkUpdateService $rankBulkUpdateService,
+    ) {
     }
 
     /**
@@ -290,6 +293,75 @@ class SharafDefinitionController extends Controller
         );
 
         return $this->jsonSuccessWithData($ordered);
+    }
+
+    /**
+     * PUT /api/sharaf-definitions/{sd_id}/sharafs/ranks
+     * Body: { assignments: [{ its: string, rank: int }, ...] }
+     *
+     * Matches each ITS to hof_its or first-seat (position order 1) member, then assigns
+     * absolute ranks in one transaction. Only rank changes; members/payments stay put.
+     */
+    public function assignSharafRanks(Request $request, string $sd_id): JsonResponse
+    {
+        $definition = SharafDefinition::find($sd_id);
+        if (! $definition) {
+            return $this->jsonError('NOT_FOUND', 'Sharaf definition not found.', 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'assignments' => ['required', 'array', 'min:1'],
+            'assignments.*.its' => ['required', 'string'],
+            'assignments.*.rank' => ['required', 'integer', 'min:1'],
+        ]);
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $previous = Sharaf::where('sharaf_definition_id', $definition->id)
+            ->orderBy('rank')
+            ->orderBy('id')
+            ->get(['id', 'name', 'rank', 'hof_its']);
+
+        try {
+            $result = $this->rankBulkUpdateService->assignByIts(
+                $definition,
+                $request->input('assignments', [])
+            );
+        } catch (InvalidArgumentException $e) {
+            return $this->jsonError('VALIDATION_ERROR', $e->getMessage(), 422);
+        }
+
+        app(AuditLogService::class)->recordManual(
+            $definition,
+            'ranks_assigned',
+            ['order' => $previous->map(fn ($row) => [
+                'id' => $row->id,
+                'name' => $row->name,
+                'rank' => $row->rank,
+                'hof_its' => $row->hof_its,
+            ])->all()],
+            [
+                'updated' => $result['updated'],
+                'order' => $result['sharafs']->map(fn ($row) => [
+                    'id' => $row->id,
+                    'name' => $row->name,
+                    'rank' => $row->rank,
+                    'hof_its' => $row->hof_its,
+                ])->all(),
+            ],
+            'Bulk rank/tarteeb update for '.$definition->name,
+        );
+
+        return $this->jsonSuccessWithData([
+            'updated' => $result['updated'],
+            'unchanged' => $result['unchanged'],
+            'sharafs' => $result['sharafs'],
+        ]);
     }
 
     public function store(Request $request): JsonResponse
