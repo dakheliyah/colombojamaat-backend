@@ -244,6 +244,16 @@ class TanzeemOverviewTest extends TestCase
             ->assertUnauthorized();
     }
 
+    public function test_overview_requires_tanzeem_or_admin_role(): void
+    {
+        $miqaatId = $this->insertMiqaat('Ashara');
+        $this->insertUser('20000004', 'Help Desk');
+
+        $this->asUser('20000004')->getJson("/api/miqaats/{$miqaatId}/tanzeem-overview")
+            ->assertForbidden()
+            ->assertJsonPath('success', false);
+    }
+
     public function test_overview_limits_definitions_to_the_users_sharaf_types(): void
     {
         $miqaatId = $this->insertMiqaat('Ashara');
@@ -271,6 +281,7 @@ class TanzeemOverviewTest extends TestCase
             ->assertJsonPath('data.sharaf_types.0.name', 'Security')
             ->assertJsonPath('data.overall.definition_count', 1)
             ->assertJsonPath('data.events.0.definitions.0.sharaf_definition_name', 'Gate')
+            ->assertJsonPath('data.events.0.definitions.0.sharaf_type_id', $securityId)
             ->assertJsonPath('data.events.0.definitions.0.sharafs.0.name', 'Gate A');
 
         $this->insertUser('20000003', 'Tanzeem BGI');

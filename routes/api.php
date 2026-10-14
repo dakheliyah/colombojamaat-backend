@@ -164,6 +164,7 @@ Route::put('/sharaf-positions/{id}', [SharafPositionController::class, 'update']
 Route::patch('/sharaf-positions/{id}', [SharafPositionController::class, 'update']);
 Route::delete('/sharaf-positions/{id}', [SharafPositionController::class, 'destroy']);
 // Sharaf routes. Import paths stay above /sharafs/{sharaf_id}.
+Route::get('/sharafs/sticker-print-counts', [AuditLogController::class, 'stickerPrintCounts']);
 Route::get('/sharafs/import/columns', [SharafBulkImportController::class, 'columns']);
 Route::get('/sharafs/import/template', [SharafBulkImportController::class, 'template']);
 Route::post('/sharafs/import/validate', [SharafBulkImportController::class, 'validateUpload']);
@@ -174,6 +175,8 @@ Route::post('/nikah-import/sharafs', [NikahImportController::class, 'applySharaf
 Route::get('/sharafs', [SharafController::class, 'index']);
 Route::post('/sharafs', [SharafController::class, 'store']);
 Route::get('/sharafs/{sharaf_id}/audit-logs', [AuditLogController::class, 'forSharaf']);
+Route::post('/sharafs/{sharaf_id}/sticker-prints', [AuditLogController::class, 'recordStickerPrint'])
+    ->middleware('user.from.cookie');
 Route::get('/sharafs/{sharaf_id}', [SharafController::class, 'show']);
 Route::put('/sharafs/{sharaf_id}', [SharafController::class, 'update']);
 Route::patch('/sharafs/{sharaf_id}', [SharafController::class, 'update']);

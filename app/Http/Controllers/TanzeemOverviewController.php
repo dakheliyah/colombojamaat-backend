@@ -37,6 +37,11 @@ class TanzeemOverviewController extends Controller
             return $this->jsonError('UNAUTHORIZED', 'No valid session.', 401);
         }
 
+        if (! $user->hasRole('Admin') && ! $user->hasRole('Tanzeem BGI')) {
+            return $this->jsonError('FORBIDDEN', 'Tanzeem BGI or Admin role required.', 403);
+        }
+
+        // Non-admins only see definitions for their assigned sharaf types (e.g. Security, not Hadiyat).
         $sharafTypeIds = $user->hasRole('Admin')
             ? null
             : $user->sharafTypes->pluck('id')->map(fn ($id) => (int) $id)->all();

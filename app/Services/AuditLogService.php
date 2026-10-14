@@ -38,6 +38,8 @@ use UnitEnum;
 
 class AuditLogService
 {
+    public const ACTION_STICKER_PRINTED = 'sticker_printed';
+
     public const ENTITY_LABELS = [
         'miqaat' => 'Miqaat',
         'event' => 'Event',

@@ -43,6 +43,86 @@ class AuditLogController extends Controller
     }
 
     /**
+     * GET /api/sharafs/sticker-print-counts?miqaat_id=
+     * Print counts for sharafs in a miqaat. Only sharafs that have been printed are returned.
+     */
+    public function stickerPrintCounts(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'miqaat_id' => ['required', 'integer', 'exists:miqaats,id'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $rows = AuditLog::query()
+            ->select('auditable_id')
+            ->selectRaw('COUNT(*) as print_count')
+            ->where('entity', 'sharaf')
+            ->where('action', AuditLogService::ACTION_STICKER_PRINTED)
+            ->whereIn('auditable_id', Sharaf::query()->forMiqaat((int) $request->input('miqaat_id'))->select('sharafs.id'))
+            ->groupBy('auditable_id')
+            ->get();
+
+        return $this->jsonSuccessWithData([
+            'counts' => $rows->map(fn ($row) => [
+                'sharaf_id' => (int) $row->auditable_id,
+                'print_count' => (int) $row->print_count,
+            ])->values(),
+        ]);
+    }
+
+    /**
+     * POST /api/sharafs/{sharaf_id}/sticker-prints
+     * One row per print-dialog click. The count is how many of those rows exist.
+     */
+    public function recordStickerPrint(string $sharaf_id): JsonResponse
+    {
+        $sharaf = Sharaf::find((int) $sharaf_id);
+        if (! $sharaf) {
+            return $this->jsonError('NOT_FOUND', 'Sharaf not found.', 404);
+        }
+
+        $stickerCount = $sharaf->sharafMembers()->count();
+        $before = $this->stickerPrintCount($sharaf->id);
+        $label = $stickerCount === 1 ? '1 sticker' : "{$stickerCount} stickers";
+
+        app(AuditLogService::class)->recordManual(
+            $sharaf,
+            AuditLogService::ACTION_STICKER_PRINTED,
+            null,
+            null,
+            "Printed {$label} for sharaf #{$sharaf->id}",
+            ['sticker_count' => $stickerCount],
+        );
+
+        $printCount = $this->stickerPrintCount($sharaf->id);
+        if ($printCount <= $before) {
+            return $this->jsonError('AUDIT_WRITE_FAILED', 'Could not record the sticker print.', 500);
+        }
+
+        return $this->jsonSuccessWithData([
+            'sharaf_id' => $sharaf->id,
+            'print_count' => $printCount,
+            'sticker_count' => $stickerCount,
+        ]);
+    }
+
+    private function stickerPrintCount(int $sharafId): int
+    {
+        return AuditLog::query()
+            ->where('entity', 'sharaf')
+            ->where('auditable_id', $sharafId)
+            ->where('action', AuditLogService::ACTION_STICKER_PRINTED)
+            ->count();
+    }
+
+    /**
      * GET /api/sharafs/{sharaf_id}/audit-logs
      */
     public function forSharaf(Request $request, string $sharaf_id): JsonResponse

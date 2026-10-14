@@ -38,6 +38,7 @@ class TanzeemOverviewService
                 'sd.id',
                 'sd.name',
                 'sd.sort_order',
+                'sd.sharaf_type_id',
                 'st.name'
             )
             ->orderBy('e.date')
@@ -50,6 +51,7 @@ class TanzeemOverviewService
                 'e.date as event_date',
                 'sd.id as sharaf_definition_id',
                 'sd.name as sharaf_definition_name',
+                'sd.sharaf_type_id',
                 'st.name as sharaf_type_name',
                 DB::raw('COUNT(s.id) as total_sharafs'),
                 DB::raw("SUM(CASE WHEN s.status = 'confirmed' THEN 1 ELSE 0 END) as confirmed_sharafs"),
@@ -105,6 +107,7 @@ class TanzeemOverviewService
             $definition = [
                 'sharaf_definition_id' => (int) $row->sharaf_definition_id,
                 'sharaf_definition_name' => $row->sharaf_definition_name,
+                'sharaf_type_id' => $row->sharaf_type_id !== null ? (int) $row->sharaf_type_id : null,
                 'sharaf_type_name' => $row->sharaf_type_name,
                 'total_sharafs' => $this->int($row->total_sharafs),
                 'confirmed_sharafs' => $this->int($row->confirmed_sharafs),
