@@ -606,6 +606,44 @@ class NikahImportTest extends TestCase
         $this->assertNull(DB::table('sharaf_members')->where('its_id', '70000001')->first());
     }
 
+    public function test_same_census_field_can_be_mapped_from_two_columns(): void
+    {
+        $definitionId = $this->seedDefinition('2026-10-16', 'Nikah Morning');
+        $payload = [
+            'sharaf_definition_id' => $definitionId,
+            'census_map' => json_encode([
+                'FullName' => 'name',
+                'Mobile_No' => 'mobile',
+                'Idara' => 'mobile',
+            ]),
+        ];
+        $rows = [
+            $this->person('480652', '30359451', 'Taha bhai', 'Dulha', '', '23', 'M'),
+        ];
+
+        $this->post('/api/nikah-import/preview', array_merge($payload, [
+            'file' => $this->workbook($rows),
+        ]), ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.can_apply_census', true)
+            ->assertJsonPath('data.census_errors', []);
+
+        $this->post('/api/nikah-import/census', array_merge($payload, [
+            'file' => $this->workbook($rows),
+        ]), ['Accept' => 'application/json'])->assertOk()->assertJsonPath('data.created', 1);
+
+        $this->assertSame('Ignored', DB::table('census')->where('its_id', '30359451')->value('mobile'));
+
+        $filled = [
+            $this->person('480652', '30359451', 'Taha bhai', 'Dulha', '+94766466484', '23', 'M'),
+        ];
+        $this->post('/api/nikah-import/census', array_merge($payload, [
+            'file' => $this->workbook($filled),
+        ]), ['Accept' => 'application/json'])->assertOk();
+
+        $this->assertSame('+94766466484', DB::table('census')->where('its_id', '30359451')->value('mobile'));
+    }
+
     /**
      * @param  list<string>  $extra
      * @return list<string>

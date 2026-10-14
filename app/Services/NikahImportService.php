@@ -571,7 +571,7 @@ class NikahImportService
 
     /**
      * @param  list<array<string, mixed>>  $rows
-     * @param  array<string, string>  $fieldMap  Census field to sheet column
+     * @param  array<string, list<string>>  $fieldMap  Census field to sheet columns, first non-empty value wins
      * @param  array<string, true>  $skipSet
      * @return array{public: array<string, mixed>, rows: list<array<string, mixed>>, errors: list<string>}
      */
@@ -596,9 +596,9 @@ class NikahImportService
                 if (isset($skipSet[(string) $row['its']])) {
                     continue;
                 }
-                $raw = $this->columnValue($row['columns'] ?? [], $fieldMap['age']);
+                [$raw, $column] = $this->firstColumnValue($row['columns'] ?? [], $fieldMap['age']);
                 if ($raw !== '' && (!preg_match('/^\d+$/', $raw) || (int) $raw > 120)) {
-                    $errors[] = "Row {$row['line']}: {$fieldMap['age']} must be a whole number from 0 to 120.";
+                    $errors[] = "Row {$row['line']}: {$column} must be a whole number from 0 to 120.";
                 }
             }
         }
@@ -682,7 +682,7 @@ class NikahImportService
 
     /**
      * @param  array<string, mixed>  $row
-     * @param  array<string, string>  $fieldMap
+     * @param  array<string, list<string>>  $fieldMap
      * @return array<string, mixed>
      */
     private function censusAttributes(array $row, bool $useWords, string $hofRole, array $fieldMap): array
@@ -692,8 +692,8 @@ class NikahImportService
             || ($row['group_id'] !== '' && $row['group_id'] === $row['its']);
         $attributes = [];
 
-        foreach ($fieldMap as $field => $column) {
-            $raw = $this->columnValue($columns, $column);
+        foreach ($fieldMap as $field => $mappedColumns) {
+            [$raw] = $this->firstColumnValue($columns, $mappedColumns);
             if ($field === 'name') {
                 $attributes['name'] = $raw !== '' ? $raw : null;
             } elseif ($field === 'age') {
@@ -713,7 +713,7 @@ class NikahImportService
     /**
      * @param  list<array<string, mixed>>  $rows
      * @param  array<string, true>  $skipSet
-     * @param  array<string, string>  $fieldMap
+     * @param  array<string, list<string>>  $fieldMap
      * @return list<array{its: string, name: string, phone: string, is_hof: bool}>
      */
     private function sheetIdentity(array $rows, array $skipSet, string $hofRole, array $fieldMap): array
@@ -728,7 +728,7 @@ class NikahImportService
                 || ($row['group_id'] !== '' && $row['group_id'] === $row['its']);
             $name = (string) $row['name'];
             if (isset($fieldMap['name'])) {
-                $mapped = $this->columnValue($row['columns'] ?? [], $fieldMap['name']);
+                [$mapped] = $this->firstColumnValue($row['columns'] ?? [], $fieldMap['name']);
                 if ($mapped !== '') {
                     $name = $mapped;
                 }
@@ -818,7 +818,7 @@ class NikahImportService
      * @param  array<string, string>|null  $requested  Sheet column to census field. Null uses the defaults.
      * @param  array<string, string>  $headerMap
      * @param  list<string>  $headers
-     * @return array{map: array<string, string>, columns: list<array{name: string, field: string}>, errors: list<string>}
+     * @return array{map: array<string, list<string>>, columns: list<array{name: string, field: string}>, errors: list<string>}
      */
     private function censusMapping(?array $requested, array $headerMap, array $headers): array
     {
@@ -829,11 +829,10 @@ class NikahImportService
             foreach (self::DEFAULT_CENSUS_COLUMNS as $field => $column) {
                 $actual = $headerMap[mb_strtolower($column)] ?? null;
                 if ($actual !== null) {
-                    $fieldMap[$field] = $actual;
+                    $fieldMap[$field] = [$actual];
                 }
             }
         } else {
-            $used = [];
             foreach ($requested as $column => $field) {
                 $field = trim((string) $field);
                 $column = trim((string) $column);
@@ -849,18 +848,15 @@ class NikahImportService
                     $errors[] = "Column \"{$column}\" is not in this sheet.";
                     continue;
                 }
-                if (isset($used[$field])) {
-                    $errors[] = "Census field {$field} is mapped more than once.";
-                    continue;
-                }
-                $used[$field] = $actual;
-                $fieldMap[$field] = $actual;
+                $fieldMap[$field][] = $actual;
             }
         }
 
         $columnToField = [];
-        foreach ($fieldMap as $field => $column) {
-            $columnToField[$column] = $field;
+        foreach ($fieldMap as $field => $mappedColumns) {
+            foreach ($mappedColumns as $column) {
+                $columnToField[$column] = $field;
+            }
         }
         $columns = [];
         foreach ($headers as $header) {
@@ -885,6 +881,24 @@ class NikahImportService
             'columns' => $columns,
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $columns
+     * @param  list<string>  $mappedColumns
+     * @return array{0: string, 1: string}
+     */
+    private function firstColumnValue(array $columns, array $mappedColumns): array
+    {
+        $fallback = $mappedColumns[0] ?? '';
+        foreach ($mappedColumns as $column) {
+            $raw = $this->columnValue($columns, $column);
+            if ($raw !== '') {
+                return [$raw, $column];
+            }
+        }
+
+        return ['', $fallback];
     }
 
     /**
