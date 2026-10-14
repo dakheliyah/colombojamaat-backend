@@ -456,6 +456,64 @@ class NikahImportTest extends TestCase
             ->assertJsonPath('data.roles.1.position_id', $deedar);
     }
 
+    public function test_misaq_updates_a_sharaf_already_headed_by_the_group(): void
+    {
+        $definitionId = $this->seedDefinition('2026-10-16', 'Misaq Morning');
+        $inchargePosition = (int) DB::table('sharaf_positions')->where('sharaf_definition_id', $definitionId)->where('name', 'Dulha')->value('id');
+        $memberPosition = (int) DB::table('sharaf_positions')->where('sharaf_definition_id', $definitionId)->where('name', 'Extra Member')->value('id');
+        $now = now();
+        $sharafId = DB::table('sharafs')->insertGetId([
+            'sharaf_definition_id' => $definitionId,
+            'rank' => 1,
+            'name' => 'Burhanuddin bhai',
+            'capacity' => 1,
+            'status' => 'confirmed',
+            'hof_its' => '30151039',
+            'token' => '14481548',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('sharaf_members')->insert([
+            'sharaf_id' => $sharafId,
+            'sharaf_position_id' => $inchargePosition,
+            'its_id' => '30151039',
+            'name' => 'Burhanuddin bhai',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $rows = [
+            ['16 Oct 2026 - Morning', '30151039', '30151039', 'Burhanuddin bhai', '+94770000000', '30', 'M', 'COLOMBO', 'Far East'],
+            ['16 Oct 2026 - Morning', '30151039', '30362164', 'Khuzaima bhai', '+94770000000', '55', 'M', 'COLOMBO', 'Far East'],
+        ];
+        $roleMap = json_encode([
+            'Group incharge' => $inchargePosition,
+            'Member' => $memberPosition,
+        ]);
+
+        $this->post('/api/nikah-import/preview', [
+            'sharaf_definition_id' => $definitionId,
+            'module' => 'misaq',
+            'role_map' => $roleMap,
+            'file' => $this->misaqWorkbook($rows),
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.parties.0.errors', [])
+            ->assertJsonPath('data.parties.0.action', 'update')
+            ->assertJsonPath('data.can_apply_sharafs', true);
+
+        $this->post('/api/nikah-import/sharafs', [
+            'sharaf_definition_id' => $definitionId,
+            'module' => 'misaq',
+            'role_map' => $roleMap,
+            'file' => $this->misaqWorkbook($rows),
+        ], ['Accept' => 'application/json'])->assertCreated();
+
+        $this->assertSame(1, DB::table('sharafs')->count());
+        $this->assertSame('30151039', DB::table('sharafs')->where('id', $sharafId)->value('token'));
+        $this->assertSame('30151039', DB::table('sharafs')->where('id', $sharafId)->value('hof_its'));
+        $this->assertSame($memberPosition, (int) DB::table('sharaf_members')->where('its_id', '30362164')->value('sharaf_position_id'));
+    }
+
     public function test_misaq_sheet_groups_by_incharge_and_maps_members(): void
     {
         $definitionId = $this->seedDefinition('2026-10-16', 'Nikah Morning');

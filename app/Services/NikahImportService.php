@@ -364,12 +364,18 @@ class NikahImportService
             ->all();
         $foreignLookup = array_fill_keys($foreignTokens, true);
 
-        $existing = Sharaf::query()
+        $onDefinition = Sharaf::query()
             ->where('sharaf_definition_id', $definition->id)
-            ->whereNotNull('token')
             ->with(['sharafMembers.sharafPosition'])
-            ->get()
+            ->get();
+        $existing = $onDefinition
+            ->filter(fn (Sharaf $sharaf) => $sharaf->token !== null && (string) $sharaf->token !== '')
             ->keyBy(fn (Sharaf $sharaf) => (string) $sharaf->token);
+        $existingByHead = $module === 'misaq'
+            ? $onDefinition
+                ->filter(fn (Sharaf $sharaf) => $sharaf->hof_its !== null && (string) $sharaf->hof_its !== '')
+                ->keyBy(fn (Sharaf $sharaf) => (string) $sharaf->hof_its)
+            : collect();
 
         if (Schema::hasTable('sharaf_clearances')) {
             $existing->load('sharafClearances');
@@ -392,6 +398,12 @@ class NikahImportService
                 }
             }
             $sharaf = $existing->get($token);
+            if ($sharaf === null && $module === 'misaq') {
+                $sharaf = $existingByHead->get($token);
+                if ($sharaf !== null) {
+                    $existingByHead->forget($token);
+                }
+            }
             if ($active === []) {
                 $hof = $this->headPerson($people, (string) $positionPlan['hof_role']);
                 $parties[] = [
@@ -1729,6 +1741,11 @@ class NikahImportService
         $sharaf = $party['sharaf'];
         $token = (string) $party['token'];
         $applied = false;
+        if ((string) $sharaf->token !== $token) {
+            $sharaf->token = $token;
+            $sharaf->save();
+            $applied = true;
+        }
         $skippedRemoval = false;
         $skippedHof = false;
         $sawBlocked = false;
