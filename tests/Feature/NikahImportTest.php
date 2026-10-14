@@ -342,6 +342,21 @@ class NikahImportTest extends TestCase
         ], ['Accept' => 'application/json'])->assertOk()->assertJsonPath('data.created', 1);
     }
 
+    public function test_session_word_in_the_event_name_is_not_required(): void
+    {
+        $definitionId = $this->seedDefinition('2026-10-16', 'Jummah Afternoon Bethak');
+
+        $this->post('/api/nikah-import/preview', [
+            'sharaf_definition_id' => $definitionId,
+            'file' => $this->workbook([
+                $this->person('480652', '30359451', 'Taha bhai', 'Dulha', '+94766466484', '23', 'M'),
+            ]),
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.definition_errors', [])
+            ->assertJsonPath('data.can_apply_sharafs', true);
+    }
+
     public function test_role_map_places_people_and_preview_lists_them(): void
     {
         $definitionId = $this->seedDefinition('2026-10-16', 'Nikah Morning');

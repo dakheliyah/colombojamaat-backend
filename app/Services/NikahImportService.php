@@ -1172,7 +1172,7 @@ class NikahImportService
     }
 
     /**
-     * A date that differs from the event is a warning. An unreadable date, a missing event date, or a session that is not in the event name still blocks sharaf apply.
+     * A date that differs from the event is a warning. An unreadable date or a missing event date still blocks sharaf apply.
      *
      * @return array{error: ?string, warning: ?string}
      */
@@ -1193,21 +1193,15 @@ class NikahImportService
             return ['error' => 'The selected event has no date.', 'warning' => null];
         }
 
-        $warning = null;
         $eventDate = $event->date->toDateString();
         if ($parsed !== $eventDate) {
-            $warning = "Bethak date {$parsed} does not match the event date {$eventDate}.";
-        }
-
-        $session = trim($match[4]);
-        if (!str_contains(mb_strtolower((string) $event->name), mb_strtolower($session))) {
             return [
-                'error' => "Bethak session \"{$session}\" is not part of the event name \"{$event->name}\".",
-                'warning' => $warning,
+                'error' => null,
+                'warning' => "Bethak date {$parsed} does not match the event date {$eventDate}.",
             ];
         }
 
-        return ['error' => null, 'warning' => $warning];
+        return ['error' => null, 'warning' => null];
     }
 
     /**
