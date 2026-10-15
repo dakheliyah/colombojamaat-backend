@@ -144,6 +144,68 @@ class ReportController extends Controller
     }
 
     /**
+     * POST: Check which ITS numbers from a pasted list are allocated to a sharaf
+     * for a miqaat (includes on_vms). Body: miqaat_id (optional), its_numbers (array or CSV string).
+     */
+    public function rally(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'miqaat_id' => ['nullable', 'integer', 'min:1'],
+            'its_numbers' => ['required'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $raw = $request->input('its_numbers');
+        if (is_string($raw)) {
+            $itsNumbers = preg_split('/[\n,]+/', $raw) ?: [];
+        } elseif (is_array($raw)) {
+            $itsNumbers = $raw;
+        } else {
+            return $this->jsonError('VALIDATION_ERROR', 'its_numbers must be an array or string.', 422);
+        }
+
+        $itsNumbers = array_values(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            $itsNumbers
+        ), static fn ($value) => $value !== ''));
+
+        if ($itsNumbers === []) {
+            return $this->jsonError('VALIDATION_ERROR', 'Enter at least one ITS number.', 422);
+        }
+
+        if (count($itsNumbers) > 5000) {
+            return $this->jsonError('VALIDATION_ERROR', 'Maximum 5000 ITS numbers per request.', 422);
+        }
+
+        $miqaatId = $request->filled('miqaat_id')
+            ? (int) $request->input('miqaat_id')
+            : \App\Models\Miqaat::getActiveId();
+
+        if ($miqaatId === null) {
+            return $this->jsonError('VALIDATION_ERROR', 'No active miqaat. Pass miqaat_id.', 422);
+        }
+
+        if (! \App\Models\Miqaat::query()->whereKey($miqaatId)->exists()) {
+            return $this->jsonError('NOT_FOUND', 'Miqaat not found.', 404);
+        }
+
+        try {
+            return $this->jsonSuccessWithData(
+                $this->reportingService->rallyReport($miqaatId, $itsNumbers)
+            );
+        } catch (\Exception $e) {
+            return $this->jsonError('SERVER_ERROR', 'Failed to generate report: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * GET: Get available fields for an entity type.
      */
     public function fields(Request $request, string $entity_type): JsonResponse
