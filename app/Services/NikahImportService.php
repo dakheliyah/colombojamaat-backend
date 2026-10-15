@@ -66,6 +66,9 @@ class NikahImportService
         'Member' => 0,
     ];
 
+    /** Sheet roles that stay on the row and are not given a sharaf position. */
+    private const UNMAPPED_ROLES = ['Wakil'];
+
     /** @var list<string> */
     private const STRUCTURAL_HEADERS = ['Token', 'Bethak_Date', 'Group_ID', 'Mumin_ID', 'Mumin_Type'];
 
@@ -346,7 +349,11 @@ class NikahImportService
 
         $roleCounts = [];
         foreach ($rows as $row) {
-            $roleCounts[(string) $row['role']] = ($roleCounts[(string) $row['role']] ?? 0) + 1;
+            $role = (string) $row['role'];
+            if ($this->isUnmappedRole($role)) {
+                continue;
+            }
+            $roleCounts[$role] = ($roleCounts[$role] ?? 0) + 1;
         }
         $positionPlan = $this->positionPlan($definition, $roleMap, $roleCounts, $module);
         $definitionErrors = array_merge($definitionErrors, $positionPlan['errors']);
@@ -1361,6 +1368,17 @@ class NikahImportService
         return ['error' => null, 'warning' => null];
     }
 
+    private function isUnmappedRole(string $role): bool
+    {
+        foreach (self::UNMAPPED_ROLES as $ignored) {
+            if (strcasecmp(trim($role), $ignored) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function misaqPositionByOrder(SharafDefinition $definition, string $role): ?SharafPosition
     {
         $positions = $definition->sharafPositions;
@@ -1401,6 +1419,9 @@ class NikahImportService
         $groupId = $people[0]['group_id'] ?? '';
         foreach ($people as $person) {
             $role = (string) $person['role'];
+            if ($this->isUnmappedRole($role)) {
+                continue;
+            }
             $position = $positions[$role] ?? null;
             if ($position === null && !$explicit && !isset(self::ROLES[$role]) && !isset(self::MISAQ_ROLES[$role])) {
                 $errors[] = "Row {$person['line']}: unknown role \"{$role}\".";

@@ -412,6 +412,35 @@ class NikahImportTest extends TestCase
         $this->assertSame($guestId, (int) DB::table('sharaf_members')->where('its_id', '60474915')->value('sharaf_position_id'));
     }
 
+    public function test_wakil_is_left_off_the_role_map_and_is_not_seated(): void
+    {
+        $definitionId = $this->seedDefinition('2026-10-16', 'Nikah Morning');
+        $rows = [
+            $this->person('480652', '30359451', 'Taha bhai', 'Dulha', '+94766466484', '23', 'M'),
+            $this->person('480652', '40454323', 'Wakil Person', 'Wakil', '+94770000000', '40', 'M', '30359451'),
+        ];
+
+        $preview = $this->post('/api/nikah-import/preview', [
+            'sharaf_definition_id' => $definitionId,
+            'file' => $this->workbook($rows),
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.can_apply_sharafs', true)
+            ->assertJsonPath('data.definition_errors', [])
+            ->assertJsonPath('data.parties.0.errors', []);
+
+        $roleNames = collect($preview->json('data.roles'))->pluck('name')->all();
+        $this->assertNotContains('Wakil', $roleNames);
+
+        $this->post('/api/nikah-import/sharafs', [
+            'sharaf_definition_id' => $definitionId,
+            'file' => $this->workbook($rows),
+        ], ['Accept' => 'application/json'])->assertCreated();
+
+        $this->assertSame(1, DB::table('sharaf_members')->count());
+        $this->assertNull(DB::table('sharaf_members')->where('its_id', '40454323')->first());
+    }
+
     public function test_misaq_uses_order_when_position_names_differ(): void
     {
         $definitionId = $this->seedDefinition('2026-10-16', 'Misaq Morning');
