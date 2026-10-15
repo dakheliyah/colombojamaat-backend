@@ -105,6 +105,45 @@ class ReportController extends Controller
     }
 
     /**
+     * GET: ITS numbers used on a miqaat with no matching census row.
+     * Query params: miqaat_id (optional, defaults to active).
+     */
+    public function miqaatNoData(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'miqaat_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $miqaatId = $request->filled('miqaat_id')
+            ? (int) $request->input('miqaat_id')
+            : \App\Models\Miqaat::getActiveId();
+
+        if ($miqaatId === null) {
+            return $this->jsonError('VALIDATION_ERROR', 'No active miqaat. Pass miqaat_id.', 422);
+        }
+
+        if (! \App\Models\Miqaat::query()->whereKey($miqaatId)->exists()) {
+            return $this->jsonError('NOT_FOUND', 'Miqaat not found.', 404);
+        }
+
+        try {
+            return $this->jsonSuccessWithData(
+                $this->reportingService->miqaatItsWithoutCensus($miqaatId)
+            );
+        } catch (\Exception $e) {
+            return $this->jsonError('SERVER_ERROR', 'Failed to generate report: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * GET: Get available fields for an entity type.
      */
     public function fields(Request $request, string $entity_type): JsonResponse

@@ -11,7 +11,10 @@ use App\Models\SharafMember;
 use App\Models\SharafPayment;
 use App\Models\Wajebaat;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportingService
@@ -749,5 +752,127 @@ class ReportingService
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * ITS numbers used on a miqaat that have no matching census row.
+     *
+     * @return array{miqaat_id: int, count: int, its_numbers: list<string>, rows: list<array{its_id: string, sources: list<string>}>}
+     */
+    public function miqaatItsWithoutCensus(int $miqaatId): array
+    {
+        $parts = array_values(array_filter([
+            $this->sharafScopedIts($miqaatId, 'sharaf_members.its_id', 'sharaf_member', true),
+            $this->sharafScopedIts($miqaatId, 'sharafs.hof_its', 'sharaf_hof', false),
+            Schema::hasTable('wajebaat')
+                ? $this->plainIts('wajebaat', 'its_id', 'wajebaat', $miqaatId)
+                : null,
+            Schema::hasTable('wajebaat_groups')
+                ? $this->plainIts('wajebaat_groups', 'its_id', 'wajebaat_group', $miqaatId)
+                : null,
+            Schema::hasTable('wajebaat_groups')
+                ? $this->plainIts('wajebaat_groups', 'master_its', 'wajebaat_group_master', $miqaatId)
+                : null,
+            Schema::hasTable('miqaat_checks') && Schema::hasTable('miqaat_check_definitions')
+                ? DB::table('miqaat_checks')
+                    ->join('miqaat_check_definitions', 'miqaat_check_definitions.mcd_id', '=', 'miqaat_checks.mcd_id')
+                    ->where('miqaat_check_definitions.miqaat_id', $miqaatId)
+                    ->whereNotNull('miqaat_checks.its_id')
+                    ->selectRaw("miqaat_checks.its_id as its_id, 'miqaat_check' as source")
+                : null,
+            Schema::hasTable('sila_fitra_calculations')
+                ? $this->plainIts('sila_fitra_calculations', 'hof_its', 'sila_fitra', $miqaatId)
+                : null,
+        ]));
+
+        if ($parts === []) {
+            return [
+                'miqaat_id' => $miqaatId,
+                'count' => 0,
+                'its_numbers' => [],
+                'rows' => [],
+            ];
+        }
+
+        $union = array_shift($parts);
+        foreach ($parts as $part) {
+            $union = $union->unionAll($part);
+        }
+
+        $found = DB::query()
+            ->fromSub($union, 'src')
+            ->whereRaw("TRIM(src.its_id) <> ''")
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('census')
+                    ->whereColumn('census.its_id', 'src.its_id');
+            })
+            ->select('src.its_id', 'src.source')
+            ->orderBy('src.its_id')
+            ->get();
+
+        $grouped = [];
+        foreach ($found as $row) {
+            $its = trim((string) $row->its_id);
+            if ($its === '') {
+                continue;
+            }
+            // Numeric strings are cast to int when used as array keys, so keep the original string on the value.
+            if (! isset($grouped[$its])) {
+                $grouped[$its] = ['its_id' => $its, 'sources' => []];
+            }
+            $grouped[$its]['sources'][(string) $row->source] = true;
+        }
+
+        $rows = [];
+        foreach ($grouped as $bucket) {
+            $sourceList = array_keys($bucket['sources']);
+            sort($sourceList);
+            $rows[] = [
+                'its_id' => $bucket['its_id'],
+                'sources' => $sourceList,
+            ];
+        }
+
+        usort($rows, fn (array $a, array $b) => strcmp($a['its_id'], $b['its_id']));
+
+        return [
+            'miqaat_id' => $miqaatId,
+            'count' => count($rows),
+            'its_numbers' => array_column($rows, 'its_id'),
+            'rows' => $rows,
+        ];
+    }
+
+    private function sharafScopedIts(int $miqaatId, string $column, string $source, bool $fromMembers): ?QueryBuilder
+    {
+        if (! Schema::hasTable('sharafs') || ! Schema::hasTable('sharaf_definitions') || ! Schema::hasTable('events')) {
+            return null;
+        }
+        if ($fromMembers && ! Schema::hasTable('sharaf_members')) {
+            return null;
+        }
+
+        $query = DB::table('sharafs')
+            ->join('sharaf_definitions', 'sharaf_definitions.id', '=', 'sharafs.sharaf_definition_id')
+            ->join('events', 'events.id', '=', 'sharaf_definitions.event_id')
+            ->where('events.miqaat_id', $miqaatId)
+            ->where('sharafs.status', '!=', 'cancelled')
+            ->whereNotNull($column)
+            ->selectRaw("{$column} as its_id, '{$source}' as source");
+
+        if ($fromMembers) {
+            $query->join('sharaf_members', 'sharaf_members.sharaf_id', '=', 'sharafs.id');
+        }
+
+        return $query;
+    }
+
+    private function plainIts(string $table, string $column, string $source, int $miqaatId): QueryBuilder
+    {
+        return DB::table($table)
+            ->where('miqaat_id', $miqaatId)
+            ->whereNotNull($column)
+            ->selectRaw("{$column} as its_id, '{$source}' as source");
     }
 }
