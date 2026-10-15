@@ -145,7 +145,7 @@ class ReportController extends Controller
 
     /**
      * POST: Check which ITS numbers from a pasted list are allocated to a sharaf
-     * for a miqaat. Body: miqaat_id (optional), its_numbers (array or CSV string).
+     * for a miqaat (includes on_vms). Body: miqaat_id (optional), its_numbers (array or CSV string).
      */
     public function rally(Request $request): JsonResponse
     {
