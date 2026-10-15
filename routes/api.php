@@ -251,6 +251,7 @@ Route::delete('/miqaats/{miqaat_id}/wajebaat-groups/{wg_id}', [WajebaatControlle
 Route::get('/reports/entities', [ReportController::class, 'entities']);
 Route::get('/reports/census-without-sharaf', [ReportController::class, 'censusWithoutSharaf']);
 Route::get('/reports/miqaat-no-data', [ReportController::class, 'miqaatNoData']);
+Route::post('/reports/rally', [ReportController::class, 'rally']);
 Route::get('/reports/{entity_type}', [ReportController::class, 'index']);
 Route::get('/reports/{entity_type}/fields', [ReportController::class, 'fields']);
 Route::get('/reports/{entity_type}/filters', [ReportController::class, 'filters']);

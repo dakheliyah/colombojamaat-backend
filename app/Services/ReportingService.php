@@ -844,6 +844,130 @@ class ReportingService
         ];
     }
 
+    /**
+     * Given a list of ITS numbers, return which are allocated to a non-cancelled
+     * sharaf for the miqaat, and which are not.
+     *
+     * @param  list<string>  $itsNumbers
+     * @return array{
+     *   miqaat_id: int,
+     *   submitted_count: int,
+     *   allocated_count: int,
+     *   unallocated_count: int,
+     *   allocated: list<array{
+     *     its_id: string,
+     *     name: string|null,
+     *     phone: string|null,
+     *     sharaf_id: int,
+     *     sharaf_rank: int|null,
+     *     sharaf_status: string|null,
+     *     sharaf_definition_id: int|null,
+     *     sharaf_definition_name: string|null,
+     *     sharaf_position_name: string|null,
+     *     event_id: int|null,
+     *     event_name: string|null,
+     *     hof_its: string|null
+     *   }>,
+     *   unallocated: list<string>
+     * }
+     */
+    public function rallyReport(int $miqaatId, array $itsNumbers): array
+    {
+        $normalized = [];
+        foreach ($itsNumbers as $raw) {
+            $its = trim((string) $raw);
+            if ($its === '') {
+                continue;
+            }
+            $normalized[$its] = $its;
+        }
+        $itsList = array_values($normalized);
+
+        if ($itsList === []) {
+            return [
+                'miqaat_id' => $miqaatId,
+                'submitted_count' => 0,
+                'allocated_count' => 0,
+                'unallocated_count' => 0,
+                'allocated' => [],
+                'unallocated' => [],
+            ];
+        }
+
+        $rows = DB::table('sharaf_members')
+            ->join('sharafs', 'sharafs.id', '=', 'sharaf_members.sharaf_id')
+            ->join('sharaf_definitions', 'sharaf_definitions.id', '=', 'sharafs.sharaf_definition_id')
+            ->join('events', 'events.id', '=', 'sharaf_definitions.event_id')
+            ->leftJoin('sharaf_positions', 'sharaf_positions.id', '=', 'sharaf_members.sharaf_position_id')
+            ->where('events.miqaat_id', $miqaatId)
+            ->where('sharafs.status', '!=', 'cancelled')
+            ->whereIn('sharaf_members.its_id', $itsList)
+            ->orderBy('sharaf_members.its_id')
+            ->orderBy('sharaf_definitions.name')
+            ->orderBy('sharafs.rank')
+            ->select([
+                'sharaf_members.its_id',
+                'sharaf_members.name',
+                'sharaf_members.phone',
+                'sharafs.id as sharaf_id',
+                'sharafs.rank as sharaf_rank',
+                'sharafs.status as sharaf_status',
+                'sharafs.hof_its',
+                'sharaf_definitions.id as sharaf_definition_id',
+                'sharaf_definitions.name as sharaf_definition_name',
+                'sharaf_positions.display_name as sharaf_position_display_name',
+                'sharaf_positions.name as sharaf_position_name',
+                'events.id as event_id',
+                'events.name as event_name',
+            ])
+            ->get();
+
+        $allocatedIts = [];
+        $allocated = [];
+        foreach ($rows as $row) {
+            $its = trim((string) $row->its_id);
+            if ($its === '') {
+                continue;
+            }
+            $allocatedIts[$its] = true;
+            $allocated[] = [
+                'its_id' => $its,
+                'name' => $row->name !== null && $row->name !== '' ? (string) $row->name : null,
+                'phone' => $row->phone !== null && $row->phone !== '' ? (string) $row->phone : null,
+                'sharaf_id' => (int) $row->sharaf_id,
+                'sharaf_rank' => $row->sharaf_rank !== null ? (int) $row->sharaf_rank : null,
+                'sharaf_status' => $row->sharaf_status !== null ? (string) $row->sharaf_status : null,
+                'sharaf_definition_id' => $row->sharaf_definition_id !== null
+                    ? (int) $row->sharaf_definition_id
+                    : null,
+                'sharaf_definition_name' => $row->sharaf_definition_name !== null
+                    ? (string) $row->sharaf_definition_name
+                    : null,
+                'sharaf_position_name' => $row->sharaf_position_display_name
+                    ?: ($row->sharaf_position_name !== null ? (string) $row->sharaf_position_name : null),
+                'event_id' => $row->event_id !== null ? (int) $row->event_id : null,
+                'event_name' => $row->event_name !== null ? (string) $row->event_name : null,
+                'hof_its' => $row->hof_its !== null && $row->hof_its !== '' ? (string) $row->hof_its : null,
+            ];
+        }
+
+        $unallocated = [];
+        foreach ($itsList as $its) {
+            if (! isset($allocatedIts[$its])) {
+                $unallocated[] = $its;
+            }
+        }
+
+        return [
+            'miqaat_id' => $miqaatId,
+            'submitted_count' => count($itsList),
+            'allocated_count' => count($allocatedIts),
+            'unallocated_count' => count($unallocated),
+            'allocated' => $allocated,
+            'unallocated' => $unallocated,
+        ];
+    }
+
     private function sharafScopedIts(int $miqaatId, string $column, string $source, bool $fromMembers): ?QueryBuilder
     {
         if (! Schema::hasTable('sharafs') || ! Schema::hasTable('sharaf_definitions') || ! Schema::hasTable('events')) {
