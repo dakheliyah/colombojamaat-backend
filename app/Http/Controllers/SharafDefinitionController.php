@@ -538,6 +538,18 @@ class SharafDefinitionController extends Controller
             );
         }
 
+        if ($request->exists('event_id') && (int) $request->input('event_id') !== (int) $sharafDefinition->event_id) {
+            $currentMiqaatId = Event::whereKey($sharafDefinition->event_id)->value('miqaat_id');
+            $newMiqaatId = Event::whereKey($request->input('event_id'))->value('miqaat_id');
+            if ($currentMiqaatId === null || (int) $currentMiqaatId !== (int) $newMiqaatId) {
+                return $this->jsonError(
+                    'VALIDATION_ERROR',
+                    'A sharaf definition can only be moved to an event in the same miqaat.',
+                    422
+                );
+            }
+        }
+
         $sharafDefinition->update($request->only(['event_id', 'sharaf_type_id', 'name', 'key', 'default_capacity', 'description']));
 
         return $this->jsonSuccessWithData($sharafDefinition->fresh(['event', 'sharafType']));
