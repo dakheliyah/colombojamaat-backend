@@ -180,7 +180,7 @@ class SharafDefinitionMappingController extends Controller
 
         try {
             $this->mappingService->deleteMapping((int) $id);
-            return $this->jsonSuccess(['message' => 'Mapping deleted successfully.']);
+            return $this->jsonSuccess();
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->jsonError('NOT_FOUND', 'Mapping not found.', 404);
         } catch (\Exception $e) {
@@ -246,7 +246,7 @@ class SharafDefinitionMappingController extends Controller
 
         try {
             $this->mappingService->removePositionMapping((int) $positionMappingId);
-            return $this->jsonSuccess(['message' => 'Position mapping deleted successfully.']);
+            return $this->jsonSuccess();
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->jsonError('NOT_FOUND', 'Position mapping not found.', 404);
         } catch (\Exception $e) {
@@ -312,7 +312,7 @@ class SharafDefinitionMappingController extends Controller
 
         try {
             $this->mappingService->removePaymentDefinitionMapping((int) $paymentMappingId);
-            return $this->jsonSuccess(['message' => 'Payment definition mapping deleted successfully.']);
+            return $this->jsonSuccess();
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->jsonError('NOT_FOUND', 'Payment definition mapping not found.', 404);
         } catch (\Exception $e) {
@@ -378,7 +378,7 @@ class SharafDefinitionMappingController extends Controller
 
         try {
             $this->mappingService->removeCheckDefinitionMapping((int) $checkMappingId);
-            return $this->jsonSuccess(['message' => 'Check definition mapping deleted successfully.']);
+            return $this->jsonSuccess();
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->jsonError('NOT_FOUND', 'Check definition mapping not found.', 404);
         } catch (\Exception $e) {
