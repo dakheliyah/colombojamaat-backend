@@ -27,6 +27,7 @@ class TanzeemOverviewTest extends TestCase
         Schema::dropIfExists('users');
         Schema::dropIfExists('user_roles');
         Schema::dropIfExists('sharaf_members');
+        Schema::dropIfExists('sharaf_positions');
         Schema::dropIfExists('sharafs');
         Schema::dropIfExists('sharaf_definitions');
         Schema::dropIfExists('sharaf_types');
@@ -117,9 +118,19 @@ class TanzeemOverviewTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('sharaf_positions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('sharaf_definition_id');
+            $table->string('name');
+            $table->string('display_name')->nullable();
+            $table->integer('order')->default(0);
+            $table->timestamps();
+        });
+
         Schema::create('sharaf_members', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('sharaf_id');
+            $table->unsignedBigInteger('sharaf_position_id')->nullable();
             $table->string('its_id');
             $table->string('name')->nullable();
             $table->boolean('on_vms')->default(false);

@@ -27,3 +27,4 @@ Thumbs.db
 # Off-server backup private key and decrypted restores (never commit)
 /.backup-keys/
 /restore/
+colombojamaat-api_*.sql.gz
