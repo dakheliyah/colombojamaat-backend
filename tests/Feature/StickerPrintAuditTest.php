@@ -98,7 +98,10 @@ class StickerPrintAuditTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_each_print_click_is_logged_and_counted(): void
+    /**
+     * @return array{miqaat_id: int, sharaf_id: int}
+     */
+    private function seedSharafWithTwoMembers(): array
     {
         $miqaatId = DB::table('miqaats')->insertGetId(['name' => 'Ashara']);
         $eventId = DB::table('events')->insertGetId(['miqaat_id' => $miqaatId]);
@@ -119,16 +122,31 @@ class StickerPrintAuditTest extends TestCase
         ]);
         DB::table('census')->insert(['its_id' => '20324305', 'name' => 'Shaikh']);
 
-        $first = $this->withCredentials()
+        return ['miqaat_id' => $miqaatId, 'sharaf_id' => $sharafId];
+    }
+
+    private function authPost(string $uri, array $data = [])
+    {
+        return $this->withCredentials()
             ->withUnencryptedCookie('user', '20324305')
-            ->postJson("/api/sharafs/{$sharafId}/sticker-prints");
+            ->postJson($uri, $data);
+    }
+
+    public function test_each_print_click_is_logged_with_member_its(): void
+    {
+        ['miqaat_id' => $miqaatId, 'sharaf_id' => $sharafId] = $this->seedSharafWithTwoMembers();
+
+        $first = $this->authPost("/api/sharafs/{$sharafId}/sticker-prints", [
+            'member_its' => ['20324305', '20324306'],
+        ]);
         $first->assertOk()
             ->assertJsonPath('data.print_count', 1)
-            ->assertJsonPath('data.sticker_count', 2);
+            ->assertJsonPath('data.sticker_count', 2)
+            ->assertJsonPath('data.member_its', ['20324305', '20324306']);
 
-        $second = $this->withCredentials()
-            ->withUnencryptedCookie('user', '20324305')
-            ->postJson("/api/sharafs/{$sharafId}/sticker-prints");
+        $second = $this->authPost("/api/sharafs/{$sharafId}/sticker-prints", [
+            'member_its' => ['20324305'],
+        ]);
         $second->assertOk()->assertJsonPath('data.print_count', 2);
 
         $this->assertDatabaseHas('audit_logs', [
@@ -139,16 +157,114 @@ class StickerPrintAuditTest extends TestCase
             'actor_name' => 'Shaikh',
         ]);
 
-        $this->getJson("/api/sharafs/sticker-print-counts?miqaat_id={$miqaatId}")
+        $counts = $this->getJson("/api/sharafs/sticker-print-counts?miqaat_id={$miqaatId}")
             ->assertOk()
-            ->assertJsonPath('data.counts.0.sharaf_id', $sharafId)
-            ->assertJsonPath('data.counts.0.print_count', 2);
+            ->json('data');
+
+        $byIts = collect($counts['counts'])->keyBy('its');
+        $this->assertSame(2, $byIts['20324305']['print_count']);
+        $this->assertSame(1, $byIts['20324306']['print_count']);
+        $this->assertSame($sharafId, $counts['sharaf_runs'][0]['sharaf_id']);
+        $this->assertSame(2, $counts['sharaf_runs'][0]['print_count']);
 
         $this->getJson("/api/sharafs/{$sharafId}/audit-logs?action=sticker_printed")
             ->assertOk()
             ->assertJsonPath('data.pagination.total', 2)
             ->assertJsonPath('data.data.0.actor_its', '20324305');
 
-        $this->postJson('/api/sharafs/999/sticker-prints')->assertNotFound();
+        $this->authPost('/api/sharafs/999/sticker-prints', [
+            'member_its' => ['20324305'],
+        ])->assertNotFound();
+    }
+
+    public function test_subset_print_only_counts_listed_members(): void
+    {
+        ['miqaat_id' => $miqaatId, 'sharaf_id' => $sharafId] = $this->seedSharafWithTwoMembers();
+
+        $this->authPost("/api/sharafs/{$sharafId}/sticker-prints", [
+            'member_its' => ['20324305'],
+        ])->assertOk();
+
+        $counts = $this->getJson("/api/sharafs/sticker-print-counts?miqaat_id={$miqaatId}")
+            ->assertOk()
+            ->json('data.counts');
+
+        $this->assertCount(1, $counts);
+        $this->assertSame('20324305', $counts[0]['its']);
+        $this->assertSame(1, $counts[0]['print_count']);
+    }
+
+    public function test_legacy_rows_credit_all_current_members_with_full_run_count(): void
+    {
+        ['miqaat_id' => $miqaatId, 'sharaf_id' => $sharafId] = $this->seedSharafWithTwoMembers();
+
+        for ($i = 0; $i < 3; $i++) {
+            DB::table('audit_logs')->insert([
+                'entity' => 'sharaf',
+                'auditable_id' => $sharafId,
+                'action' => 'sticker_printed',
+                'actor_its' => '20324305',
+                'actor_name' => 'Shaikh',
+                'summary' => 'Printed 2 stickers for sharaf #'.$sharafId,
+                'metadata' => json_encode(['sticker_count' => 2]),
+                'created_at' => now(),
+            ]);
+        }
+
+        $counts = $this->getJson("/api/sharafs/sticker-print-counts?miqaat_id={$miqaatId}")
+            ->assertOk()
+            ->json('data');
+
+        $byIts = collect($counts['counts'])->keyBy('its');
+        $this->assertSame(3, $byIts['20324305']['print_count']);
+        $this->assertSame(3, $byIts['20324306']['print_count']);
+        $this->assertSame(3, $counts['sharaf_runs'][0]['print_count']);
+    }
+
+    public function test_mix_legacy_and_member_aware_counts(): void
+    {
+        ['miqaat_id' => $miqaatId, 'sharaf_id' => $sharafId] = $this->seedSharafWithTwoMembers();
+
+        for ($i = 0; $i < 2; $i++) {
+            DB::table('audit_logs')->insert([
+                'entity' => 'sharaf',
+                'auditable_id' => $sharafId,
+                'action' => 'sticker_printed',
+                'actor_its' => '20324305',
+                'actor_name' => 'Shaikh',
+                'summary' => 'Printed 2 stickers for sharaf #'.$sharafId,
+                'metadata' => json_encode(['sticker_count' => 2]),
+                'created_at' => now(),
+            ]);
+        }
+
+        $this->authPost("/api/sharafs/{$sharafId}/sticker-prints", [
+            'member_its' => ['20324305'],
+        ])->assertOk();
+
+        $counts = $this->getJson("/api/sharafs/sticker-print-counts?miqaat_id={$miqaatId}")
+            ->assertOk()
+            ->json('data');
+
+        $byIts = collect($counts['counts'])->keyBy('its');
+        $this->assertSame(3, $byIts['20324305']['print_count']);
+        $this->assertSame(2, $byIts['20324306']['print_count']);
+        $this->assertSame(3, $counts['sharaf_runs'][0]['print_count']);
+    }
+
+    public function test_rejects_empty_and_unknown_member_its(): void
+    {
+        ['sharaf_id' => $sharafId] = $this->seedSharafWithTwoMembers();
+
+        $this->authPost("/api/sharafs/{$sharafId}/sticker-prints", [])
+            ->assertStatus(422);
+
+        $this->authPost("/api/sharafs/{$sharafId}/sticker-prints", [
+            'member_its' => [],
+        ])->assertStatus(422);
+
+        $this->authPost("/api/sharafs/{$sharafId}/sticker-prints", [
+            'member_its' => ['99999999'],
+        ])->assertStatus(422);
     }
 }

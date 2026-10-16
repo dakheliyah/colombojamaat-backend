@@ -44,7 +44,9 @@ class AuditLogController extends Controller
 
     /**
      * GET /api/sharafs/sticker-print-counts?miqaat_id=
-     * Print counts for sharafs in a miqaat. Only sharafs that have been printed are returned.
+     * Per-member print counts for sharafs in a miqaat.
+     * Legacy rows (no metadata.member_its) credit all current members with the full legacy run count.
+     * Also returns sharaf_runs (total print-dialog clicks per sharaf).
      */
     public function stickerPrintCounts(Request $request): JsonResponse
     {
@@ -60,35 +62,157 @@ class AuditLogController extends Controller
             );
         }
 
-        $rows = AuditLog::query()
-            ->select('auditable_id')
-            ->selectRaw('COUNT(*) as print_count')
+        $sharafIds = Sharaf::query()
+            ->forMiqaat((int) $request->input('miqaat_id'))
+            ->pluck('sharafs.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($sharafIds === []) {
+            return $this->jsonSuccessWithData([
+                'counts' => [],
+                'sharaf_runs' => [],
+            ]);
+        }
+
+        $logs = AuditLog::query()
             ->where('entity', 'sharaf')
             ->where('action', AuditLogService::ACTION_STICKER_PRINTED)
-            ->whereIn('auditable_id', Sharaf::query()->forMiqaat((int) $request->input('miqaat_id'))->select('sharafs.id'))
-            ->groupBy('auditable_id')
-            ->get();
+            ->whereIn('auditable_id', $sharafIds)
+            ->get(['auditable_id', 'metadata']);
+
+        $legacyCountBySharaf = [];
+        $memberAwareItsBySharaf = [];
+        $runsBySharaf = [];
+
+        foreach ($logs as $log) {
+            $sharafId = (int) $log->auditable_id;
+            $runsBySharaf[$sharafId] = ($runsBySharaf[$sharafId] ?? 0) + 1;
+
+            $memberIts = $this->memberItsFromMetadata($log->metadata);
+            if ($memberIts === null) {
+                $legacyCountBySharaf[$sharafId] = ($legacyCountBySharaf[$sharafId] ?? 0) + 1;
+                continue;
+            }
+
+            if (! isset($memberAwareItsBySharaf[$sharafId])) {
+                $memberAwareItsBySharaf[$sharafId] = [];
+            }
+            foreach ($memberIts as $its) {
+                $memberAwareItsBySharaf[$sharafId][$its] = ($memberAwareItsBySharaf[$sharafId][$its] ?? 0) + 1;
+            }
+        }
+
+        $relevantSharafIds = array_values(array_unique(array_merge(
+            array_keys($legacyCountBySharaf),
+            array_keys($memberAwareItsBySharaf),
+        )));
+
+        $membersBySharaf = [];
+        if ($relevantSharafIds !== []) {
+            $memberRows = SharafMember::query()
+                ->whereIn('sharaf_id', $relevantSharafIds)
+                ->get(['sharaf_id', 'its_id']);
+            foreach ($memberRows as $member) {
+                $sid = (int) $member->sharaf_id;
+                $its = trim((string) $member->its_id);
+                if ($its === '') {
+                    continue;
+                }
+                $membersBySharaf[$sid][] = $its;
+            }
+        }
+
+        $counts = [];
+        foreach ($relevantSharafIds as $sharafId) {
+            $legacy = $legacyCountBySharaf[$sharafId] ?? 0;
+            $aware = $memberAwareItsBySharaf[$sharafId] ?? [];
+            $currentMembers = $membersBySharaf[$sharafId] ?? [];
+            $itsKeys = array_unique(array_merge($currentMembers, array_keys($aware)));
+
+            foreach ($itsKeys as $its) {
+                // Legacy credits only current members; member-aware credits listed ITS.
+                $isCurrent = in_array($its, $currentMembers, true);
+                $printCount = ($isCurrent ? $legacy : 0) + (int) ($aware[$its] ?? 0);
+                if ($printCount <= 0) {
+                    continue;
+                }
+                $counts[] = [
+                    'sharaf_id' => $sharafId,
+                    'its' => $its,
+                    'print_count' => $printCount,
+                ];
+            }
+        }
+
+        $sharafRuns = [];
+        foreach ($runsBySharaf as $sharafId => $printCount) {
+            $sharafRuns[] = [
+                'sharaf_id' => (int) $sharafId,
+                'print_count' => (int) $printCount,
+            ];
+        }
 
         return $this->jsonSuccessWithData([
-            'counts' => $rows->map(fn ($row) => [
-                'sharaf_id' => (int) $row->auditable_id,
-                'print_count' => (int) $row->print_count,
-            ])->values(),
+            'counts' => $counts,
+            'sharaf_runs' => $sharafRuns,
         ]);
     }
 
     /**
      * POST /api/sharafs/{sharaf_id}/sticker-prints
-     * One row per print-dialog click. The count is how many of those rows exist.
+     * One row per print-dialog click. Body must list the member ITS stickers printed.
      */
-    public function recordStickerPrint(string $sharaf_id): JsonResponse
+    public function recordStickerPrint(Request $request, string $sharaf_id): JsonResponse
     {
         $sharaf = Sharaf::find((int) $sharaf_id);
         if (! $sharaf) {
             return $this->jsonError('NOT_FOUND', 'Sharaf not found.', 404);
         }
 
-        $stickerCount = $sharaf->sharafMembers()->count();
+        $validator = Validator::make($request->all(), [
+            'member_its' => ['required', 'array', 'min:1'],
+            'member_its.*' => ['required', 'string', 'max:32'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                $validator->errors()->first() ?? 'Validation failed.',
+                422
+            );
+        }
+
+        $requested = collect($request->input('member_its', []))
+            ->map(fn ($its) => trim((string) $its))
+            ->filter(fn ($its) => $its !== '')
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($requested->isEmpty()) {
+            return $this->jsonError('VALIDATION_ERROR', 'member_its must contain at least one ITS.', 422);
+        }
+
+        $memberItsIds = $sharaf->sharafMembers()
+            ->pluck('its_id')
+            ->map(fn ($its) => trim((string) $its))
+            ->filter(fn ($its) => $its !== '')
+            ->unique()
+            ->values();
+
+        $memberSet = $memberItsIds->all();
+        $unknown = $requested->filter(fn ($its) => ! in_array($its, $memberSet, true))->values();
+        if ($unknown->isNotEmpty()) {
+            return $this->jsonError(
+                'VALIDATION_ERROR',
+                'Unknown member ITS for this sharaf: '.$unknown->implode(', '),
+                422
+            );
+        }
+
+        $memberIts = $requested->all();
+        $stickerCount = count($memberIts);
         $before = $this->stickerPrintCount($sharaf->id);
         $label = $stickerCount === 1 ? '1 sticker' : "{$stickerCount} stickers";
 
@@ -98,7 +222,10 @@ class AuditLogController extends Controller
             null,
             null,
             "Printed {$label} for sharaf #{$sharaf->id}",
-            ['sticker_count' => $stickerCount],
+            [
+                'sticker_count' => $stickerCount,
+                'member_its' => $memberIts,
+            ],
         );
 
         $printCount = $this->stickerPrintCount($sharaf->id);
@@ -110,6 +237,7 @@ class AuditLogController extends Controller
             'sharaf_id' => $sharaf->id,
             'print_count' => $printCount,
             'sticker_count' => $stickerCount,
+            'member_its' => $memberIts,
         ]);
     }
 
@@ -120,6 +248,39 @@ class AuditLogController extends Controller
             ->where('auditable_id', $sharafId)
             ->where('action', AuditLogService::ACTION_STICKER_PRINTED)
             ->count();
+    }
+
+    /**
+     * @param  mixed  $metadata
+     * @return list<string>|null  null = legacy row (no member_its)
+     */
+    private function memberItsFromMetadata(mixed $metadata): ?array
+    {
+        if (! is_array($metadata) || ! array_key_exists('member_its', $metadata)) {
+            return null;
+        }
+
+        $raw = $metadata['member_its'];
+        if (! is_array($raw) || $raw === []) {
+            return null;
+        }
+
+        $itsList = [];
+        foreach ($raw as $its) {
+            $trimmed = trim((string) $its);
+            if ($trimmed !== '') {
+                $itsList[] = $trimmed;
+            }
+        }
+
+        if ($itsList === []) {
+            return null;
+        }
+
+        $itsList = array_values(array_unique($itsList));
+        sort($itsList);
+
+        return $itsList;
     }
 
     /**
