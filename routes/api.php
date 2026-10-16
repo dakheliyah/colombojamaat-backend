@@ -25,6 +25,7 @@ use App\Http\Controllers\SharafPositionController;
 use App\Http\Controllers\SharafDefinitionMappingController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SharafTypeController;
+use App\Http\Controllers\FmbOverviewController;
 use App\Http\Controllers\TanzeemOverviewController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WajebaatController;
@@ -79,6 +80,8 @@ Route::delete('/miqaats/{id}', [MiqaatController::class, 'destroy']);
 Route::get('/miqaats/{miqaat_id}/events', [EventController::class, 'byMiqaatId']);
 Route::get('/miqaats/{miqaat_id}/sharaf-report-summary-cross-events', [EventController::class, 'sharafReportSummaryCrossEvents']);
 Route::get('/miqaats/{miqaat_id}/tanzeem-overview', [TanzeemOverviewController::class, 'show'])
+    ->middleware('user.from.cookie');
+Route::get('/miqaats/{miqaat_id}/fmb-overview', [FmbOverviewController::class, 'show'])
     ->middleware('user.from.cookie');
 Route::get('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'index']);
 Route::put('/miqaats/{miqaat_id}/miqaat-checks', [MiqaatCheckController::class, 'upsert']);
